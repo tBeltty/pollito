@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Pollito</title>
+  <meta name="description" content="Privacy Policy for Pollito. Explaining our cryptographic double-urn ballot architecture, zero plain-text retention, and strict data rights.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/png" href="assets/plates/pollito-nav-logo.png">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar container">
+    <nav class="nav-shell">
+      <a href="/" class="brand-link">
+        <span class="brand-icon">
+          <img src="assets/plates/pollito-nav-logo.png" alt="Pollito Mascot" width="28" height="28">
+        </span>
+        <span>Pollito</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="/" class="nav-link">Home</a></li>
+        <li><a href="/#features" class="nav-link">Features</a></li>
+        <li><a href="/#pricing" class="nav-link">Pricing</a></li>
+        <li><a href="support.html" class="nav-link">Support</a></li>
+      </ul>
+
+      <a href="https://slack.com/oauth/v2/authorize" class="btn btn-slack">
+        <img src="assets/icons/slack.svg" alt="Slack" width="18" height="18" class="slack-logo-icon">
+        <span>Add to Slack</span>
+      </a>
+    </nav>
+  </header>
+
+  <!-- Legal Content -->
+  <main class="container legal-container">
+    <article class="legal-article">
+      <header class="legal-header">
+        <span class="legal-kicker">Security & Compliance</span>
+        <h1 class="legal-title">Privacy Policy</h1>
+        <p class="legal-meta">Effective date: October 17, 2026 • Last updated: October 17, 2026</p>
+      </header>
+
+      <section class="legal-section">
+        <h2>1. Overview and Core Philosophy</h2>
+        <p>
+          Pollito ("we", "our", or "us"), provided by TBelt Online, builds team consensus tools inside Slack. Our architecture starts from a strict principle: we only collect data necessary to tally votes, calculate quorums, and remind participants who asked for nudges.
+        </p>
+        <p>
+          We do not sell user data, train generative AI models on workspace messages, or store raw ballot identities in anonymous polls.
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h2>2. Cryptographic Double-Urn Anonymity</h2>
+        <p>
+          When you mark a poll as <strong>Anonymous</strong>, Pollito uses a dual-table cryptographic isolation model to guarantee secret ballots:
+        </p>
+        <ul>
+          <li>
+            <strong>Participation Table:</strong> We store your Slack User ID linked to the Poll ID solely to prevent double-voting and identify non-voters for gentle nudges. This table contains zero choice data.
+          </li>
+          <li>
+            <strong>Ballot Urn Table:</strong> Your vote choice is recorded alongside a one-way pseudorandom token: <code>HMAC_SHA256(SlackUserID + PollSecret, WorkspaceSalt)</code>.
+          </li>
+        </ul>
+        <p>
+          Even database administrators and workspace managers inspecting production records cannot connect a specific voter to their chosen ballot option.
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h2>3. Data We Collect</h2>
+        <p>When you install and use Pollito, we process the following categories of information:</p>
+        <ul>
+          <li>
+            <strong>Slack Workspace Identity:</strong> Team ID, workspace name, installation timestamp, and encrypted bot access tokens.
+          </li>
+          <li>
+            <strong>Poll Metadata:</strong> Question text, option titles, target quorum percentages, creator Slack ID, channel ID, and message timestamps.
+          </li>
+          <li>
+            <strong>Public Ballots:</strong> For non-anonymous polls, your Slack User ID and selected option ID to display voter avatar stacks to teammates.
+          </li>
+          <li>
+            <strong>Operational Metrics:</strong> Timestamps of vote submissions and reminder delivery receipts to maintain rate-limiting queues within Slack API quotas.
+          </li>
+        </ul>
+      </section>
+
+      <section class="legal-section">
+        <h2>4. Data Storage and Retention</h2>
+        <p>
+          All data is stored in isolated SQLite instances operating in Write-Ahead Logging (WAL) mode on private dedicated servers located in secure North American data centers.
+        </p>
+        <p>
+          When an organization uninstalls Pollito from Slack, we receive the <code>app_uninstalled</code> webhook. Within 30 days of receiving this event, all associated workspace records, poll questions, and participation logs are permanently purged from active systems.
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h2>5. Your Rights (GDPR & CCPA)</h2>
+        <p>Regardless of your geographic location, you retain full rights over your workspace data:</p>
+        <ul>
+          <li><strong>Right to Access:</strong> Workspace admins can request a complete JSON export of all non-anonymous historical polls and workspace settings.</li>
+          <li><strong>Right to Deletion:</strong> You may request immediate manual deletion of specific polls or your complete workspace history.</li>
+          <li><strong>Right to Rectification:</strong> You can edit active poll titles and options prior to reaching quorum directly inside Slack.</li>
+        </ul>
+      </section>
+
+      <section class="legal-section">
+        <h2>6. Security Measures</h2>
+        <p>
+          We protect data in transit using TLS 1.3 encryption and verify every incoming Slack request using cryptographic signing secrets (HMAC-SHA256 signatures on <code>X-Slack-Signature</code>). We do not store plaintext bot tokens; credentials are encrypted at rest using AES-256-GCM.
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h2>7. Contact Us</h2>
+        <p>
+          If you have questions about our privacy practices, double-urn implementation, or wish to exercise data rights, reach our data protection team directly at:
+        </p>
+        <p>
+          <strong>Email:</strong> <a href="mailto:privacy@tbelt.online" class="legal-link">privacy@tbelt.online</a><br>
+          <strong>Entity:</strong> TBelt Online — Pollito Operations
+        </p>
+      </section>
+    </article>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <img src="assets/plates/pollito-nav-logo.png" alt="Pollito" width="24" height="24">
+        <span>Pollito by TBelt</span>
+      </div>
+      <ul class="footer-links">
+        <li><a href="privacy.html" class="active">Privacy</a></li>
+        <li><a href="terms.html">Terms</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+      <p class="footer-copy">© 2026 TBelt Online. All rights reserved.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
