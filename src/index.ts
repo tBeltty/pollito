@@ -8,17 +8,40 @@ import { registerEventHandlers } from './slack/handlers/events.js';
 
 const isSocketMode = Boolean(env.SLACK_APP_TOKEN && env.NODE_ENV === 'development');
 
+const customRoutes = [
+  {
+    path: '/healthz',
+    method: ['GET', 'HEAD'],
+    handler: (_req: any, res: any) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      if (_req.method === 'HEAD') {
+        res.end();
+        return;
+      }
+      res.end(
+        JSON.stringify({
+          status: 'ok',
+          app: 'pollito',
+          timestamp: new Date().toISOString(),
+        })
+      );
+    },
+  },
+];
+
 export const app = new App(
   isSocketMode
     ? {
         token: env.SLACK_BOT_TOKEN,
         appToken: env.SLACK_APP_TOKEN,
         socketMode: true,
+        customRoutes,
       }
     : {
         token: env.SLACK_BOT_TOKEN,
         signingSecret: env.SLACK_SIGNING_SECRET,
         port: env.PORT,
+        customRoutes,
       }
 );
 
