@@ -33,7 +33,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm approve-builds --all && pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client & Sync SQLite
         run: |
