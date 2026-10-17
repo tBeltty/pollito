@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 3,
+  "stage": "components",
+  "id": "components",
+  "title": "Plan and asset review · public/index.html",
+  "comp": {
+    "path": ".impeccable/mocks/decision/vector-kawaii-linear.png",
+    "width": 1376,
+    "height": 768
+  },
+  "specSha256": "3a3382c7230541c20e729d6d7b0ebd3428f1b2e98bee35544ce57fda9ab851b9",
+  "components": [
+    {
+      "id": "mascot-pollito-stage",
+      "name": "Mascot pollito stage",
+      "kind": "plate",
+      "role": "asset",
+      "box": {
+        "x": 0.4142,
+        "y": 0.2344,
+        "w": 0.4724,
+        "h": 0.651
+      },
+      "note": "Pollito modern vector mascot hatching from egg with spectacles beside floating interactive Slack poll card",
+      "medium": "raster",
+      "preview": {
+        "kind": "image",
+        "path": "assets/plates/mascot-pollito-stage.png"
+      },
+      "dependencies": []
+    },
+    {
+      "id": "nav-chrome",
+      "name": "Nav chrome",
+      "kind": "chrome",
+      "role": "plan",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 0.1
+      },
+      "note": "Top navigation bar with Pollito mark, links and Add to Slack CTA",
+      "medium": "code",
+      "preview": {
+        "kind": "comp-crop"
+      },
+      "codeDrawn": false,
+      "dependencies": []
+    }
+  ],
+  "codeRegions": [
+    {
+      "id": "hero-headline",
+      "name": "Hero headline",
+      "kind": "text",
+      "box": {
+        "x": 0,
+        "y": 0.1,
+        "w": 0.5,
+        "h": 0.3
+      },
+      "note": "Decisions made together. Without leaving Slack."
+    },
+    {
+      "id": "hero-subcopy",
+      "name": "Hero subcopy",
+      "kind": "text",
+      "box": {
+        "x": 0,
+        "y": 0.4,
+        "w": 0.5,
+        "h": 0.2
+      },
+      "note": "Native Slack polls with live quorum detection, anonymous ballots, and smart nudges."
+    },
+    {
+      "id": "hero-cta",
+      "name": "Hero cta",
+      "kind": "control",
+      "box": {
+        "x": 0.1613,
+        "y": 0.6003,
+        "w": 0.2384,
+        "h": 0.0703
+      },
+      "note": "Add to Slack button and flat $15/mo pledge badge"
+    },
+    {
+      "id": "features-grid",
+      "name": "Features grid",
+      "kind": "text",
+      "box": {
+        "x": 0,
+        "y": 0.7,
+        "w": 1,
+        "h": 0.3
+      },
+      "note": "Bottom feature highlights and quorum telemetry readouts"
+    }
+  ]
+}

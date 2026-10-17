@@ -1,0 +1,40 @@
+{
+  "name": "pollito",
+  "version": "0.1.0",
+  "description": "Native Slack polling with live quorum auto-closing, double-urn secret ballots, and App Home analytics.",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
+  },
+  "keywords": [
+    "slack",
+    "bolt",
+    "polls",
+    "consensus",
+    "quorum",
+    "secret-ballot"
+  ],
+  "author": "TBelt Online",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@prisma/client": "^6.4.0",
+    "@slack/bolt": "^4.2.1",
+    "@slack/web-api": "^7.8.0",
+    "dotenv": "^16.4.7",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "prisma": "^6.4.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}

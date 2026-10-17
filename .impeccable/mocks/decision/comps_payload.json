@@ -1,0 +1,72 @@
+{
+  "options": [
+    {
+      "id": "comp-1-linear",
+      "label": "Opción 1: Modernist Vector Studio (Foco en Héroe y Cascarón)",
+      "kicker": "OPCIÓN 1",
+      "thesis": "Pollito saliendo del cascarón con gafas inspeccionando una encuesta flotante en un fondo slate oscuro.",
+      "palette": [
+        "#0F172A",
+        "#FFFFFF",
+        "#FBBF24",
+        "#6366F1"
+      ],
+      "materials": [
+        "dark slate grid",
+        "geometric chick illustration",
+        "floating Slack message card"
+      ],
+      "viewport": "Titular nítido 'Decisions made together. Without leaving Slack.', pollito en cascarón a la derecha y tarjeta interactiva.",
+      "risk": "Foco muy centrado en un único mensaje de Slack en lugar de mostrar todo el ecosistema de App Home.",
+      "hero": ".impeccable/mocks/decision/vector-kawaii-linear.png",
+      "comp": ".impeccable/mocks/decision/vector-kawaii-linear.png"
+    },
+    {
+      "id": "comp-2-command",
+      "label": "Opción 2: The Command Stage (Foco en 'El Nido' y Dial de Quórum)",
+      "kicker": "OPCIÓN 2",
+      "thesis": "La consola central de Slack App Home 'El Nido' con dial de quórum circular al 85% y Pollito como vigía.",
+      "palette": [
+        "#0F172A",
+        "#10B981",
+        "#F59E0B",
+        "#3B82F6"
+      ],
+      "materials": [
+        "circular gauge meter",
+        "tactile cards",
+        "telemetry dashboard"
+      ],
+      "viewport": "Titular 'Every team decision. Tracked, agreed, closed.' con el centro de control analítico como elemento dominante.",
+      "risk": "Mayor densidad de datos en el primer impacto visual.",
+      "hero": ".impeccable/mocks/comp-2.png",
+      "comp": ".impeccable/mocks/comp-2.png"
+    },
+    {
+      "id": "comp-3-expressions",
+      "label": "Opción 3: Reactive Micro-Expressions & Secret Ballot",
+      "kicker": "OPCIÓN 3",
+      "thesis": "Exhibición de los 3 estados reactivos del pollito (🐣 cascarón, 🧐 lupa, 🎉 celebración) y sello de voto secreto.",
+      "palette": [
+        "#0F172A",
+        "#FCD34D",
+        "#10B981",
+        "#EC4899"
+      ],
+      "materials": [
+        "triple state cards",
+        "confetti & laurels",
+        "double-urn badge"
+      ],
+      "viewport": "Titular 'Decisions without noise. 100% inside Slack.' con tres tarjetas mostrando la progresión del voto.",
+      "risk": "Distribuye la atención en tres tarjetas simultáneas en el hero.",
+      "hero": ".impeccable/mocks/comp-3.png",
+      "comp": ".impeccable/mocks/comp-3.png"
+    }
+  ],
+  "buildPath": {
+    "value": "comp",
+    "toggle": false
+  },
+  "steer": false
+}

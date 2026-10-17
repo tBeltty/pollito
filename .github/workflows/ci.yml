@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: "file:./ci.db"
+      APP_SECRET_SALT: "ci-cryptographic-salt-for-testing-purposes-123456"
+      SLACK_SIGNING_SECRET: "dummy_ci_secret"
+      SLACK_BOT_TOKEN: "xoxb-dummy-ci-token"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm approve-builds --all && pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client & Sync SQLite
+        run: |
+          pnpm db:generate
+          pnpm db:push
+
+      - name: Run Test Suite (Vitest & Anti-Slop Linter)
+        run: pnpm test
+
+      - name: Typecheck and Build TypeScript
+        run: pnpm build

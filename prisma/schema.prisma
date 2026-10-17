@@ -1,0 +1,115 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Workspace {
+  id          String             @id // Slack Team ID (e.g. T01234567)
+  teamName    String
+  botToken    String             // AES-256 encrypted bot access token
+  installedAt DateTime           @default(now())
+  isActive    Boolean            @default(true)
+  settings    WorkspaceSettings?
+  polls       Poll[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceSettings {
+  id                     String    @id @default(cuid())
+  workspaceId            String    @unique
+  workspace              Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  defaultAnonymous       Boolean   @default(false)
+  defaultQuorumPct       Int       @default(70)
+  allowVoterChoiceNudges Boolean   @default(true)
+  anonymousSalt          String    // Cryptographic salt for voter pseudonymization
+
+  @@map("workspace_settings")
+}
+
+model Poll {
+  id                 String              @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channelId          String
+  messageTs          String
+  creatorId          String              // Slack User ID who launched the poll
+  question           String
+  isAnonymous        Boolean             @default(false)
+  quorumType         String              @default("PERCENTAGE") // PERCENTAGE | COUNT | NONE
+  quorumTarget       Int                 @default(70)
+  eligibleVoterCount Int                 @default(0)            // Member count in channel when poll launched
+  status             String              @default("ACTIVE")     // ACTIVE | QUORUM_REACHED | CLOSED
+  createdAt          DateTime            @default(now())
+  closedAt           DateTime?
+  options            PollOption[]
+  publicVotes        PublicVote[]
+  anonymousBallots   AnonymousBallot[]
+  participations     PollParticipation[]
+  nudgeLogs          NudgeLog[]
+
+  @@map("polls")
+}
+
+model PollOption {
+  id          String       @id @default(cuid())
+  pollId      String
+  poll        Poll         @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  index       Int
+  text        String
+  voteCount   Int          @default(0)
+  publicVotes PublicVote[]
+
+  @@map("poll_options")
+}
+
+model PublicVote {
+  id        String     @id @default(cuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  voterId   String     // Slack User ID
+  createdAt DateTime   @default(now())
+
+  @@unique([pollId, voterId, optionId])
+  @@map("public_votes")
+}
+
+model AnonymousBallot {
+  id         String   @id @default(cuid())
+  pollId     String
+  poll       Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  voterToken String   // HMAC_SHA256(voterId + pollId, workspaceSalt)
+  optionId   String
+  createdAt  DateTime @default(now())
+
+  @@unique([pollId, voterToken, optionId])
+  @@map("anonymous_ballots")
+}
+
+model PollParticipation {
+  id        String   @id @default(cuid())
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  voterId   String   // Slack User ID
+  hasVoted  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([pollId, voterId])
+  @@map("poll_participations")
+}
+
+model NudgeLog {
+  id          String   @id @default(cuid())
+  pollId      String
+  poll        Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  recipientId String   // Slack User ID of the reminded teammate
+  sentAt      DateTime @default(now())
+
+  @@map("nudge_logs")
+}
