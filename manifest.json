@@ -1,8 +1,8 @@
 {
   "display_information": {
     "name": "Pollito",
-    "description": "Fast team consensus inside Slack with automatic quorum closing and secret ballots",
-    "long_description": "Pollito is a Slack-native polling and team decision app designed to close debates fast without thread clutter.\n\nKey Capabilities:\n• Automatic Quorum Closing: Set percentage or count-based quorum targets. Polls close and announce results the second quorum is satisfied.\n• Double-Urn Secret Ballots: Cryptographically unlinkable voting where voter participation is tracked without linking identities to ballot choices.\n• Real-Time Visual Progress: Clean block character meters directly inside Slack channel messages.\n• App Home Dashboard: Full workspace decision dispatch board to monitor active and past polls.\n• 100% Free: Unlimited polls, responses, and members with zero fees.",
+    "description": "Quick polls in Slack with automatic closing, anonymous voting, and zero fees",
+    "long_description": "Pollito helps teams make fast decisions in Slack without messy threads or eternal discussions.\n\nKey features:\n• Automatic closing: Set a vote target (like 75% of the channel) or a time limit. The poll closes and posts the results the moment enough people vote.\n• Anonymous voting: Teammates can vote honestly without pressure. Nobody can see who picked what, not even channel admins.\n• Private reminders: Ping only teammates who have not voted yet, without tagging the entire channel.\n• In-channel results: See live vote counts and progress bars directly inside the message.\n• 100% free: Unlimited polls, votes, and team members with zero fees.",
     "background_color": "#0f172a"
   },
   "features": {

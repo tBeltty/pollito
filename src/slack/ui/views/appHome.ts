@@ -112,7 +112,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
         elements: [
           {
             type: 'mrkdwn',
-            text: '🔒 Double-urn cryptographic ballot protection • 100% Free for your workspace • Zero fees',
+            text: '🔒 Anonymous voting enabled • 100% Free for your workspace',
           },
         ],
       },
