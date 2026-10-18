@@ -1,9 +1,9 @@
 {
   "display_information": {
     "name": "Pollito",
-    "description": "Quick public or anonymous polls in Slack with automatic closing and zero fees",
-    "long_description": "Pollito helps teams make fast decisions in Slack without messy threads or eternal discussions.\n\nKey features:\n• Public or anonymous polls: Run open polls where votes are visible to the team, or switch on anonymous voting so teammates can share honest input without social pressure.\n• Automatic closing: Set a vote target (like 75% of the channel) or a time limit. The poll closes and posts the results the moment enough people vote.\n• Private reminders: Ping only teammates who have not voted yet, without tagging the entire channel.\n• In-channel results: See live vote counts and progress bars directly inside the message.\n• 100% free: Unlimited polls, votes, and team members with zero fees.",
-    "background_color": "#0f172a"
+    "description": "Team polls with automatic closing, live progress bars, and zero fees",
+    "long_description": "Pollito is a native Slack app for team polls and fast consensus without messy message threads.\n\nKey Capabilities:\n• Public or Anonymous Ballots: Create open polls with visible votes, or switch on anonymous voting so teammates can participate honestly without social pressure.\n• Automatic Closing: Set a quorum target (such as 70% of channel members) or a deadline timer. The poll closes and announces the final result the moment consensus is reached.\n• Live In-Channel Meters: Real-time vote counts and monospace progress bars updated directly in the message card.\n• Channel Flexibility: Launch instant polls from any channel with /pollito or schedule them from the App Home.\n• Zero Cost: Unlimited polls, votes, and team members with no subscriptions.",
+    "background_color": "#1a1d21"
   },
   "features": {
     "app_home": {
@@ -19,7 +19,7 @@
       {
         "command": "/pollito",
         "url": "https://pollito.tbelt.online/slack/events",
-        "description": "Create a quick team poll with automatic closing",
+        "description": "Create a team poll with automatic closing",
         "usage_hint": "[create | help]",
         "should_escape": false
       }
