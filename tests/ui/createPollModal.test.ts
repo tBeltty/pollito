@@ -31,13 +31,13 @@ describe('Modal & App Home Views', () => {
   it('buildAppHomeView renders clean anti-slop header and button labels', () => {
     const home = buildAppHomeView([]);
     const headerBlock = home.blocks.find((b: any) => b.type === 'header') as any;
-    expect(headerBlock.text.text).toBe('🐣 Pollito');
+    expect(headerBlock.text.text).toBe('Pollito');
     expect(headerBlock.text.text).not.toContain('Workspace Dashboard');
 
     const actionBlock = home.blocks.find((b: any) => b.type === 'actions') as any;
     const launchBtn = actionBlock.elements.find(
       (e: any) => e.action_id === 'app_home_launch_poll_click'
     );
-    expect(launchBtn.text.text).toBe('➕ New Poll');
+    expect(launchBtn.text.text).toBe('New Poll');
   });
 });

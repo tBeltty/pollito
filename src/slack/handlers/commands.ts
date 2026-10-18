@@ -24,7 +24,7 @@ export function registerCommandHandlers(app: App) {
       await client.chat.postEphemeral({
         channel: command.channel_id,
         user: command.user_id,
-        text: '🐣 *Pollito Quick Help*\n\n• `/pollito` — Opens modal builder.\n• `/pollito "Question" "Option 1" "Option 2"` — Creates an instant poll.\n• Visit App Home to view analytics and recent results.',
+        text: '*Pollito Quick Help*\n\n• `/pollito` — Opens modal builder.\n• `/pollito "Question" "Option 1" "Option 2"` — Creates an instant poll.\n• Visit App Home to view recent results.',
       });
       return;
     }
@@ -59,14 +59,14 @@ export function registerCommandHandlers(app: App) {
       try {
         placeholder = await client.chat.postMessage({
           channel: command.channel_id,
-          text: `🐣 Creating poll: ${question}...`,
+          text: `Creating poll: ${question}...`,
         });
       } catch (error: any) {
         if (error?.data?.error === 'not_in_channel') {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: '⚠️ Pollito needs to be invited to this channel first. Type `/invite @Pollito` and run `/pollito` again.',
+            text: 'Pollito needs to be invited to this channel first. Type `/invite @Pollito` and run `/pollito` again.',
           });
           return;
         }

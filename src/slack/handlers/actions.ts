@@ -46,8 +46,8 @@ export function registerActionHandlers(app: App) {
 
       // Ephemeral confirmation
       const noticeText = result.poll.isAnonymous
-        ? '🔒 Your anonymous vote has been recorded.'
-        : '✅ Your vote has been recorded!';
+        ? 'Your anonymous vote has been recorded.'
+        : 'Your vote has been recorded.';
 
       await client.chat.postEphemeral({
         channel: channelId,
@@ -62,7 +62,7 @@ export function registerActionHandlers(app: App) {
         await client.chat.postEphemeral({
           channel: blockAction.channel.id,
           user: blockAction.user.id,
-          text: `⚠️ ${errorMessage}`,
+          text: errorMessage,
         });
       }
     }
