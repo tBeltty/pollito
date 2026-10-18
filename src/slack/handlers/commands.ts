@@ -24,7 +24,7 @@ export function registerCommandHandlers(app: App) {
       await client.chat.postEphemeral({
         channel: command.channel_id,
         user: command.user_id,
-        text: '🐣 *Pollito Quick Help*\n\n• `/pollito` — Opens modal builder.\n• `/pollito "Question" "Option 1" "Option 2"` — Creates an instant poll.\n• Visit App Home (*El Nido*) to view analytics and recent results.',
+        text: '🐣 *Pollito Quick Help*\n\n• `/pollito` — Opens modal builder.\n• `/pollito "Question" "Option 1" "Option 2"` — Creates an instant poll.\n• Visit App Home to view analytics and recent results.',
       });
       return;
     }
