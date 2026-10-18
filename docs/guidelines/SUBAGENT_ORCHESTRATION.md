@@ -1,18 +1,19 @@
 # Subagent Orchestration, Session Isolation & Model Governance
 
-This document defines the operational protocol for orchestrating specialist subagents (`slack_buddy`, `wordsmith`, `research`) in Pollito under the **Auditor/Executor Protocol** (`auditkit`).
+This document defines the operational protocol for orchestrating specialist subagents (`slack_buddy`, `wordsmith`, `vps_guardian`, `research`) in Pollito under the **Auditor/Executor Protocol** (`auditkit`).
 
 ---
 
 ## 1. Role Separation & Task Division
 
-All multi-phase work and critical boundaries (cryptography, OAuth 2.0, Bolt transport, Block Kit rendering, database migrations, and public copy) follow strict role separation:
+All multi-phase work and critical boundaries (cryptography, OAuth 2.0, Bolt transport, Block Kit rendering, database migrations, VPS infrastructure, and public copy) follow strict role separation:
 
 | Role | Agent Identity | Responsibilities | Forbidden Actions |
 | :--- | :--- | :--- | :--- |
 | **Auditor (Orchestrator)** | Primary Agent | • Decompose scope into numbered tasks (`P<N>-T<M>`) and negative-control gates (`P<N>-G<M>`) in `audit/execution-guide.md`.<br>• Spawn isolated Executor subagents.<br>• Independently re-run verification commands and `auditkit negcontrol` mutations.<br>• Sign off `APPROVED` verdicts in `audit/compliance-log.md`. | • Writing feature code directly during an audited phase.<br>• Trusting an Executor's report without re-running tests and negative controls. |
 | **Technical Executor** | `slack_buddy` | • Implement exactly one assigned task (`P<N>-T<M>`) at a time across `src/`, `prisma/`, `scripts/`, and `tests/`.<br>• Run `pnpm test && pnpm build` and log literal output in `audit/compliance-log.md`. | • Batching multiple tasks in one run.<br>• Re-reading closed phase files outside the task's target file list. |
 | **Editorial & Release Executor** | `wordsmith` | • Audit and polish user-facing prose (`public/*.html`, `PRODUCT.md`, `OPERATIONS.md`, `CHANGELOG.md`, Slack Block Kit microcopy).<br>• Enforce `no-ai-slop`, `copy-editing`, and Keep a Changelog 1.1.0 standards.<br>• Draft release notes and Conventional Commits. | • Introducing binary contrasts (*"not X, but Y"*), colon reveals, em-dashes in UI labels, or voseo in Spanish docs. |
+| **Infrastructure & SRE Executor** | `vps_guardian` | • Supervise `mi-vps` processes (`pm2 status`, `pm2 logs --nostream`, `pm2 restart <app> --update-env`).<br>• Validate Nginx configs (`nginx -t`) and reload without downtime.<br>• Audit file permissions (`chmod 600` on `.env`) under the Blind-Secret protocol.<br>• Verify SQLite WAL durability, atomic zero-lock backups (`sqlite3 .backup`), `/healthz`, and self-hosted GitHub Actions runners. | • Printing or reading plaintext secret values from `.env` into chat logs.<br>• Running destructive server operations without rollback safety. |
 | **Read-Only Explorer** | `research` | • Broad codebase or external documentation surveys when context isolation is needed. | • Modifying files or running state-mutating commands. |
 
 ---

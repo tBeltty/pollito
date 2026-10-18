@@ -66,6 +66,8 @@ Guía canónica: **[`docs/guidelines/SUBAGENT_ORCHESTRATION.md`](file:///Users/j
 * **Agente Principal (`Auditor`)**: Diseña el plan verificable (`audit/plan-of-record.md` y `audit/execution-guide.md`), despacha subagentes efímeros por tarea, ejecuta independientemente la suite de pruebas y los controles negativos (`auditkit negcontrol`) y firma los veredictos en `audit/compliance-log.md`.
 * **`slack_buddy` (`Technical Executor`)**: Implementa una única tarea técnica a la vez (arquitectura Bolt, vistas Block Kit puras, criptografía HKDF/AES-256-GCM, OAuth 2.0, Prisma y suites de Vitest).
 * **`wordsmith` (`Editorial & Release Executor`)**: Audita y pule la prosa de cara al usuario (`public/*.html`, `PRODUCT.md`, `OPERATIONS.md`, `CHANGELOG.md`), aplica las reglas `no-ai-slop` y Keep a Changelog 1.1.0, y redacta notas de release y commits semánticos.
+* **`vps_guardian` (`Infrastructure & SRE Executor`)**: Especialista SRE y de seguridad de infraestructura para `mi-vps`. Gobierna diagnósticos SSH seguros, supervisión de PM2 (`pm2 status`, `pm2 logs --nostream`, `pm2 restart --update-env`), validación y recarga de Nginx (`nginx -t`), auditoría de permisos bajo el Blind-Secret Protocol (`chmod 600` en `.env`), durabilidad de SQLite WAL con backups atómicos (`sqlite3 .backup`) y monitoreo del runner self-hosted de GitHub Actions.
+
 
 ### Higiene de Sesiones (`1 Tarea = 1 Sesión Fresca`)
 1. **Aislamiento**: Nunca reutilices la misma sesión de subagente para múltiples tareas secuenciales; invoca una instancia nueva con `invoke_subagent` por cada tarea (`P1-T1`, `P1-T2`, etc.).

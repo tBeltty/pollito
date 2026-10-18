@@ -73,7 +73,18 @@ Any agent operating in this codebase must reference and respect the following co
   - Drafting competitor comparison pages or sales enablement narratives (*Pollito vs Simple Poll*, *Pollito vs Polly*).
 * **Action**: Delegate the task to subagent `wordsmith` via `invoke_subagent` (`TypeName: "wordsmith"`). `wordsmith` has access to the full writing and anti-slop skills suite (`no-ai-slop`, `text-humanizer`, `copywriting`, `copy-editing`, `proofreading`, `paragraph-structure`, `ogilvy`, `competitor-alternatives`).
 
-### 7. Subagent Session Hygiene & Model Governance
+### 7. Specialist Subagent Delegation Matrix: `vps_guardian`
+* **Trigger**: Any infrastructure task, server maintenance, diagnostic, or security audit involving `mi-vps`:
+  - Process supervision, checking PM2 status, memory footprint, or reviewing live/historical logs (`pm2 logs --nostream`).
+  - Safe service restarts (`pm2 restart <app> --update-env`) and internal/external healthcheck verification (`/healthz`).
+  - Nginx virtual host validation (`nginx -t`) and reload without downtime.
+  - Auditing permissions, enforcing the Blind-Secret protocol (`chmod 600` on `.env`), and preventing plaintext secret leaks.
+  - SQLite WAL durability checks and atomic zero-lock backups (`sqlite3 .backup`).
+  - Monitoring self-hosted GitHub Actions runner health.
+* **Action**: Delegate the task to subagent `vps_guardian` via `invoke_subagent` (`TypeName: "vps_guardian"`).
+
+
+### 8. Subagent Session Hygiene & Model Governance
 * **Reference**: [`docs/guidelines/SUBAGENT_ORCHESTRATION.md`](docs/guidelines/SUBAGENT_ORCHESTRATION.md)
 * **1 Task = 1 Fresh Session**: Spawn a fresh subagent per task (`invoke_subagent`) and terminate it immediately upon completion (`manage_subagents(Action: "kill")`) to prevent context saturation.
 * **Mandatory Prompt Directives**: Embed the task specification directly in the subagent prompt, forbid reading closed phase files or planning docs, and require parallel `view_file` batching (5–8 files per turn).
