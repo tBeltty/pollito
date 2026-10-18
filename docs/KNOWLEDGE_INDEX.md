@@ -55,3 +55,11 @@ Pollito integra 13 habilidades de alto impacto para arquitectura de apps en Slac
 * **[Technical Guide to Building Enterprise-Grade Slack Applications](file:///Users/jhonatan/Documents/pollito/docs/internal/technical-guide-building-slack-apps.md)**:  
   Manual maestro exhaustivo de arquitectura empresarial en Slack (756 líneas). Abarca arquitectura de plataforma, modelos de despliegue, seguridad criptográfica, diseño avanzado de Block Kit, agentes de IA/MCP, gobernanza en Enterprise Grid/GovSlack y políticas de cumplimiento para el Slack Marketplace. *(Protegido por `.gitignore`, no se sube a GitHub).*
 
+---
+
+## 🤖 5. Matriz de Subagentes Especializados
+
+* **`slack_buddy`**: Arquitecto de plataforma Slack, Bolt framework, vistas Block Kit, seguridad criptográfica, OAuth 2.0 y resiliencia de eventos.
+* **`wordsmith`**: Director editorial, redactor de conversión, auditor de Anti-AI Slop, higiene de Conventional Commits y curaduría de changelogs bajo Keep a Changelog 1.1.0.
+
+

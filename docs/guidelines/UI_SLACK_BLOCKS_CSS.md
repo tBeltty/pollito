@@ -1,6 +1,6 @@
 # UI, Block Kit & Styling Standards
 
-This document establishes the Golden Rules for user interface design across Slack surfaces (App Home, Modals, In-Channel Tracker Blocks) and companion web interfaces.
+This document establishes the Golden Rules for user interface design across Slack surfaces (App Home, Modals, In-Channel Poll Messages) and companion web interfaces.
 
 ---
 
@@ -9,29 +9,30 @@ This document establishes the Golden Rules for user interface design across Slac
 Slack Block Kit does not use standard CSS stylesheets, but it demands the exact same visual discipline:
 
 ### Core Principles
-1. **Visual Hierarchy**: Every message must have a single primary focal point (the active timer and module status).
+1. **Visual Hierarchy**: Every message must have a single primary focal point (the question and voting options).
 2. **Deterministic Layouts**: Information must fit neatly without awkward wrapping across desktop, tablet, and mobile Slack clients.
-3. **Semantic Status Indicators**:
-   - `🟢 ACTIVE / IN PROGRESS`: Current phase within time budget.
-   - `🟡 WARNING / PACING ALERT`: Approaching transition boundary (last 2 minutes of module).
-   - `🔴 OVERTIME`: Session has exceeded scheduled duration.
-   - `🏁 CONCLUDED`: Clean exit state.
+3. **Semantic Status Indicators & Mascot Micro-Expressions**:
+   - `🐣 / 🧐 ACTIVE`: Poll open and awaiting quorum or votes.
+   - `⏰ EXPIRING SOON`: Timebox ending or approaching deadline.
+   - `🎉 QUORUM REACHED`: Closed automatically upon reaching participation threshold.
+   - `🏁 CLOSED`: Concluded poll with final results.
 
 ---
 
-## 2. In-Channel Tracker Block Standards
+## 2. In-Channel Poll Message Standards
 
-The live meeting tracker (`src/slack/ui/trackerBlock.ts`) updates every 30 seconds in-place. Follow these strict constraints:
+The live poll card (`src/slack/ui/views/pollMessage.ts`) updates in-place upon vote events and quorum transitions. Follow these strict constraints:
 
 1. **In-Place Updates Only**: Never spam the channel with new messages. Update the existing message `ts` via `chat.update`.
-2. **ASCII/Unicode Progress Bar**:
-   - Fixed length: 16 blocks (`[████████░░░░░░░░] 50%`).
-   - Clean characters: `█` for elapsed, `░` for remaining. Avoid jagged emojis that break alignment across different fonts.
-3. **Two-Column Context**:
-   - Left field: Current speaker and active module.
-   - Right field: Remaining module minutes and total session elapsed.
-4. **Non-Intrusive Exit Ramp**:
-   - Post to the thread or update the block once at 100% elapsed time to free attendees with other commitments.
+2. **Deterministic ASCII Progress Bar**:
+   - Fixed length: 10 blocks (`█████░░░░░ 50%`).
+   - Clean characters: `█` for votes, `░` for remaining. Built deterministically by `progressBar.ts`.
+3. **Context Block Telemetry**:
+   - Show status, anonymity mode (🔒 Anonymous ballot or 👥 Public), and quorum target.
+4. **Mascot Micro-Expressions**:
+   - Reactive status icons: `🐣` (new), `🧐` (waiting for quorum), `🎉` (consensus reached), `⏰` (closed/expired).
+5. **Strict Anonymity Preservation**:
+   - Never render user mentions (`<@voterId>`) or voter identities on anonymous polls, even if publicVotes are supplied.
 
 ---
 
@@ -40,13 +41,12 @@ The live meeting tracker (`src/slack/ui/trackerBlock.ts`) updates every 30 secon
 When authoring web companion interfaces, landing pages, or SVG telemetry widgets:
 
 ### Design Tokens & Brand System
-All colors, typography, and radiuses must strictly derive from the canonical **[Brand Identity & System Guide](../BRAND.md)**:
-- Canvas ground: `--bg-base` (`#080B11`)
-- Glass surfaces: `--bg-surface` (`#0F172A`, `rgba(15, 23, 42, 0.72)`)
-- Flight telemetry: `--accent-cyan` (`#06B6D4`)
-- Visor warnings: `--accent-amber` (`#F59E0B`)
-- Action buttons: `--accent-orange` (`#F97316`)
-- Typography: Display/UI with Plus Jakarta Sans, tabular telemetry with JetBrains Mono.
+All colors, typography, and radiuses derive from the canonical **[Product Brief](../../pollito_product_brief.md)** and **[PRODUCT.md](../../PRODUCT.md)**:
+- Canvas ground: `--bg-base` (`#F8FAFC` or `#FFFFFF`)
+- Card surfaces: `--bg-surface` (`#FFFFFF`, `#0F172A`)
+- Primary brand accent: `--accent-yellow` (`#FBBF24`, `#F59E0B`)
+- Status indicators: `--status-active` (`#0284C7`), `--status-success` (`#16A34A`), `--status-closed` (`#64748B`)
+- Typography: Plus Jakarta Sans for UI headers, JetBrains Mono / SF Mono for telemetry bars.
 
 ### Forbidden
 - `!important` declarations.

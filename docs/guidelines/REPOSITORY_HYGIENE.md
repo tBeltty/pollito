@@ -1,6 +1,6 @@
 # Repository & Git Hygiene Standards
 
-This guideline defines commit formatting, GitHub Actions naming conventions, repository cleanliness, and public-facing engineering standards for HuddlePace.
+This guideline defines commit formatting, GitHub Actions naming conventions, repository cleanliness, and public-facing engineering standards for Pollito.
 
 ---
 

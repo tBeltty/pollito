@@ -14,13 +14,24 @@ if [[ ! "${TOKEN}" =~ ^xoxb- ]]; then
   exit 1
 fi
 
-if grep -q "^SLACK_BOT_TOKEN=" "${ENV_FILE}"; then
-  sed -i "s|^SLACK_BOT_TOKEN=.*|SLACK_BOT_TOKEN=${TOKEN}|" "${ENV_FILE}"
-else
-  echo "SLACK_BOT_TOKEN=${TOKEN}" >> "${ENV_FILE}"
-fi
-
+printf '%s' "${TOKEN}" | ENV_FILE="${ENV_FILE}" node -e '
+const fs = require("fs");
+let token = "";
+process.stdin.on("data", chunk => { token += chunk; });
+process.stdin.on("end", () => {
+  token = token.trim();
+  const envFile = process.env.ENV_FILE || "/home/jhonatan/pollito/.env";
+  let content = fs.existsSync(envFile) ? fs.readFileSync(envFile, "utf8") : "";
+  if (/^SLACK_BOT_TOKEN=/m.test(content)) {
+    content = content.replace(/^SLACK_BOT_TOKEN=.*/m, `SLACK_BOT_TOKEN="${token}"`);
+  } else {
+    content += (content.endsWith("\n") || !content ? "" : "\n") + `SLACK_BOT_TOKEN="${token}"\n`;
+  }
+  fs.writeFileSync(envFile, content, { mode: 0o600 });
+});
+'
 chmod 600 "${ENV_FILE}"
+unset TOKEN
 pm2 restart pollito
 
 echo "Verificando nuevo token con Slack API..."

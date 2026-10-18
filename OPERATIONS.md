@@ -6,7 +6,7 @@ Este documento contiene la guía operativa completa de **Pollito**: arquitectura
 
 ## 1. Arquitectura del Sistema
 
-Pollito es una aplicación nativa de Slack para votaciones de equipo (públicas y anónimas mediante doble urna criptográfica), barras de progreso en vivo, cierre automático por quórum o temporizador y sin costo.
+Pollito es una aplicación nativa de Slack para decisiones de equipo. Combina votaciones públicas y anónimas (mediante doble urna criptográfica con `HKDF-SHA256`), barras de progreso en vivo, recordatorios privados a quienes faltan por votar y cierre automático por quórum o temporizador.
 
 ```mermaid
 flowchart TD
@@ -22,7 +22,7 @@ flowchart TD
 
 * **Runtime & Framework**: Node.js 22 + TypeScript + `@slack/bolt`.
 * **Transporte**:
-  * **Producción**: HTTP Nativo (`ExpressReceiver`) en `http://127.0.0.1:3015`. Recibe y valida criptográficamente peticiones en `/slack/events` y `/slack/oauth_redirect`.
+  * **Producción**: HTTP Nativo (`HTTPReceiver`) en `http://127.0.0.1:3015`. Recibe y valida criptográficamente peticiones en `/slack/events`, `/slack/install` y `/slack/oauth_redirect`.
   * **Desarrollo local (opcional)**: Socket Mode vía WebSocket con `SLACK_SOCKET_MODE=true` y `SLACK_APP_TOKEN` (`xapp-...`).
 * **Base de datos**: SQLite en modo WAL administrada con Prisma ORM (`prisma/pollito.db`).
 * **Web & Reverse Proxy**: Nginx con certificados Let's Encrypt y proxy inverso hacia el puerto local 3015.
@@ -38,14 +38,17 @@ flowchart TD
 
 ### Dónde encontrar cada credencial en Slack
 
-Todas las credenciales se gestionan desde la consola de desarrollador en **[api.slack.com/apps/A0C9YDMH6CV](https://api.slack.com/apps/A0C9YDMH6CV)**:
+Gestionas todas las credenciales desde la consola de desarrollador en **[api.slack.com/apps/A0C9YDMH6CV](https://api.slack.com/apps/A0C9YDMH6CV)**:
 
 | Credencial | Dónde encontrarla en Slack Console | Para qué sirve | Formato |
 | :--- | :--- | :--- | :--- |
 | **`SLACK_SIGNING_SECRET`** | **Basic Information** ➔ sección **App Credentials** ➔ campo **Signing Secret** (pulsa *Show* y copia). | Valida la firma HMAC-SHA256 (`x-slack-signature`) de cada webhook entrante para verificar que proviene legítimamente de Slack. | Hexadecimal de 32 caracteres (ej: `a1b2c3d4...`). |
 | **`SLACK_BOT_TOKEN`** | **OAuth & Permissions** ➔ sección **Tokens for Your Workspace** ➔ campo **Bot User OAuth Token**. | Autentica a Pollito para enviar mensajes, unirse a canales y consultar miembros en la API de Slack. | Cadena que inicia con **`xoxb-`**. |
-| **`SLACK_APP_TOKEN`** *(Opcional)* | **Basic Information** ➔ sección **App-Level Tokens** (token con scope `connections:write`). | Requerido únicamente si se activa Socket Mode para desarrollo local. | Cadena que inicia con **`xapp-`**. |
-| **`APP_SECRET_SALT`** | Generado automáticamente en servidor / `.env`. | Sal criptográfica privada para generar tokens de voto anónimo irreversibles (`HMAC_SHA256(voterId + pollId, salt)`). | Cadena aleatoria de al menos 32 caracteres. |
+| **`SLACK_CLIENT_ID`** | **Basic Information** ➔ sección **App Credentials** ➔ campo **Client ID**. | Identifica la aplicación en los flujos de instalación multi-workspace de OAuth 2.0. | Cadena numérica o alfanumérica. |
+| **`SLACK_CLIENT_SECRET`** | **Basic Information** ➔ sección **App Credentials** ➔ campo **Client Secret** (pulsa *Show* y copia). | Autentica el intercambio del código de autorización por tokens en OAuth 2.0. | Hexadecimal de 32 caracteres. |
+| **`SLACK_STATE_SECRET`** | Generado automáticamente en servidor / `.env`. | Secreto criptográfico para firmar cookies `state` y mitigar ataques CSRF durante la instalación OAuth. | Hexadecimal aleatorio de 32 bytes (64 caracteres). |
+| **`SLACK_APP_TOKEN`** *(Opcional)* | **Basic Information** ➔ sección **App-Level Tokens** (token con scope `connections:write`). | Requerido únicamente si activas Socket Mode para desarrollo local. | Cadena que inicia con **`xapp-`**. |
+| **`APP_SECRET_SALT`** | Generado automáticamente en servidor / `.env`. | Sal criptográfica privada para derivar tokens de voto anónimo (`HKDF-SHA256` junto con `anonymousSalt`) y cifrar tokens OAuth en reposo (`AES-256-GCM`). | Cadena aleatoria de al menos 32 caracteres. |
 
 > [!IMPORTANT]
 > **Revocación automática de tokens al reinstalar**: Cada vez que agregues o modifiques *Scopes* en Slack y pulses **Reinstall to Workspace**, Slack **invalida el `SLACK_BOT_TOKEN` anterior** y genera uno nuevo. Cuando esto ocurra, debes actualizar el bot token en el servidor usando el script interactivo.
@@ -74,6 +77,13 @@ Ejecuta:
 ```bash
 ssh -t mi-vps "/home/jhonatan/pollito/scripts/setup-signing-secret.sh"
 ```
+
+#### 4. Configurar credenciales OAuth multi-workspace (`SLACK_CLIENT_ID` y `SLACK_CLIENT_SECRET`)
+Ejecuta desde tu terminal de macOS:
+```bash
+bash scripts/setup-oauth-secrets.sh
+```
+*El script solicita `SLACK_CLIENT_ID` y `SLACK_CLIENT_SECRET` de forma silenciosa, auto-genera `SLACK_STATE_SECRET` si no existe, actualiza el `.env` en `mi-vps` con permisos `chmod 600`, reinicia PM2 y verifica `/healthz`.*
 
 ---
 
@@ -118,10 +128,10 @@ Respuesta esperada:
 
 El virtual host reside en `/etc/nginx/sites-enabled/pollito.tbelt.online.conf`:
 * `/healthz` ➔ Redirige al puerto interno `3015`.
-* `/slack/` ➔ Proxy reverso hacia `http://127.0.0.1:3015` para webhooks (`/slack/events`) y pantalla OAuth (`/slack/oauth_redirect`).
+* `/slack/` ➔ Proxy reverso hacia `http://127.0.0.1:3015` para webhooks (`/slack/events`) y flujo OAuth (`/slack/install`, `/slack/oauth_redirect`).
 * `/` ➔ Sirve la landing page estática y assets desde `/home/jhonatan/pollito/public`.
 
-Para verificar la sintaxis de Nginx tras modificaciones:
+Para verificar la sintaxis de Nginx tras tus modificaciones:
 ```bash
 ssh mi-vps "nginx -t && systemctl reload nginx"
 ```
@@ -153,7 +163,7 @@ flowchart LR
 1. Corre exclusivamente en commits enviados a la rama `main`.
 2. Se conecta al directorio de producción `/home/jhonatan/pollito`.
 3. Registra el `PREV_SHA` del commit en producción antes de actualizar.
-4. Establece un manejador de fallos (`trap rollback ERR`): si la compilación, base de datos o verificación de salud fallan, revierte automáticamente al commit anterior (`git reset --hard $PREV_SHA`), restaura dependencias y levanta el servicio previo.
+4. Activa un manejador de fallos (`trap rollback ERR`) que revierte automáticamente al commit anterior (`git reset --hard $PREV_SHA`), restaura dependencias y levanta el servicio previo si falla la compilación, la base de datos o la verificación de salud.
 5. Ejecuta `git reset --hard origin/main`, `pnpm install`, `pnpm db:push` y `pnpm build`.
 6. Reinicia el proceso con `pm2 restart pollito --update-env`.
 7. **Smoke Test Gate**: Ejecuta hasta 15 intentos consecutivos contra `http://127.0.0.1:3015/healthz` y valida el endpoint público de Cloudflare antes de declarar exitoso el despliegue.
@@ -179,7 +189,8 @@ El archivo [`manifest.json`](file:///Users/jhonatan/Documents/pollito/manifest.j
 * **`chat:write`**: Permite publicar tarjetas interactivas de votación en canales.
 * **`chat:write.public`**: Permite publicar encuestas en cualquier canal público sin requerir invitación manual previa.
 * **`channels:join`**: Permite al bot auto-unirse a canales públicos al interactuar.
-* **`channels:read`**, **`groups:read`**, **`im:read`**, **`mpim:read`**: Permite leer listas de miembros para el cálculo de porcentaje de quórum.
+* **`channels:read`**, **`groups:read`**, **`im:read`**, **`mpim:read`**: Permite leer listas de miembros para calcular el porcentaje de quórum.
+* **`im:write`**: Permite enviar recordatorios directos (Smart Nudges) a los miembros que aún no han votado.
 * **`users:read`**: Permite resolver menciones y creadores de votaciones.
 
 ### Endpoints Registrados en Slack Console
@@ -195,13 +206,14 @@ El archivo [`manifest.json`](file:///Users/jhonatan/Documents/pollito/manifest.j
 El esquema reside en [`prisma/schema.prisma`](file:///Users/jhonatan/Documents/pollito/prisma/schema.prisma) y la base de datos de producción se almacena en `/home/jhonatan/pollito/prisma/pollito.db`.
 
 ### Modelos Principales
-* **`Workspace`**: Registro del workspace de Slack (`id = T...`), token cifrado y fecha de instalación.
+* **`Workspace`**: Registro del workspace de Slack (`id = T...`), token cifrado (`AES-256-GCM`) y fecha de instalación.
 * **`WorkspaceSettings`**: Configuración de privacidad, porcentaje de quórum por defecto y sal privada (`anonymousSalt`) para seudonimización.
-* **`Poll`**: Pregunta, canal, timestamp del mensaje en Slack, creador, tipo de quórum, fecha límite (`closesAt`) y estado (`ACTIVE`, `QUORUM_REACHED`, `CLOSED`, `TIME_EXPIRED`).
+* **`Poll`**: Pregunta, canal, timestamp del mensaje en Slack, creador, modo de opción múltiple (`allowMultipleVotes`), tipo de quórum, fecha límite (`closesAt`) y estado (`ACTIVE`, `QUORUM_REACHED`, `CLOSED`, `TIME_EXPIRED`).
 * **`PollOption`**: Opciones de la votación con su índice y contador de votos.
 * **`PublicVote`**: Registro transparente de votos públicos (`voterId` visible).
-* **`AnonymousBallot`**: Voto anónimo indexado únicamente por `voterToken` (doble urna: disocia la identidad del usuario de su opción elegida).
-* **`PollParticipation`**: Control de participación (sabe quién votó para bloquear doble voto sin revelar qué opción eligió en votaciones anónimas).
+* **`AnonymousBallot`**: Voto anónimo indexado únicamente por `voterToken` (doble urna con `UUID` aleatorio y sin `createdAt`, disociando la identidad del usuario de su opción elegida).
+* **`PollParticipation`**: Control de participación (registra quién votó para bloquear el doble voto sin revelar qué opción eligió en votaciones anónimas).
+* **`NudgeLog`**: Registro de enfriamiento (4 horas por encuesta) para los recordatorios privados enviados a quienes faltan por votar.
 
 ### Invariante de Autocreación de Workspaces
 Para evitar violaciones de clave foránea (`Foreign key constraint violated`) cuando la app se instala manualmente desde la consola de Slack sin pasar por la URL de OAuth, `PollService.createPoll` ejecuta un `prisma.workspace.upsert` automático garantizando la existencia del workspace y su sal criptográfica antes de guardar la encuesta.

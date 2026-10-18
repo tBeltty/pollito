@@ -40,6 +40,7 @@ model Poll {
   creatorId          String              // Slack User ID who launched the poll
   question           String
   isAnonymous        Boolean             @default(false)
+  allowMultipleVotes Boolean             @default(false)
   quorumType         String              @default("PERCENTAGE") // PERCENTAGE | COUNT | NONE
   quorumTarget       Int                 @default(70)
   eligibleVoterCount Int                 @default(0)            // Member count in channel when poll launched
@@ -82,12 +83,11 @@ model PublicVote {
 }
 
 model AnonymousBallot {
-  id         String   @id @default(cuid())
+  id         String @id @default(uuid())
   pollId     String
-  poll       Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  voterToken String   // HMAC_SHA256(voterId + pollId, workspaceSalt)
+  poll       Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  voterToken String // HMAC_SHA256(voterId + pollId, HKDF(masterSecret, workspaceSalt))
   optionId   String
-  createdAt  DateTime @default(now())
 
   @@unique([pollId, voterToken, optionId])
   @@map("anonymous_ballots")

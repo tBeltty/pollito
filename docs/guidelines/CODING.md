@@ -18,18 +18,20 @@ Every module and function optimizes for:
 ### Principles
 1. **Explicit names over comments**: If a function or variable requires a comment to explain *what* it is, rename it.
 2. **No abbreviations**: Use `remainingMinutes` instead of `remMin`; `speakerUserId` instead of `spkId`.
-3. **Functions describe intent**: A function name must state its exact business action (`calculateModuleAllocations`, `concludeMeetup`).
+3. **Functions describe intent**: A function name must state its exact business action (`calculatePollQuorum`, `closePoll`).
 4. **Early returns**: Eliminate nested `if` statements and boolean flags.
 
 ```typescript
 // Good: Clear intent, early returns, descriptive naming
-export function validateMeetupTimebox(totalMinutes: number, modules: SubtopicInput[]): void {
-  if (totalMinutes <= 0) {
-    throw new ValidationError("Total minutes must be greater than zero.");
+export function validatePollOptions(question: string, options: string[]): void {
+  if (!question.trim()) {
+    throw new ValidationError("Poll question cannot be empty.");
   }
-  const sum = modules.reduce((acc, m) => acc + m.percentage, 0);
-  if (sum !== 100) {
-    throw new ValidationError(`Percentages must sum to 100%. Received: ${sum}%.`);
+  if (options.length < 2) {
+    throw new ValidationError("Poll must contain at least 2 options.");
+  }
+  if (options.length > 10) {
+    throw new ValidationError("Poll cannot exceed 10 options.");
   }
 }
 
@@ -51,8 +53,8 @@ export function chkTime(t: number, m: any[], flg: boolean) {
 A file must change for only one reason:
 - `src/slack/ui/`: Pure Block Kit view builders (no database access, no side effects).
 - `src/slack/handlers/`: Event/action routing and UI responses.
-- `src/services/`: Core domain logic, math, timebox allocations, and database queries.
-- `src/scheduler/`: Background periodic heartbeat loops (`timerWorker.ts`).
+- `src/services/`: Core domain logic, math, vote calculations, quorum detection, and database queries.
+- `src/scheduler/`: Background periodic auto-closing and nudge loops (`timerWorker.ts`).
 
 ### Time and Zones
 1. Store instants as UTC `Date`s; convert wall-clock input and display only at the edges with `src/utils/timezone.ts`.
@@ -68,6 +70,6 @@ A file must change for only one reason:
 
 ## 3. Error Handling & Slack Boundaries
 
-1. **Never crash the process**: Wrap Slack API calls in localized `try/catch` blocks. If an ephemeral message or DM fails to deliver, log the failure and allow the main heartbeat ticker to continue.
+1. **Never crash the process**: Wrap Slack API calls in localized `try/catch` blocks. If an ephemeral message or DM fails to deliver, log the failure and allow the main poll lifecycle to continue.
 2. **User-facing errors must be actionable**: Provide clear Block Kit feedback instead of cryptic stack traces.
-3. **Structured logging**: Use standardized loggers with contextual metadata (`meetupId`, `channelId`, `elapsedMinutes`).
+3. **Structured logging**: Use standardized loggers with contextual metadata (`pollId`, `channelId`, `quorumPercent`).

@@ -1,5 +1,11 @@
 import crypto from 'node:crypto';
 import { prisma } from '../db/prisma.js';
+import { env } from '../config/env.js';
+import {
+  deriveDoubleUrnVoterToken,
+  ENV_MANAGED_TOKEN,
+  decryptToken,
+} from '../utils/crypto.js';
 
 export interface CreatePollParams {
   workspaceId: string;
@@ -9,6 +15,7 @@ export interface CreatePollParams {
   question: string;
   options: string[];
   isAnonymous?: boolean;
+  allowMultipleVotes?: boolean;
   quorumType?: 'PERCENTAGE' | 'COUNT' | 'NONE';
   quorumTarget?: number;
   eligibleVoterCount?: number;
@@ -22,16 +29,58 @@ export interface VoteParams {
   workspaceSalt: string;
 }
 
+function isTransientSqliteLockError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as { code?: string; message?: string };
+  if (err.code === 'P2034') return true;
+  const msg = err.message ?? '';
+  return msg.includes('SQLITE_BUSY') || msg.includes('database is locked');
+}
+
 export class PollService {
   /**
-   * Hashes a voter identity for an anonymous poll using HMAC-SHA256.
-   * Completely irreversible without the workspace private salt.
+   * Hashes a voter identity for an anonymous poll using HKDF-SHA256 + HMAC-SHA256.
+   * Requires both the server master secret and the workspace salt.
    */
-  static generateVoterToken(voterId: string, pollId: string, workspaceSalt: string): string {
-    return crypto
-      .createHmac('sha256', workspaceSalt)
-      .update(`${voterId}:${pollId}`)
-      .digest('hex');
+  static generateVoterToken(
+    voterId: string,
+    pollId: string,
+    workspaceSalt: string,
+    masterSecret = env.APP_SECRET_SALT
+  ): string {
+    return deriveDoubleUrnVoterToken(voterId, pollId, workspaceSalt, masterSecret);
+  }
+
+  /**
+   * Resolves a decrypted workspace bot token or falls back to env.SLACK_BOT_TOKEN.
+   */
+  static async resolveWorkspaceBotToken(workspaceId: string): Promise<string> {
+    if (!workspaceId) {
+      return env.SLACK_BOT_TOKEN;
+    }
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { botToken: true },
+    });
+    return (
+      decryptToken(workspace?.botToken ?? '', env.APP_SECRET_SALT) ??
+      env.SLACK_BOT_TOKEN
+    );
+  }
+
+  /**
+   * Returns eligible channel member IDs who have not yet cast a ballot in the given poll.
+   */
+  static async getNonVoters(
+    pollId: string,
+    eligibleChannelMemberIds: string[]
+  ): Promise<string[]> {
+    const participations = await prisma.pollParticipation.findMany({
+      where: { pollId },
+      select: { voterId: true },
+    });
+    const votedSet = new Set(participations.map((p) => p.voterId));
+    return eligibleChannelMemberIds.filter((uid) => !votedSet.has(uid));
   }
 
   /**
@@ -46,6 +95,7 @@ export class PollService {
       question,
       options,
       isAnonymous = false,
+      allowMultipleVotes = false,
       quorumType = 'PERCENTAGE',
       quorumTarget = 70,
       eligibleVoterCount = 0,
@@ -63,7 +113,7 @@ export class PollService {
       create: {
         id: workspaceId,
         teamName: 'Workspace',
-        botToken: 'bot_token_managed',
+        botToken: ENV_MANAGED_TOKEN,
         settings: {
           create: {
             anonymousSalt: crypto.randomBytes(32).toString('hex'),
@@ -80,6 +130,7 @@ export class PollService {
         creatorId,
         question,
         isAnonymous,
+        allowMultipleVotes,
         quorumType,
         quorumTarget,
         eligibleVoterCount,
@@ -102,112 +153,177 @@ export class PollService {
   }
 
   /**
-   * Casts a ballot with strict double-urn cryptographic isolation.
+   * Casts a ballot with strict double-urn cryptographic isolation and SQLite lock retry.
    */
   static async castVote(params: VoteParams) {
     const { pollId, voterId, optionId, workspaceSalt } = params;
+    const maxAttempts = 3;
 
-    return prisma.$transaction(async (tx) => {
-      // 1. Fetch current poll status
-      const poll = await tx.poll.findUnique({
-        where: { id: pollId },
-        include: { options: true, participations: true },
-      });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await prisma.$transaction(async (tx) => {
+          // 1. Fetch current poll status
+          const poll = await tx.poll.findUnique({
+            where: { id: pollId },
+            include: { options: true, participations: true },
+          });
 
-      if (!poll) {
-        throw new Error('Poll not found');
-      }
+          if (!poll) {
+            throw new Error('Poll not found');
+          }
 
-      if (poll.status !== 'ACTIVE' || (poll.closesAt && poll.closesAt <= new Date())) {
-        throw new Error('This poll is closed and no longer accepting votes');
-      }
+          if (
+            poll.status !== 'ACTIVE' ||
+            (poll.closesAt && poll.closesAt <= new Date())
+          ) {
+            throw new Error('This poll is closed and no longer accepting votes');
+          }
 
-      // 2. Prevent duplicate voting
-      const existingParticipation = await tx.pollParticipation.findUnique({
-        where: {
-          pollId_voterId: {
-            pollId,
-            voterId,
-          },
-        },
-      });
+          if (!poll.options.some((o) => o.id === optionId)) {
+            throw new Error('Invalid poll option');
+          }
 
-      if (existingParticipation) {
-        throw new Error('You have already voted in this poll');
-      }
+          // 2. Check existing participation
+          const existingParticipation = await tx.pollParticipation.findUnique({
+            where: {
+              pollId_voterId: {
+                pollId,
+                voterId,
+              },
+            },
+          });
 
-      // 3. Record ballot
-      if (poll.isAnonymous) {
-        const voterToken = this.generateVoterToken(voterId, pollId, workspaceSalt);
-        await tx.anonymousBallot.create({
-          data: {
-            pollId,
-            voterToken,
-            optionId,
-          },
+          if (!poll.allowMultipleVotes && existingParticipation) {
+            throw new Error('You have already voted in this poll');
+          }
+
+          // 3. Record ballot (checking duplicate option vote in multi-choice mode)
+          if (poll.isAnonymous) {
+            const voterToken = this.generateVoterToken(
+              voterId,
+              pollId,
+              workspaceSalt
+            );
+
+            if (poll.allowMultipleVotes) {
+              const existingOptionBallot = await tx.anonymousBallot.findUnique({
+                where: {
+                  pollId_voterToken_optionId: {
+                    pollId,
+                    voterToken,
+                    optionId,
+                  },
+                },
+              });
+              if (existingOptionBallot) {
+                throw new Error('You have already voted for this option');
+              }
+            }
+
+            await tx.anonymousBallot.create({
+              data: {
+                pollId,
+                voterToken,
+                optionId,
+              },
+            });
+          } else {
+            if (poll.allowMultipleVotes) {
+              const existingPublicVote = await tx.publicVote.findUnique({
+                where: {
+                  pollId_voterId_optionId: {
+                    pollId,
+                    voterId,
+                    optionId,
+                  },
+                },
+              });
+              if (existingPublicVote) {
+                throw new Error('You have already voted for this option');
+              }
+            }
+
+            await tx.publicVote.create({
+              data: {
+                pollId,
+                voterId,
+                optionId,
+              },
+            });
+          }
+
+          // 4. Record unique voter participation (separate from ballot option)
+          if (!existingParticipation) {
+            await tx.pollParticipation.create({
+              data: {
+                pollId,
+                voterId,
+                hasVoted: true,
+              },
+            });
+          }
+
+          // 5. Increment option counter
+          await tx.pollOption.update({
+            where: { id: optionId },
+            data: {
+              voteCount: { increment: 1 },
+            },
+          });
+
+          // 6. Check quorum completion based on unique participants
+          const totalVotes = existingParticipation
+            ? poll.participations.length
+            : poll.participations.length + 1;
+          let quorumReached = false;
+
+          if (poll.quorumType === 'PERCENTAGE' && poll.eligibleVoterCount > 0) {
+            const currentPct = Math.round(
+              (totalVotes / poll.eligibleVoterCount) * 100
+            );
+            if (currentPct >= poll.quorumTarget) {
+              quorumReached = true;
+            }
+          } else if (
+            poll.quorumType === 'COUNT' &&
+            totalVotes >= poll.quorumTarget
+          ) {
+            quorumReached = true;
+          }
+
+          // 7. Update status if quorum reached
+          const updatedPoll = await tx.poll.update({
+            where: { id: pollId },
+            data: {
+              status: quorumReached ? 'QUORUM_REACHED' : 'ACTIVE',
+              closedAt: quorumReached ? new Date() : null,
+            },
+            include: {
+              options: {
+                orderBy: { index: 'asc' },
+              },
+              participations: true,
+              publicVotes: true,
+            },
+          });
+
+          return {
+            poll: updatedPoll,
+            quorumReached,
+            totalVotes,
+          };
         });
-      } else {
-        await tx.publicVote.create({
-          data: {
-            pollId,
-            voterId,
-            optionId,
-          },
-        });
-      }
-
-      // 4. Record participation (separate from ballot option)
-      await tx.pollParticipation.create({
-        data: {
-          pollId,
-          voterId,
-          hasVoted: true,
-        },
-      });
-
-      // 5. Increment option counter
-      await tx.pollOption.update({
-        where: { id: optionId },
-        data: {
-          voteCount: { increment: 1 },
-        },
-      });
-
-      // 6. Check quorum completion
-      const totalVotes = poll.participations.length + 1;
-      let quorumReached = false;
-
-      if (poll.quorumType === 'PERCENTAGE' && poll.eligibleVoterCount > 0) {
-        const currentPct = Math.round((totalVotes / poll.eligibleVoterCount) * 100);
-        if (currentPct >= poll.quorumTarget) {
-          quorumReached = true;
+      } catch (error) {
+        if (attempt < maxAttempts && isTransientSqliteLockError(error)) {
+          const delayMs = 50 * attempt;
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          continue;
         }
-      } else if (poll.quorumType === 'COUNT' && totalVotes >= poll.quorumTarget) {
-        quorumReached = true;
+        throw error;
       }
+    }
 
-      // 7. Update status if quorum reached
-      const updatedPoll = await tx.poll.update({
-        where: { id: pollId },
-        data: {
-          status: quorumReached ? 'QUORUM_REACHED' : 'ACTIVE',
-          closedAt: quorumReached ? new Date() : null,
-        },
-        include: {
-          options: {
-            orderBy: { index: 'asc' },
-          },
-          participations: true,
-          publicVotes: true,
-        },
-      });
-
-      return {
-        poll: updatedPoll,
-        quorumReached,
-        totalVotes,
-      };
-    });
+    throw new Error('Failed to cast vote after maximum retry attempts');
   }
 
   /**
@@ -226,7 +342,11 @@ export class PollService {
       throw new Error('Poll not found');
     }
 
-    if (actorUserId && actorUserId !== 'SYSTEM_TIMER' && poll.creatorId !== actorUserId) {
+    if (
+      actorUserId &&
+      actorUserId !== 'SYSTEM_TIMER' &&
+      poll.creatorId !== actorUserId
+    ) {
       throw new Error('Only the poll creator can manually close this poll');
     }
 

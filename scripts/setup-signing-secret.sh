@@ -14,14 +14,23 @@ if [ -z "${SECRET}" ]; then
   exit 1
 fi
 
-if grep -q "^SLACK_SIGNING_SECRET=" "${ENV_FILE}"; then
-  # Replace existing line
-  sed -i "s/^SLACK_SIGNING_SECRET=.*/SLACK_SIGNING_SECRET=${SECRET}/" "${ENV_FILE}"
-else
-  # Append
-  echo "SLACK_SIGNING_SECRET=${SECRET}" >> "${ENV_FILE}"
-fi
-
+printf '%s' "${SECRET}" | ENV_FILE="${ENV_FILE}" node -e '
+const fs = require("fs");
+let secret = "";
+process.stdin.on("data", chunk => { secret += chunk; });
+process.stdin.on("end", () => {
+  secret = secret.trim();
+  const envFile = process.env.ENV_FILE || "/home/jhonatan/pollito/.env";
+  let content = fs.existsSync(envFile) ? fs.readFileSync(envFile, "utf8") : "";
+  if (/^SLACK_SIGNING_SECRET=/m.test(content)) {
+    content = content.replace(/^SLACK_SIGNING_SECRET=.*/m, `SLACK_SIGNING_SECRET="${secret}"`);
+  } else {
+    content += (content.endsWith("\n") || !content ? "" : "\n") + `SLACK_SIGNING_SECRET="${secret}"\n`;
+  }
+  fs.writeFileSync(envFile, content, { mode: 0o600 });
+});
+'
 chmod 600 "${ENV_FILE}"
+unset SECRET
 pm2 restart pollito
 echo "SLACK_SIGNING_SECRET actualizado con éxito y Pollito reiniciado."

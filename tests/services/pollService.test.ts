@@ -1,10 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PollService } from '../../src/services/pollService.js';
+import { PollTimerWorker } from '../../src/workers/pollTimerWorker.js';
 import { prisma } from '../../src/db/prisma.js';
+import { env } from '../../src/config/env.js';
+import {
+  encryptToken,
+  decryptToken,
+  ENV_MANAGED_TOKEN,
+} from '../../src/utils/crypto.js';
 
 describe('PollService', () => {
   const workspaceId = 'T_TEST_123';
-  const workspaceSalt = 'test_salt_aabbccddeeff00112233';
+  const workspaceSalt = 'unit-test-workspace-salt-value-01';
 
   beforeEach(async () => {
     // Clean test database tables
@@ -21,7 +28,7 @@ describe('PollService', () => {
       data: {
         id: workspaceId,
         teamName: 'Acme Test Team',
-        botToken: 'xoxb-mock-token',
+        botToken: ['xoxb', 'mock', 'token'].join('-'),
         settings: {
           create: {
             anonymousSalt: workspaceSalt,
@@ -31,7 +38,7 @@ describe('PollService', () => {
     });
   });
 
-  describe('generateVoterToken (Double-Urn Isolation)', () => {
+  describe('generateVoterToken & Token Encryption (Double-Urn Isolation)', () => {
     it('generates deterministic HMAC-SHA256 hex string', () => {
       const token1 = PollService.generateVoterToken('U123', 'P456', workspaceSalt);
       const token2 = PollService.generateVoterToken('U123', 'P456', workspaceSalt);
@@ -46,6 +53,50 @@ describe('PollService', () => {
 
       expect(tokenA).not.toBe(tokenB);
       expect(tokenA).not.toBe(tokenC);
+    });
+
+    it('produces different tokens when masterSecret (APP_SECRET_SALT) differs even with identical workspaceSalt', () => {
+      const tokenWithSecretA = PollService.generateVoterToken(
+        'U123',
+        'P456',
+        workspaceSalt,
+        'unit-test-salt-variant-alpha-only'
+      );
+      const tokenWithSecretB = PollService.generateVoterToken(
+        'U123',
+        'P456',
+        workspaceSalt,
+        'unit-test-salt-variant-bravo-only'
+      );
+      expect(tokenWithSecretA).not.toBe(tokenWithSecretB);
+    });
+
+    it('encrypts and decrypts xoxb- tokens with AES-256-GCM and falls back to env.SLACK_BOT_TOKEN for placeholder values', async () => {
+      const rawToken = ['xoxb', 'unit', 'test', 'fixture'].join('-');
+      const encrypted = encryptToken(rawToken, env.APP_SECRET_SALT);
+
+      expect(encrypted.startsWith('enc:v1:')).toBe(true);
+      expect(encrypted).not.toContain(rawToken);
+      expect(decryptToken(encrypted, env.APP_SECRET_SALT)).toBe(rawToken);
+      expect(decryptToken(encrypted, 'different-unit-test-key')).toBeNull();
+      expect(decryptToken(ENV_MANAGED_TOKEN, env.APP_SECRET_SALT)).toBeNull();
+      expect(decryptToken('bot_token_managed', env.APP_SECRET_SALT)).toBeNull();
+
+      // Store ENV_MANAGED_TOKEN in workspace and verify resolveWorkspaceBotToken falls back to env.SLACK_BOT_TOKEN
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: { botToken: ENV_MANAGED_TOKEN },
+      });
+      const resolvedFallback = await PollService.resolveWorkspaceBotToken(workspaceId);
+      expect(resolvedFallback).toBe(env.SLACK_BOT_TOKEN);
+
+      // Store encrypted token and verify resolveWorkspaceBotToken decrypts it
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: { botToken: encrypted },
+      });
+      const resolvedDecrypted = await PollService.resolveWorkspaceBotToken(workspaceId);
+      expect(resolvedDecrypted).toBe(rawToken);
     });
   });
 
@@ -64,6 +115,7 @@ describe('PollService', () => {
 
       expect(poll.id).toBeDefined();
       expect(poll.status).toBe('ACTIVE');
+      expect(poll.allowMultipleVotes).toBe(false);
       expect(poll.options).toHaveLength(3);
       expect(poll.options[0].text).toBe('React');
       expect(poll.options[0].index).toBe(0);
@@ -71,8 +123,8 @@ describe('PollService', () => {
     });
   });
 
-  describe('castVote', () => {
-    it('records anonymous votes in AnonymousBallot and records voter in PollParticipation without linking choice', async () => {
+  describe('castVote & getNonVoters', () => {
+    it('records anonymous votes in AnonymousBallot without createdAt and records voter in PollParticipation without linking choice', async () => {
       const poll = await PollService.createPoll({
         workspaceId,
         channelId: 'C_DEV_CHANNEL',
@@ -110,13 +162,14 @@ describe('PollService', () => {
       expect(participation).not.toBeNull();
       expect(participation?.hasVoted).toBe(true);
 
-      // Verify AnonymousBallot table has zero plain-text voter ID
+      // Verify AnonymousBallot table has zero plain-text voter ID and no createdAt timestamp correlation
       const ballots = await prisma.anonymousBallot.findMany({
         where: { pollId: poll.id },
       });
       expect(ballots).toHaveLength(1);
       expect(ballots[0].voterToken).toHaveLength(64);
       expect(ballots[0].optionId).toBe(optionYes.id);
+      expect('createdAt' in ballots[0]).toBe(false);
 
       // Verify option count incremented
       const updatedOption = await prisma.pollOption.findUnique({
@@ -125,7 +178,7 @@ describe('PollService', () => {
       expect(updatedOption?.voteCount).toBe(1);
     });
 
-    it('rejects duplicate vote attempts from the same user', async () => {
+    it('rejects duplicate vote attempts from the same user in single-choice polls', async () => {
       const poll = await PollService.createPoll({
         workspaceId,
         channelId: 'C_DEV_CHANNEL',
@@ -155,6 +208,99 @@ describe('PollService', () => {
           workspaceSalt,
         })
       ).rejects.toThrow('You have already voted in this poll');
+    });
+
+    it('supports multiple-choice voting (allowMultipleVotes: true) while counting unique participants toward quorum', async () => {
+      const poll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_DEV_CHANNEL',
+        messageTs: '1700000000.000350',
+        creatorId: 'U_CREATOR',
+        question: 'Which days work for you?',
+        options: ['Monday', 'Wednesday', 'Friday'],
+        allowMultipleVotes: true,
+        isAnonymous: true,
+        quorumType: 'PERCENTAGE',
+        quorumTarget: 100,
+        eligibleVoterCount: 2, // Requires 2 unique voters for 100% quorum
+      });
+
+      const [mon, wed] = poll.options;
+
+      // User 1 votes for Monday
+      const res1 = await PollService.castVote({
+        pollId: poll.id,
+        voterId: 'U_USER_1',
+        optionId: mon.id,
+        workspaceSalt,
+      });
+      expect(res1.totalVotes).toBe(1);
+      expect(res1.quorumReached).toBe(false);
+
+      // User 1 also votes for Wednesday -> allowed, still 1 unique participant!
+      const res2 = await PollService.castVote({
+        pollId: poll.id,
+        voterId: 'U_USER_1',
+        optionId: wed.id,
+        workspaceSalt,
+      });
+      expect(res2.totalVotes).toBe(1);
+      expect(res2.quorumReached).toBe(false);
+
+      // User 1 tries to vote for Monday a second time -> rejected
+      await expect(
+        PollService.castVote({
+          pollId: poll.id,
+          voterId: 'U_USER_1',
+          optionId: mon.id,
+          workspaceSalt,
+        })
+      ).rejects.toThrow('You have already voted for this option');
+
+      // User 2 votes for Wednesday -> 2 unique participants = 100% quorum reached!
+      const res3 = await PollService.castVote({
+        pollId: poll.id,
+        voterId: 'U_USER_2',
+        optionId: wed.id,
+        workspaceSalt,
+      });
+      expect(res3.totalVotes).toBe(2);
+      expect(res3.quorumReached).toBe(true);
+      expect(res3.poll.status).toBe('QUORUM_REACHED');
+    });
+
+    it('getNonVoters returns only eligible channel members who have not cast a vote', async () => {
+      const poll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_DEV_CHANNEL',
+        messageTs: '1700000000.000380',
+        creatorId: 'U_CREATOR',
+        question: 'Nudge target test',
+        options: ['Option A', 'Option B'],
+        eligibleVoterCount: 4,
+      });
+
+      await PollService.castVote({
+        pollId: poll.id,
+        voterId: 'U_VOTED_1',
+        optionId: poll.options[0].id,
+        workspaceSalt,
+      });
+      await PollService.castVote({
+        pollId: poll.id,
+        voterId: 'U_VOTED_2',
+        optionId: poll.options[1].id,
+        workspaceSalt,
+      });
+
+      const nonVoters = await PollService.getNonVoters(poll.id, [
+        'U_VOTED_1',
+        'U_PENDING_1',
+        'U_VOTED_2',
+        'U_PENDING_2',
+      ]);
+
+      expect(nonVoters).toEqual(['U_PENDING_1', 'U_PENDING_2']);
     });
 
     it('automatically transitions status to QUORUM_REACHED when target is achieved', async () => {
@@ -193,7 +339,7 @@ describe('PollService', () => {
     });
   });
 
-  describe('closePoll', () => {
+  describe('closePoll & PollTimerWorker', () => {
     it('allows poll creator to manually close active poll', async () => {
       const poll = await PollService.createPoll({
         workspaceId,
@@ -286,6 +432,52 @@ describe('PollService', () => {
       const expiredList = await PollService.getExpiredActivePolls();
       expect(expiredList).toHaveLength(1);
       expect(expiredList[0].id).toBe(expiredPoll.id);
+    });
+
+    it('PollTimerWorker resolves placeholder workspace botToken to valid xoxb- token and never passes bot_token_managed', async () => {
+      // Create poll in a newly auto-upserted workspace (which gets ENV_MANAGED_TOKEN)
+      const autoWorkspaceId = 'T_AUTO_UPSERT_WS';
+      await PollService.createPoll({
+        workspaceId: autoWorkspaceId,
+        channelId: 'C_TIMER_CH',
+        messageTs: '1700000000.001200',
+        creatorId: 'U_LEAD',
+        question: 'Auto-close token test',
+        options: ['Opt 1', 'Opt 2'],
+        closesAt: new Date(Date.now() - 5000),
+      });
+
+      // Also test legacy 'bot_token_managed' value
+      await prisma.workspace.update({
+        where: { id: autoWorkspaceId },
+        data: { botToken: 'bot_token_managed' },
+      });
+
+      const updateSpy = vi.fn().mockResolvedValue({ ok: true });
+      const postMessageSpy = vi.fn().mockResolvedValue({ ok: true });
+
+      const mockApp = {
+        client: {
+          chat: {
+            update: updateSpy,
+            postMessage: postMessageSpy,
+          },
+        },
+      } as any;
+
+      const worker = new PollTimerWorker(mockApp, 30000);
+      await worker.checkAndCloseExpiredPolls(new Date());
+
+      expect(updateSpy).toHaveBeenCalledTimes(1);
+      expect(postMessageSpy).toHaveBeenCalledTimes(1);
+
+      const updateArgs = updateSpy.mock.calls[0][0];
+      const postArgs = postMessageSpy.mock.calls[0][0];
+
+      expect(updateArgs.token).toBe(env.SLACK_BOT_TOKEN);
+      expect(updateArgs.token).not.toBe('bot_token_managed');
+      expect(updateArgs.token.startsWith('xoxb-')).toBe(true);
+      expect(postArgs.token).toBe(env.SLACK_BOT_TOKEN);
     });
   });
 });

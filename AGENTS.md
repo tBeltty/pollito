@@ -9,7 +9,7 @@ This document serves as the central operating manual and source of truth for all
 Any agent operating in this codebase must reference and respect the following core documents before planning or implementing changes:
 
 1. **[Product Capabilities & Vision](PRODUCT.md)** (`PRODUCT.md` & `pollito_product_brief.md`):
-   * **Purpose**: Product definition, positioning vs Simple Poll/Polly, double-urn secret ballots, quorum detection, App Home analytics, and pricing model ($15 flat fee).
+   * **Purpose**: Product definition, positioning vs Simple Poll/Polly, double-urn secret ballots, quorum detection, App Home analytics, and pricing model (Freemium base / 100% Free during launch with a planned $15/month flat-rate Pro tier per workspace).
    * **Rule**: Align feature copy, modal fields, and user experience with these target personas (Tech Leads, Scrum Masters, Remote Engineering Teams).
 2. **[Master Knowledge & Skills Index](docs/KNOWLEDGE_INDEX.md)** (`docs/KNOWLEDGE_INDEX.md`):
    * **Purpose**: Central navigation index to all tracked skills and engineering guidelines in Pollito.
@@ -62,4 +62,14 @@ Any agent operating in this codebase must reference and respect the following co
   - Request signature verification, token rotation, OAuth 2.0 multi-workspace installation, or Enterprise Grid security.
   - Slack AI agents, assistant containers (`assistant_thread_started`), or Slack MCP server integrations.
 * **Action**: Delegate the task to subagent `slack_buddy` via `invoke_subagent` (`TypeName: "slack_buddy"`). `slack_buddy` possesses deep mastery over the full suite of Slack skills and internal technical documentation.
+
+### 6. Specialist Subagent Delegation Matrix: `wordsmith`
+* **Trigger**: Any editorial review, copy generation, anti-AI slop audit, or version communication task involving:
+  - Drafting, rewriting, or auditing user-facing copy (landing page `public/index.html`, modal text, bot messages, documentation).
+  - Eliminating synthetic clichés, binary contrasts, throat-clearing, and robotic phrasing.
+  - Formulating atomic Conventional Commits (`feat:`, `fix:`, `refactor:`) with high-value technical context.
+  - Curating releases, writing changelogs under [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and aligning SemVer tags.
+  - Drafting competitor comparison pages or sales enablement narratives (*Pollito vs Simple Poll*, *Pollito vs Polly*).
+* **Action**: Delegate the task to subagent `wordsmith` via `invoke_subagent` (`TypeName: "wordsmith"`). `wordsmith` has access to the full writing and anti-slop skills suite (`no-ai-slop`, `text-humanizer`, `copywriting`, `copy-editing`, `proofreading`, `paragraph-structure`, `ogilvy`, `competitor-alternatives`).
+
 
