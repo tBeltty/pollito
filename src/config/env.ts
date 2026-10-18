@@ -12,6 +12,9 @@ const envSchema = z.object({
   SLACK_BOT_TOKEN: z.string().min(1, 'SLACK_BOT_TOKEN is required'),
   SLACK_APP_TOKEN: z.string().optional(),
   SLACK_SOCKET_MODE: z.string().optional().transform((v) => v === 'true'),
+  SLACK_CLIENT_ID: z.string().optional(),
+  SLACK_CLIENT_SECRET: z.string().optional(),
+  SLACK_STATE_SECRET: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

@@ -1,12 +1,77 @@
+import crypto from 'node:crypto';
 import pkg from '@slack/bolt';
 const { App } = pkg;
 import { env } from './config/env.js';
+import { initSqlitePragmas, prisma } from './db/prisma.js';
+import { encryptToken, ENV_MANAGED_TOKEN } from './utils/crypto.js';
+import { PollService } from './services/pollService.js';
+import { UpdateQueue } from './services/updateQueue.js';
 import { registerCommandHandlers } from './slack/handlers/commands.js';
 import { registerActionHandlers } from './slack/handlers/actions.js';
 import { registerViewHandlers } from './slack/handlers/views.js';
 import { registerEventHandlers } from './slack/handlers/events.js';
+import { PollTimerWorker } from './workers/pollTimerWorker.js';
+
+export const BOT_SCOPES = [
+  'commands',
+  'chat:write',
+  'chat:write.public',
+  'channels:join',
+  'channels:read',
+  'groups:read',
+  'im:read',
+  'im:write',
+  'mpim:read',
+  'users:read',
+].join(',');
 
 const isSocketMode = env.SLACK_SOCKET_MODE === true && Boolean(env.SLACK_APP_TOKEN);
+
+function signOAuthState(nonce: string): string {
+  const sig = crypto
+    .createHmac('sha256', env.SLACK_STATE_SECRET || env.APP_SECRET_SALT)
+    .update(nonce)
+    .digest('hex');
+  return `${nonce}.${sig}`;
+}
+
+function verifyOAuthState(stateParam: string, cookieHeader?: string): boolean {
+  const parts = stateParam.split('.');
+  if (parts.length !== 2) return false;
+  const [nonce, sig] = parts;
+  if (!nonce || !sig) return false;
+
+  const expectedSig = crypto
+    .createHmac('sha256', env.SLACK_STATE_SECRET || env.APP_SECRET_SALT)
+    .update(nonce)
+    .digest('hex');
+
+  const sigBuf = Buffer.from(sig, 'utf8');
+  const expectedBuf = Buffer.from(expectedSig, 'utf8');
+  if (
+    sigBuf.length !== expectedBuf.length ||
+    !crypto.timingSafeEqual(sigBuf, expectedBuf)
+  ) {
+    return false;
+  }
+
+  if (cookieHeader) {
+    const match = cookieHeader
+      .split(';')
+      .map((c) => c.trim())
+      .find((c) => c.startsWith('pollito_oauth_state='));
+    if (match) {
+      const cookieVal = decodeURIComponent(
+        match.slice('pollito_oauth_state='.length)
+      );
+      if (cookieVal !== stateParam) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
 
 const customRoutes = [
   {
@@ -28,11 +93,99 @@ const customRoutes = [
     },
   },
   {
-    path: '/slack/oauth_redirect',
+    path: '/slack/install',
     method: ['GET'],
     handler: (_req: any, res: any) => {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(`<!DOCTYPE html>
+      const state = crypto.randomBytes(16).toString('hex');
+      const signedState = signOAuthState(state);
+
+      if (env.SLACK_CLIENT_ID) {
+        const authorizeUrl = `https://slack.com/oauth/v2/authorize?client_id=${encodeURIComponent(
+          env.SLACK_CLIENT_ID
+        )}&scope=${encodeURIComponent(BOT_SCOPES)}&state=${encodeURIComponent(
+          signedState
+        )}`;
+        res.writeHead(302, {
+          Location: authorizeUrl,
+          'Set-Cookie': `pollito_oauth_state=${signedState}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
+        });
+        res.end();
+        return;
+      }
+
+      res.writeHead(302, { Location: '/' });
+      res.end();
+    },
+  },
+  {
+    path: '/slack/oauth_redirect',
+    method: ['GET'],
+    handler: async (_req: any, res: any) => {
+      try {
+        const reqUrl = new URL(
+          _req.url || '/slack/oauth_redirect',
+          'http://localhost'
+        );
+        const code = reqUrl.searchParams.get('code');
+        const state = reqUrl.searchParams.get('state');
+        const error = reqUrl.searchParams.get('error');
+
+        if (error) {
+          res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Installation Cancelled</title></head>
+<body><h1>Installation Cancelled</h1><p>Slack authorization was cancelled.</p></body>
+</html>`);
+          return;
+        }
+
+        if (code && env.SLACK_CLIENT_ID && env.SLACK_CLIENT_SECRET) {
+          if (state && !verifyOAuthState(state, _req.headers?.cookie)) {
+            res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Invalid OAuth State</title></head>
+<body><h1>Invalid OAuth State</h1><p>State verification failed. Please retry installing Pollito.</p></body>
+</html>`);
+            return;
+          }
+
+          const oauthRes = await app.client.oauth.v2.access({
+            client_id: env.SLACK_CLIENT_ID,
+            client_secret: env.SLACK_CLIENT_SECRET,
+            code,
+          });
+
+          if (oauthRes.ok && oauthRes.access_token && oauthRes.team?.id) {
+            const encryptedBotToken = encryptToken(
+              oauthRes.access_token,
+              env.APP_SECRET_SALT
+            );
+            await prisma.workspace.upsert({
+              where: { id: oauthRes.team.id },
+              update: {
+                teamName: oauthRes.team.name || 'Workspace',
+                botToken: encryptedBotToken,
+                isActive: true,
+              },
+              create: {
+                id: oauthRes.team.id,
+                teamName: oauthRes.team.name || 'Workspace',
+                botToken: encryptedBotToken,
+                isActive: true,
+                settings: {
+                  create: {
+                    anonymousSalt: crypto.randomBytes(32).toString('hex'),
+                  },
+                },
+              },
+            });
+          }
+        }
+
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -102,6 +255,11 @@ const customRoutes = [
   </div>
 </body>
 </html>`);
+      } catch (err) {
+        console.error('OAuth redirect error:', err);
+        res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end('<h1>OAuth Installation Failed</h1>');
+      }
     },
   },
 ];
@@ -123,7 +281,48 @@ export const app = new App(
       }
 );
 
-import { PollTimerWorker } from './workers/pollTimerWorker.js';
+const processedEvents = new Map<string, number>();
+const EVENT_DEDUP_TTL_MS = 5 * 60 * 1000;
+
+app.use(async ({ context, body, next }) => {
+  const now = Date.now();
+  for (const [id, timestamp] of processedEvents.entries()) {
+    if (now - timestamp > EVENT_DEDUP_TTL_MS) {
+      processedEvents.delete(id);
+    }
+  }
+
+  const payload = body as Record<string, any> | undefined;
+  if (
+    payload?.type === 'event_callback' &&
+    typeof payload.event_id === 'string'
+  ) {
+    if (
+      processedEvents.has(payload.event_id) ||
+      (context.retryNum &&
+        context.retryNum > 0 &&
+        processedEvents.has(payload.event_id))
+    ) {
+      return;
+    }
+    processedEvents.set(payload.event_id, now);
+  }
+
+  const teamId: string | undefined = payload?.team_id ?? payload?.team?.id;
+  if (teamId) {
+    try {
+      context.botToken = await PollService.resolveWorkspaceBotToken(teamId);
+    } catch {
+      // Fallback to default token
+    }
+  }
+
+  await next();
+});
+
+app.error(async (error) => {
+  console.error('[Pollito Bolt Error]:', error);
+});
 
 registerCommandHandlers(app);
 registerActionHandlers(app);
@@ -133,12 +332,14 @@ registerEventHandlers(app);
 export const pollTimerWorker = new PollTimerWorker(app, 30000);
 
 async function startServer() {
+  await initSqlitePragmas();
+
   if (isSocketMode) {
     await app.start();
   } else {
     await app.start(env.PORT);
   }
-  
+
   pollTimerWorker.start();
 
   console.log(
@@ -148,11 +349,22 @@ async function startServer() {
   );
 }
 
-process.on('SIGTERM', () => {
+export async function gracefulShutdown() {
   pollTimerWorker.stop();
+  await UpdateQueue.flushAll();
+  try {
+    await app.stop();
+  } catch {
+    // Ignore if server was not started
+  }
+  await prisma.$disconnect();
+}
+
+process.on('SIGTERM', () => {
+  void gracefulShutdown();
 });
 process.on('SIGINT', () => {
-  pollTimerWorker.stop();
+  void gracefulShutdown();
 });
 
 if (process.env.NODE_ENV !== 'test') {
@@ -161,3 +373,4 @@ if (process.env.NODE_ENV !== 'test') {
     process.exit(1);
   });
 }
+

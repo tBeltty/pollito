@@ -1,6 +1,103 @@
-import type { ModalView } from '@slack/web-api';
+import type { ModalView,MrkdwnOption, PlainTextOption } from '@slack/web-api';
 
-export function buildCreatePollModalView(channelId: string): ModalView {
+export interface CreatePollModalPreset {
+  channelId?: string;
+  question?: string;
+  options?: string[];
+  isAnonymous?: boolean;
+  allowMultipleVotes?: boolean;
+  quorumTarget?: number;
+  duration?: string;
+}
+
+export function buildCreatePollModalView(
+  channelIdOrPreset: string | CreatePollModalPreset = ''
+): ModalView {
+  const preset: CreatePollModalPreset =
+    typeof channelIdOrPreset === 'string'
+      ? { channelId: channelIdOrPreset }
+      : channelIdOrPreset;
+
+  const channelId = preset.channelId ?? '';
+
+  const anonymousOption: MrkdwnOption = {
+    text: {
+      type: 'mrkdwn',
+      text: '*Anonymous Voting (Double-Urn Secret Ballot)*',
+    },
+    value: 'is_anonymous',
+  };
+
+  const multipleChoiceOption: MrkdwnOption = {
+    text: {
+      type: 'mrkdwn',
+      text: '*Multiple Choice*\nAllow teammates to select more than one option.',
+    },
+    value: 'allow_multiple_votes',
+  };
+
+  const initialSettingsOptions: MrkdwnOption[] = [];
+  if (preset.isAnonymous) {
+    initialSettingsOptions.push(anonymousOption);
+  }
+  if (preset.allowMultipleVotes) {
+    initialSettingsOptions.push(multipleChoiceOption);
+  }
+
+  const durationOptions: PlainTextOption[] = [
+    {
+      text: {
+        type: 'plain_text',
+        text: 'No time limit (Manual / Quorum only)',
+        emoji: true,
+      },
+      value: 'none',
+    },
+    {
+      text: {
+        type: 'plain_text',
+        text: '15 minutes (Quick Standup)',
+        emoji: true,
+      },
+      value: '15m',
+    },
+    {
+      text: {
+        type: 'plain_text',
+        text: '1 hour',
+        emoji: true,
+      },
+      value: '1h',
+    },
+    {
+      text: {
+        type: 'plain_text',
+        text: '4 hours',
+        emoji: true,
+      },
+      value: '4h',
+    },
+    {
+      text: {
+        type: 'plain_text',
+        text: '24 hours (Asynchronous / Next day)',
+        emoji: true,
+      },
+      value: '24h',
+    },
+    {
+      text: {
+        type: 'plain_text',
+        text: '3 days (72 hours)',
+        emoji: true,
+      },
+      value: '72h',
+    },
+  ];
+
+  const selectedDurationOption =
+    durationOptions.find((opt) => opt.value === preset.duration) ?? durationOptions[0];
+
   return {
     type: 'modal',
     callback_id: 'create_poll_modal_submit',
@@ -50,6 +147,8 @@ export function buildCreatePollModalView(channelId: string): ModalView {
         element: {
           type: 'plain_text_input',
           action_id: 'question_input',
+          max_length: 150,
+          ...(preset.question ? { initial_value: preset.question.slice(0, 150) } : {}),
           placeholder: {
             type: 'plain_text',
             text: 'e.g. Which sprint retrospective date works best?',
@@ -66,6 +165,8 @@ export function buildCreatePollModalView(channelId: string): ModalView {
         element: {
           type: 'plain_text_input',
           action_id: 'option_1_input',
+          max_length: 200,
+          ...(preset.options?.[0] ? { initial_value: preset.options[0].slice(0, 200) } : {}),
           placeholder: {
             type: 'plain_text',
             text: 'First option',
@@ -82,6 +183,8 @@ export function buildCreatePollModalView(channelId: string): ModalView {
         element: {
           type: 'plain_text_input',
           action_id: 'option_2_input',
+          max_length: 200,
+          ...(preset.options?.[1] ? { initial_value: preset.options[1].slice(0, 200) } : {}),
           placeholder: {
             type: 'plain_text',
             text: 'Second option',
@@ -99,6 +202,8 @@ export function buildCreatePollModalView(channelId: string): ModalView {
         element: {
           type: 'plain_text_input',
           action_id: 'option_3_input',
+          max_length: 200,
+          ...(preset.options?.[2] ? { initial_value: preset.options[2].slice(0, 200) } : {}),
           placeholder: {
             type: 'plain_text',
             text: 'Third option (optional)',
@@ -116,6 +221,8 @@ export function buildCreatePollModalView(channelId: string): ModalView {
         element: {
           type: 'plain_text_input',
           action_id: 'option_4_input',
+          max_length: 200,
+          ...(preset.options?.[3] ? { initial_value: preset.options[3].slice(0, 200) } : {}),
           placeholder: {
             type: 'plain_text',
             text: 'Fourth option (optional)',
@@ -136,15 +243,10 @@ export function buildCreatePollModalView(channelId: string): ModalView {
         element: {
           type: 'checkboxes',
           action_id: 'anonymous_checkbox',
-          options: [
-            {
-              text: {
-                type: 'mrkdwn',
-                text: '*Anonymous Ballot*\nHide voter names. Leave unchecked for a public poll where votes are visible to the team.',
-              },
-              value: 'is_anonymous',
-            },
-          ],
+          options: [anonymousOption, multipleChoiceOption],
+          ...(initialSettingsOptions.length > 0
+            ? { initial_options: initialSettingsOptions }
+            : {}),
         },
         label: {
           type: 'plain_text',
@@ -155,9 +257,12 @@ export function buildCreatePollModalView(channelId: string): ModalView {
         type: 'input',
         block_id: 'quorum_block',
         element: {
-          type: 'plain_text_input',
+          type: 'number_input',
           action_id: 'quorum_input',
-          initial_value: '70',
+          is_decimal_allowed: false,
+          min_value: '10',
+          max_value: '100',
+          initial_value: String(preset?.quorumTarget ?? 70),
           placeholder: {
             type: 'plain_text',
             text: '70',
@@ -184,64 +289,8 @@ export function buildCreatePollModalView(channelId: string): ModalView {
             text: 'Select closing duration',
             emoji: true,
           },
-          initial_option: {
-            text: {
-              type: 'plain_text',
-              text: 'No time limit (Manual / Quorum only)',
-              emoji: true,
-            },
-            value: 'none',
-          },
-          options: [
-            {
-              text: {
-                type: 'plain_text',
-                text: 'No time limit (Manual / Quorum only)',
-                emoji: true,
-              },
-              value: 'none',
-            },
-            {
-              text: {
-                type: 'plain_text',
-                text: '15 minutes (Quick Standup)',
-                emoji: true,
-              },
-              value: '15m',
-            },
-            {
-              text: {
-                type: 'plain_text',
-                text: '1 hour',
-                emoji: true,
-              },
-              value: '1h',
-            },
-            {
-              text: {
-                type: 'plain_text',
-                text: '4 hours',
-                emoji: true,
-              },
-              value: '4h',
-            },
-            {
-              text: {
-                type: 'plain_text',
-                text: '24 hours (Asynchronous / Next day)',
-                emoji: true,
-              },
-              value: '24h',
-            },
-            {
-              text: {
-                type: 'plain_text',
-                text: '3 days (72 hours)',
-                emoji: true,
-              },
-              value: '72h',
-            },
-          ],
+          initial_option: selectedDurationOption,
+          options: durationOptions,
         },
         label: {
           type: 'plain_text',

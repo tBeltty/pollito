@@ -1,6 +1,8 @@
 import type { App } from '@slack/bolt';
 import { PollService } from '../services/pollService.js';
 import { buildPollMessageBlocks } from '../slack/ui/views/pollMessage.js';
+import { decryptToken } from '../utils/crypto.js';
+import { env } from '../config/env.js';
 
 export class PollTimerWorker {
   private timer: NodeJS.Timeout | null = null;
@@ -57,8 +59,12 @@ export class PollTimerWorker {
             participations: closedPoll.participations,
           });
 
+          const token =
+            decryptToken(poll.workspace?.botToken ?? '', env.APP_SECRET_SALT) ??
+            env.SLACK_BOT_TOKEN;
+
           await this.app.client.chat.update({
-            token: poll.workspace?.botToken || undefined,
+            token,
             channel: poll.channelId,
             ts: poll.messageTs,
             text: `[Closed] Poll: ${poll.question}`,
@@ -72,7 +78,7 @@ export class PollTimerWorker {
               : `⏰ *Poll Closed (Deadline Reached)*\n\nThe voting window has ended without any cast votes.`;
 
           await this.app.client.chat.postMessage({
-            token: poll.workspace?.botToken || undefined,
+            token,
             channel: poll.channelId,
             thread_ts: poll.messageTs,
             text: resultNotice,

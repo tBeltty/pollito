@@ -1,6 +1,37 @@
-import type { App, ViewSubmitAction } from '@slack/bolt';
+import type { App } from '@slack/bolt';
+import { z } from 'zod';
 import { PollService } from '../../services/pollService.js';
 import { buildPollMessageBlocks } from '../ui/views/pollMessage.js';
+import { getEligibleChannelMembers } from '../utils/channelMembers.js';
+
+export const createPollSubmissionSchema = z.object({
+  selectedChannel: z.string().min(1, 'Please select a channel for this poll'),
+  question: z
+    .string()
+    .min(1, 'Please provide a poll question')
+    .max(150, 'Question must not exceed 150 characters'),
+  opt1: z
+    .string()
+    .min(1, 'Option 1 is required')
+    .max(200, 'Option 1 must not exceed 200 characters'),
+  opt2: z
+    .string()
+    .min(1, 'Option 2 is required')
+    .max(200, 'Option 2 must not exceed 200 characters'),
+  opt3: z
+    .string()
+    .max(200, 'Option 3 must not exceed 200 characters')
+    .optional(),
+  opt4: z
+    .string()
+    .max(200, 'Option 4 must not exceed 200 characters')
+    .optional(),
+  quorumTarget: z
+    .number({ invalid_type_error: 'Quorum target must be an integer between 10 and 100' })
+    .int('Quorum target must be an integer between 10 and 100')
+    .min(10, 'Quorum target must be between 10 and 100')
+    .max(100, 'Quorum target must be between 10 and 100'),
+});
 
 export function registerViewHandlers(app: App) {
   app.view('create_poll_modal_submit', async ({ ack, view, body, client }) => {
@@ -19,24 +50,46 @@ export function registerViewHandlers(app: App) {
       values.channel_block?.channel_select?.selected_conversation ||
       channelIdFromMeta;
 
-    const question = values.question_block?.question_input?.value?.trim();
-    const opt1 = values.option_1_block?.option_1_input?.value?.trim();
-    const opt2 = values.option_2_block?.option_2_input?.value?.trim();
+    const question = values.question_block?.question_input?.value?.trim() ?? '';
+    const opt1 = values.option_1_block?.option_1_input?.value?.trim() ?? '';
+    const opt2 = values.option_2_block?.option_2_input?.value?.trim() ?? '';
     const opt3 = values.option_3_block?.option_3_input?.value?.trim();
     const opt4 = values.option_4_block?.option_4_input?.value?.trim();
 
-    const errors: Record<string, string> = {};
-    if (!selectedChannel) {
-      errors.channel_block = 'Please select a channel for this poll';
-    }
-    if (!question) {
-      errors.question_block = 'Please provide a poll question';
-    }
-    if (!opt1 || !opt2) {
-      errors.option_1_block = 'At least two options are required';
-    }
+    const rawQuorum = values.quorum_block?.quorum_input?.value?.trim() ?? '70';
+    const parsedQuorum = rawQuorum === '' ? NaN : Number(rawQuorum);
 
-    if (Object.keys(errors).length > 0 || !selectedChannel || !question) {
+    const validationResult = createPollSubmissionSchema.safeParse({
+      selectedChannel,
+      question,
+      opt1,
+      opt2,
+      opt3: opt3 || undefined,
+      opt4: opt4 || undefined,
+      quorumTarget: parsedQuorum,
+    });
+
+    if (!validationResult.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of validationResult.error.issues) {
+        const field = issue.path[0];
+        if (field === 'selectedChannel') {
+          errors.channel_block = issue.message;
+        } else if (field === 'question') {
+          errors.question_block = issue.message;
+        } else if (field === 'opt1') {
+          errors.option_1_block = issue.message;
+        } else if (field === 'opt2') {
+          errors.option_2_block = issue.message;
+        } else if (field === 'opt3') {
+          errors.option_3_block = issue.message;
+        } else if (field === 'opt4') {
+          errors.option_4_block = issue.message;
+        } else if (field === 'quorumTarget') {
+          errors.quorum_block = issue.message;
+        }
+      }
+
       await ack({
         response_action: 'errors',
         errors,
@@ -44,13 +97,16 @@ export function registerViewHandlers(app: App) {
       return;
     }
 
-    const options = [opt1, opt2, opt3, opt4].filter(Boolean) as string[];
+    await ack();
 
-    const isAnonymous =
-      (values.settings_block?.anonymous_checkbox?.selected_options?.length ?? 0) > 0;
+    const validated = validationResult.data;
+    const options = [validated.opt1, validated.opt2, validated.opt3, validated.opt4].filter(
+      (opt): opt is string => Boolean(opt && opt.trim().length > 0)
+    );
 
-    const rawQuorum = values.quorum_block?.quorum_input?.value?.trim() ?? '70';
-    const quorumTarget = Math.max(10, Math.min(100, parseInt(rawQuorum, 10) || 70));
+    const selectedOptions = values.settings_block?.anonymous_checkbox?.selected_options ?? [];
+    const isAnonymous = selectedOptions.some((o: any) => o.value === 'is_anonymous');
+    const allowMultipleVotes = selectedOptions.some((o: any) => o.value === 'allow_multiple_votes');
 
     const durationValue = values.duration_block?.duration_select?.selected_option?.value ?? 'none';
     let closesAt: Date | null = null;
@@ -67,29 +123,22 @@ export function registerViewHandlers(app: App) {
       closesAt = new Date(now + 72 * 60 * 60 * 1000);
     }
 
-    await ack();
-
     try {
       // 1. Attempt to auto-join if it's a public channel
       try {
-        await client.conversations.join({ channel: selectedChannel });
+        await client.conversations.join({ channel: validated.selectedChannel });
       } catch {
         // Safe to ignore if already in channel or private channel
       }
 
-      // 2. Measure channel members for quorum calculation
-      let memberCount = 10;
-      try {
-        const res = await client.conversations.members({ channel: selectedChannel });
-        memberCount = res.members?.length ?? 10;
-      } catch {
-        memberCount = 10;
-      }
+      // 2. Measure channel members for quorum calculation (excluding bot)
+      const members = await getEligibleChannelMembers(client, validated.selectedChannel);
+      const memberCount = members.length > 0 ? members.length : 10;
 
       // 3. Post placeholder message to reserve messageTs
       const placeholder = await client.chat.postMessage({
-        channel: selectedChannel,
-        text: `Launching poll: ${question}...`,
+        channel: validated.selectedChannel,
+        text: `Launching poll: ${validated.question}...`,
       });
 
       if (!placeholder.ts) {
@@ -105,14 +154,15 @@ export function registerViewHandlers(app: App) {
       // 4. Persist in database
       const poll = await PollService.createPoll({
         workspaceId,
-        channelId: selectedChannel,
+        channelId: validated.selectedChannel,
         messageTs: placeholder.ts,
         creatorId: body.user.id,
-        question,
+        question: validated.question,
         options,
         isAnonymous,
+        allowMultipleVotes,
         quorumType: 'PERCENTAGE',
-        quorumTarget,
+        quorumTarget: validated.quorumTarget,
         eligibleVoterCount: memberCount,
         closesAt,
       });
@@ -124,9 +174,9 @@ export function registerViewHandlers(app: App) {
       });
 
       await client.chat.update({
-        channel: selectedChannel,
+        channel: validated.selectedChannel,
         ts: placeholder.ts,
-        text: `Poll: ${question}`,
+        text: `Poll: ${validated.question}`,
         blocks,
       });
     } catch (error: any) {
@@ -136,7 +186,7 @@ export function registerViewHandlers(app: App) {
         error?.message?.includes('not_in_channel');
 
       const notice = isNotInChannel
-        ? `Pollito is not in <#${selectedChannel}>. Please invite the bot by typing \`/invite @Pollito\` in that channel, then launch your poll.`
+        ? `Pollito is not in <#${validated.selectedChannel}>. Please invite the bot by typing \`/invite @Pollito\` in that channel, then launch your poll.`
         : `Could not create poll: ${error?.message || 'Unknown error'}.`;
 
       try {

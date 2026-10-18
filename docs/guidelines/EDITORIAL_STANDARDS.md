@@ -1,6 +1,6 @@
-# Editorial Standards & Writing Hygiene — HuddlePace
+# Editorial Standards & Writing Hygiene — Pollito
 
-This guideline governs all text, Slack Block Kit copy, bot notifications, modals, web marketing copy, documentation, and communications in HuddlePace.
+This guideline governs all text, Slack Block Kit copy, bot notifications, modals, web marketing copy, documentation, and communications in Pollito.
 
 ---
 
@@ -10,10 +10,10 @@ All copy must adhere to direct, natural human cadence and eliminate predictable 
 
 ### Banned Rhetorical Patterns
 1. **Binary Contrast Openers**:
-   - ❌ *"HuddlePace isn't just a timer, it's your meeting copilot."*
-   - ❌ *"No es solo un cronómetro, es un copiloto de agilidad."*
-   - ✅ *"HuddlePace keeps meetings inside their scheduled timeboxes."*
-   - ✅ *"HuddlePace distribuye y controla los bloques de tiempo de tu llamada en Slack."*
+   - ❌ *"Pollito isn't just a polling bot, it's your consensus engine."*
+   - ❌ *"No es solo una encuesta, es un motor de consenso."*
+   - ✅ *"Pollito runs public and anonymous polls that close when quorum is met."*
+   - ✅ *"Pollito gestiona votaciones y quórum directamente en Slack."*
 2. **Theatrical Throat-Clearing & Colon Reveals**:
    - ❌ *"Here's the kicker: we went overtime."*
    - ❌ *"The result: meetings finish on time."*
@@ -26,8 +26,8 @@ All copy must adhere to direct, natural human cadence and eliminate predictable 
    - ❌ *"It tracks your agenda, alerts the speaker, and frees your team."*
    - ✅ *"It tracks agenda modules and pings the speaker before overtime."*
 5. **Slide-Transition Scaffolding**:
-   - ❌ *"Teams use HuddlePace in two primary scenarios, depending on need:"*
-   - ✅ *"Use `/pace start` for structured agendas or `/pace 15m` for open timers."*
+   - ❌ *"Teams use Pollito in two primary scenarios, depending on need:"*
+   - ✅ *"Use `/pollito` for interactive modals or `/pollito "Question" "A" "B"` for quick polls."*
 6. **Portability Test Violations**:
    - If a sentence can be copy-pasted into any generic corporate SaaS website without conveying concrete project facts, cut it or replace it with specific numbers, commands, and actions.
 
@@ -36,12 +36,17 @@ delve, foster, leverage, utilize, facilitate, empower, streamline, robust, cutti
 
 ---
 
-## 2. Voice & Tone: Vector the Falcon (*Flight Pacer*)
+## 2. Voice & Tone: Pollito the Chick (*Consensus Pacer*)
 
-Vector is a Peregrine Falcon from the Vibecoder Universe. His role is flight navigator and cadence keeper:
-- **Calm & Telemetric**: Communicates clear flight telemetry (time remaining, active topic, holding patterns). Never panics and never scolds.
-- **Supportive, Not Accusatory**: Timekeeping is socially sensitive. Never act like an abrasive "meeting cop" (*"Time's up! Stop talking!"*). Offer neutral status (*"1 minute remaining in Architecture Review. Holding pattern available."*).
-- **Physical Concrete Verbs**: Use direct actions ("wrap up current topic", "move to Q&A block", "close huddle") instead of corporate abstractions ("optimize transitional momentum").
+Pollito is a focused, friendly chick who facilitates team decisions with warmth and mathematical precision:
+- **Calm & Objective**: Communicates clear consensus telemetry (votes cast, quorum percentage, remaining time). Never scolds and never pressures non-voters.
+- **Supportive & Discreet**: Voting and consensus can be sensitive. Protect voter privacy strictly. In anonymous polls, never reveal voter identities.
+- **Micro-Expressions**: Expresses state cleanly with mascot emojis:
+  - 🐣 Hatching / New poll
+  - 🧐 Focused / Waiting for quorum
+  - 🎉 Consensus reached / Quorum met
+  - ⏰ Time expired / Closed
+- **Physical Concrete Verbs**: Use direct actions ("vote for an option", "reach quorum", "close poll") instead of corporate abstractions ("empower alignment").
 
 ---
 
@@ -78,5 +83,5 @@ Before committing any Slack notification copy, marketing text, or documentation:
 - [ ] Is it free of binary contrasts (*"not X, but Y"*), colon reveals, and corporate buzzwords?
 - [ ] Is Slack Block Kit copy strictly in English?
 - [ ] If Spanish is used in marketing/docs, is it 100% tuteo with zero voseo?
-- [ ] Are all protected tokens (`/pace`, minutes, Slack user/channel IDs) preserved accurately?
+- [ ] Are all protected tokens (`/pollito`, votes, Slack user/channel IDs) preserved accurately?
 - [ ] Does it sound like a focused teammate speaking directly to a peer?

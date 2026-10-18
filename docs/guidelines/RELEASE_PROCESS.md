@@ -1,6 +1,6 @@
 # Release Process & Versioning Standards
 
-This document establishes the release lifecycle, versioning protocol, changelog hygiene, and automated GitHub Releases pipeline for HuddlePace.
+This document establishes the release lifecycle, versioning protocol, changelog hygiene, and automated GitHub Releases pipeline for Pollito.
 
 > [!IMPORTANT]
 > **Mandatory Autonomous Execution Directive (Zero User Reminders)**
@@ -10,7 +10,7 @@ This document establishes the release lifecycle, versioning protocol, changelog 
 
 ## 0. What Gets a Release
 
-Releases, tags, `CHANGELOG.md` entries and version bumps are **only for the HuddlePace Slack app**: bot behavior, commands, modals, App Home, notifications, OAuth, data and anything else a workspace admin or speaker would notice.
+Releases, tags, `CHANGELOG.md` entries and version bumps are **only for the Pollito Slack app**: bot behavior, commands, modals, App Home, notifications, OAuth, data and anything else a workspace admin or team member would notice.
 
 These changes get **no** version bump, tag, changelog entry or GitHub Release:
 - The website: pages in `public/`, SEO, structured data, fonts, images, `sitemap.xml`, `robots.txt`, the 404 page and site performance.
@@ -22,10 +22,10 @@ Record those in [`docs/PRODUCT_CAPABILITIES_LOG.md`](../PRODUCT_CAPABILITIES_LOG
 
 ## 1. Versioning Architecture (SemVer 2.0.0)
 
-HuddlePace follows [Semantic Versioning 2.0.0](https://semver.org/):
+Pollito follows [Semantic Versioning 2.0.0](https://semver.org/):
 
 ```text
-MAJOR.MINOR.PATCH (e.g., 1.0.1)
+MAJOR.MINOR.PATCH (e.g., 0.2.0)
 ```
 
 - **MAJOR (`x.0.0`)**: Incompatible API breaks, destructive database migrations, major architectural pivots, or breaking Slack manifest changes requiring manual workspace re-authorization.
@@ -50,9 +50,9 @@ Under any version header, changes must be classified under these standard catego
 ### Comparison Links
 Every version in `CHANGELOG.md` must maintain Markdown anchor and diff links at the foot of the document:
 ```markdown
-[Unreleased]: https://github.com/tBeltty/huddle-pace/compare/v1.0.1...HEAD
-[1.0.1]: https://github.com/tBeltty/huddle-pace/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/tBeltty/huddle-pace/releases/tag/v1.0.0
+[Unreleased]: https://github.com/tBeltty/pollito/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tBeltty/pollito/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/tBeltty/pollito/releases/tag/v0.1.0
 ```
 
 ---
@@ -112,14 +112,14 @@ gh run watch <run_id> --exit-status
 ```
 Verify the production health check reflects the new version:
 ```bash
-curl -sS https://huddlepace.com/healthz
+curl -sS https://pollito.tbelt.online/healthz
 ```
 
 ### Step 6: Create Annotated Git Tag & Push
 Once the code is verified live in production, create an annotated Git tag matching the SemVer release:
 ```bash
-git tag -a v1.0.2 -m "Release v1.0.2"
-git push origin v1.0.2
+git tag -a v0.2.0 -m "Release v0.2.0"
+git push origin v0.2.0
 ```
 
 ### Step 7: Automated GitHub Release Workflow
@@ -129,6 +129,6 @@ Pushing a tag matching `v*.*.*` automatically triggers `.github/workflows/releas
 
 Verify the release on GitHub:
 ```bash
-gh release view v1.0.2
+gh release view v0.2.0
 ```
-or visit `https://github.com/tBeltty/huddle-pace/releases`.
+or visit `https://github.com/tBeltty/pollito/releases`.

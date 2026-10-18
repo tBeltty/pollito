@@ -31,39 +31,36 @@ fi
 echo ""
 echo "🚀 Configuring remote server (mi-vps)..."
 
-# 3. Stream configuration directly to remote VPS via SSH without saving locally
-ssh mi-vps bash -s <<EOF
-set -euo pipefail
-PROD_ENV="/home/jhonatan/pollito/.env"
+VPS_HOST="${VPS_HOST:-mi-vps}"
+# 3. Stream configuration directly to remote VPS via SSH without exposing secrets in argv
+printf '%s\n%s\n' "$SLACK_BOT_TOKEN" "$SLACK_SIGNING_SECRET" | ssh "$VPS_HOST" 'node -e '\''
+const fs = require("fs");
+const readline = require("readline");
 
-if [[ ! -f "\$PROD_ENV" ]]; then
-  echo "Creating new \$PROD_ENV file..."
-  touch "\$PROD_ENV"
-fi
+const rl = readline.createInterface({ input: process.stdin });
+const lines = [];
+rl.on("line", line => lines.push(line));
+rl.on("close", () => {
+  const [botToken, signingSecret] = lines;
+  const envPath = "/home/jhonatan/pollito/.env";
+  let content = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
 
-chmod 600 "\$PROD_ENV"
+  function setVar(key, val) {
+    const re = new RegExp(`^${key}=.*$`, "m");
+    if (re.test(content)) {
+      content = content.replace(re, `${key}="${val}"`);
+    } else {
+      content += (content.endsWith("\n") || !content ? "" : "\n") + `${key}="${val}"\n`;
+    }
+  }
 
-# Update or insert SLACK_BOT_TOKEN
-if grep -q "^SLACK_BOT_TOKEN=" "\$PROD_ENV"; then
-  sed -i "s|^SLACK_BOT_TOKEN=.*|SLACK_BOT_TOKEN=\"$SLACK_BOT_TOKEN\"|" "\$PROD_ENV"
-else
-  echo "SLACK_BOT_TOKEN=\"$SLACK_BOT_TOKEN\"" >> "\$PROD_ENV"
-fi
+  if (botToken) setVar("SLACK_BOT_TOKEN", botToken);
+  if (signingSecret) setVar("SLACK_SIGNING_SECRET", signingSecret);
 
-# Update or insert SLACK_SIGNING_SECRET
-if grep -q "^SLACK_SIGNING_SECRET=" "\$PROD_ENV"; then
-  sed -i "s|^SLACK_SIGNING_SECRET=.*|SLACK_SIGNING_SECRET=\"$SLACK_SIGNING_SECRET\"|" "\$PROD_ENV"
-else
-  echo "SLACK_SIGNING_SECRET=\"$SLACK_SIGNING_SECRET\"" >> "\$PROD_ENV"
-fi
-
-echo "Restarting Pollito on PM2 with updated secrets..."
-pm2 restart pollito --update-env
-
-echo "Verifying local service..."
-sleep 2
-curl -fsS http://127.0.0.1:3015/healthz
-EOF
+  fs.writeFileSync(envPath, content, { mode: 0o600 });
+  console.log("Updated secrets in " + envPath);
+});
+'\'' && chmod 600 /home/jhonatan/pollito/.env && pm2 restart pollito --update-env && sleep 2 && curl -fsS http://127.0.0.1:3015/healthz'
 
 # Clear variables from local subshell memory
 unset SLACK_BOT_TOKEN

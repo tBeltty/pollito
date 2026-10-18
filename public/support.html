@@ -27,7 +27,7 @@
         <li><a href="support.html" class="nav-link active">Support</a></li>
       </ul>
 
-      <a href="https://slack.com/oauth/v2/authorize?client_id=12145588418240.12338463584437&scope=commands,chat:write,channels:read,groups:read,im:read,mpim:read,users:read" class="btn btn-slack">
+      <a href="https://slack.com/oauth/v2/authorize?client_id=12145588418240.12338463584437&scope=commands,chat:write,chat:write.public,channels:join,channels:read,groups:read,im:read,im:write,mpim:read,users:read" class="btn btn-slack">
         <img src="assets/icons/slack.svg" alt="Slack" width="18" height="18" class="slack-logo-icon">
         <span>Add to Slack</span>
       </a>
@@ -91,9 +91,11 @@
         </p>
         <ul>
           <li><code>commands</code>: To handle <code>/pollito</code> slash commands.</li>
-          <li><code>chat:write</code>: To post interactive poll cards in channels and threads.</li>
-          <li><code>channels:read</code> & <code>groups:read</code>: To calculate active member counts for quorum percentages.</li>
+          <li><code>chat:write</code> & <code>chat:write.public</code>: To post interactive poll cards in channels and threads.</li>
+          <li><code>channels:join</code>: To join public channels upon request.</li>
+          <li><code>channels:read</code>, <code>groups:read</code>, <code>im:read</code> & <code>mpim:read</code>: To calculate active member counts for quorum percentages.</li>
           <li><code>im:write</code>: To send non-voters gentle, opt-out reminders before deadlines.</li>
+          <li><code>users:read</code>: To display poll creator details and resolve mentions.</li>
         </ul>
       </section>
 
