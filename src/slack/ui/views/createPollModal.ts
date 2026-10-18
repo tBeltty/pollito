@@ -149,6 +149,87 @@ export function buildCreatePollModalView(channelId: string): ModalView {
           text: 'The poll auto-closes once this share of channel members casts a ballot.',
         },
       },
+      {
+        type: 'input',
+        block_id: 'duration_block',
+        optional: true,
+        element: {
+          type: 'static_select',
+          action_id: 'duration_select',
+          placeholder: {
+            type: 'plain_text',
+            text: 'Select closing duration',
+            emoji: true,
+          },
+          initial_option: {
+            text: {
+              type: 'plain_text',
+              text: 'No time limit (Manual / Quorum only)',
+              emoji: true,
+            },
+            value: 'none',
+          },
+          options: [
+            {
+              text: {
+                type: 'plain_text',
+                text: 'No time limit (Manual / Quorum only)',
+                emoji: true,
+              },
+              value: 'none',
+            },
+            {
+              text: {
+                type: 'plain_text',
+                text: '15 minutes (Quick Standup)',
+                emoji: true,
+              },
+              value: '15m',
+            },
+            {
+              text: {
+                type: 'plain_text',
+                text: '1 hour',
+                emoji: true,
+              },
+              value: '1h',
+            },
+            {
+              text: {
+                type: 'plain_text',
+                text: '4 hours',
+                emoji: true,
+              },
+              value: '4h',
+            },
+            {
+              text: {
+                type: 'plain_text',
+                text: '24 hours (Asynchronous / Next day)',
+                emoji: true,
+              },
+              value: '24h',
+            },
+            {
+              text: {
+                type: 'plain_text',
+                text: '3 days (72 hours)',
+                emoji: true,
+              },
+              value: '72h',
+            },
+          ],
+        },
+        label: {
+          type: 'plain_text',
+          text: 'Poll Duration / Deadline',
+          emoji: true,
+        },
+        hint: {
+          type: 'plain_text',
+          text: 'Automatically closes the vote when this time expires, even if quorum has not been reached.',
+        },
+      },
     ],
   };
 }

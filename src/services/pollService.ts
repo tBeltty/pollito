@@ -12,6 +12,7 @@ export interface CreatePollParams {
   quorumType?: 'PERCENTAGE' | 'COUNT' | 'NONE';
   quorumTarget?: number;
   eligibleVoterCount?: number;
+  closesAt?: Date | null;
 }
 
 export interface VoteParams {
@@ -48,6 +49,7 @@ export class PollService {
       quorumType = 'PERCENTAGE',
       quorumTarget = 70,
       eligibleVoterCount = 0,
+      closesAt = null,
     } = params;
 
     return prisma.poll.create({
@@ -61,6 +63,7 @@ export class PollService {
         quorumType,
         quorumTarget,
         eligibleVoterCount,
+        closesAt,
         status: 'ACTIVE',
         options: {
           create: options.map((text, index) => ({
@@ -95,7 +98,7 @@ export class PollService {
         throw new Error('Poll not found');
       }
 
-      if (poll.status !== 'ACTIVE') {
+      if (poll.status !== 'ACTIVE' || (poll.closesAt && poll.closesAt <= new Date())) {
         throw new Error('This poll is closed and no longer accepting votes');
       }
 
@@ -188,9 +191,13 @@ export class PollService {
   }
 
   /**
-   * Manually closes an active poll.
+   * Closes an active poll (either manually by the creator, or automatically by the timer worker).
    */
-  static async closePoll(pollId: string, actorUserId: string) {
+  static async closePoll(
+    pollId: string,
+    actorUserId?: string,
+    closingStatus: 'CLOSED' | 'TIME_EXPIRED' | 'QUORUM_REACHED' = 'CLOSED'
+  ) {
     const poll = await prisma.poll.findUnique({
       where: { id: pollId },
     });
@@ -199,17 +206,40 @@ export class PollService {
       throw new Error('Poll not found');
     }
 
-    if (poll.creatorId !== actorUserId) {
+    if (actorUserId && actorUserId !== 'SYSTEM_TIMER' && poll.creatorId !== actorUserId) {
       throw new Error('Only the poll creator can manually close this poll');
     }
 
     return prisma.poll.update({
       where: { id: pollId },
       data: {
-        status: 'CLOSED',
+        status: closingStatus,
         closedAt: new Date(),
       },
       include: {
+        options: {
+          orderBy: { index: 'asc' },
+        },
+        participations: true,
+        publicVotes: true,
+      },
+    });
+  }
+
+  /**
+   * Fetches all active polls that have passed their scheduled closesAt deadline.
+   */
+  static async getExpiredActivePolls(now = new Date()) {
+    return prisma.poll.findMany({
+      where: {
+        status: 'ACTIVE',
+        closesAt: {
+          not: null,
+          lte: now,
+        },
+      },
+      include: {
+        workspace: true,
         options: {
           orderBy: { index: 'asc' },
         },

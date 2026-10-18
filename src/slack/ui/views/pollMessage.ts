@@ -27,7 +27,7 @@ export function renderProgressBar(percentage: number, totalSlots = 10): string {
  */
 export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlock)[] {
   const totalVotes = poll.participations.length;
-  const isClosed = poll.status === 'QUORUM_REACHED' || poll.status === 'CLOSED';
+  const isClosed = poll.status === 'QUORUM_REACHED' || poll.status === 'CLOSED' || poll.status === 'TIME_EXPIRED';
 
   // Determine reactive mascot state
   let statusEmoji = '🐣';
@@ -36,6 +36,9 @@ export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlo
   if (poll.status === 'QUORUM_REACHED') {
     statusEmoji = '🎉';
     statusText = 'Quorum reached • Closed';
+  } else if (poll.status === 'TIME_EXPIRED') {
+    statusEmoji = '⏰';
+    statusText = 'Time limit reached • Closed';
   } else if (poll.status === 'CLOSED') {
     statusEmoji = '🔒';
     statusText = 'Poll closed';
@@ -120,6 +123,14 @@ export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlo
     quorumReadout = `Total participants: ${totalVotes}`;
   }
 
+  let deadlineReadout = '';
+  if (poll.closesAt) {
+    const unixSec = Math.floor(new Date(poll.closesAt).getTime() / 1000);
+    deadlineReadout = isClosed
+      ? ` • ⏰ Closed: <!date^${unixSec}^{date_short} {time}|${new Date(poll.closesAt).toISOString()}>`
+      : ` • ⏳ Closes: <!date^${unixSec}^{date_short} {time}|${new Date(poll.closesAt).toISOString()}>`;
+  }
+
   blocks.push(
     {
       type: 'divider',
@@ -129,7 +140,7 @@ export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlo
       elements: [
         {
           type: 'mrkdwn',
-          text: `📊 ${quorumReadout} • Created by <@${poll.creatorId}>`,
+          text: `📊 ${quorumReadout}${deadlineReadout} • Created by <@${poll.creatorId}>`,
         },
       ],
     }
