@@ -47,6 +47,7 @@ Pollito integra 13 habilidades de alto impacto para arquitectura de apps en Slac
 * **[Security & Token Standards](file:///Users/jhonatan/Documents/pollito/docs/guidelines/SECURITY.md)**: Cifrado de tokens, scopes mínimos y esquemas Zod en tiempo de ejecución.
 * **[Definition of Done (DoD)](file:///Users/jhonatan/Documents/pollito/docs/guidelines/DEFINITION_OF_DONE.md)**: Criterios no negociables para considerar completada una tarea.
 * **[Release Process & Versioning Standards](file:///Users/jhonatan/Documents/pollito/docs/guidelines/RELEASE_PROCESS.md)**: Versionado SemVer, changelog atómico y tags de release.
+* **[Subagent Orchestration & Model Governance](file:///Users/jhonatan/Documents/pollito/docs/guidelines/SUBAGENT_ORCHESTRATION.md)**: Protocolo Auditor/Executor, aislamiento de sesiones efímeras (`1 Tarea = 1 Subagente`), directivas de lectura en paralelo y matriz empírica de selección de modelos (`inherit` vs. `flash`).
 
 ---
 
@@ -57,9 +58,20 @@ Pollito integra 13 habilidades de alto impacto para arquitectura de apps en Slac
 
 ---
 
-## 🤖 5. Matriz de Subagentes Especializados
+## 🤖 5. Orquestación de Subagentes, División de Tareas y Gestión de Modelos
 
-* **`slack_buddy`**: Arquitecto de plataforma Slack, Bolt framework, vistas Block Kit, seguridad criptográfica, OAuth 2.0 y resiliencia de eventos.
-* **`wordsmith`**: Director editorial, redactor de conversión, auditor de Anti-AI Slop, higiene de Conventional Commits y curaduría de changelogs bajo Keep a Changelog 1.1.0.
+Guía canónica: **[`docs/guidelines/SUBAGENT_ORCHESTRATION.md`](file:///Users/jhonatan/Documents/pollito/docs/guidelines/SUBAGENT_ORCHESTRATION.md)**
 
+### División de Roles (Auditor/Executor Protocol)
+* **Agente Principal (`Auditor`)**: Diseña el plan verificable (`audit/plan-of-record.md` y `audit/execution-guide.md`), despacha subagentes efímeros por tarea, ejecuta independientemente la suite de pruebas y los controles negativos (`auditkit negcontrol`) y firma los veredictos en `audit/compliance-log.md`.
+* **`slack_buddy` (`Technical Executor`)**: Implementa una única tarea técnica a la vez (arquitectura Bolt, vistas Block Kit puras, criptografía HKDF/AES-256-GCM, OAuth 2.0, Prisma y suites de Vitest).
+* **`wordsmith` (`Editorial & Release Executor`)**: Audita y pule la prosa de cara al usuario (`public/*.html`, `PRODUCT.md`, `OPERATIONS.md`, `CHANGELOG.md`), aplica las reglas `no-ai-slop` y Keep a Changelog 1.1.0, y redacta notas de release y commits semánticos.
 
+### Higiene de Sesiones (`1 Tarea = 1 Sesión Fresca`)
+1. **Aislamiento**: Nunca reutilices la misma sesión de subagente para múltiples tareas secuenciales; invoca una instancia nueva con `invoke_subagent` por cada tarea (`P1-T1`, `P1-T2`, etc.).
+2. **Terminación inmediata**: Tan pronto el subagente entrega su reporte, destrúyelo con `manage_subagents(Action: "kill")`.
+3. **Directivas de rendimiento en el prompt (`CRITICAL PERFORMANCE DIRECTIVES`)**: Todo prompt de subagente debe incrustar la especificación completa de la tarea, prohibir la lectura de archivos de fases cerradas y exigir lecturas `view_file` en lotes paralelos (5–8 archivos por turno).
+
+### Selección de Modelo (`inherit` vs. `flash`)
+* **`Model: "inherit"`**: Úsalo en tareas de arquitectura compleja en TypeScript, lógica criptográfica, manejadores de Slack Bolt, constructores Block Kit y suites de pruebas unitarias (~42 pasos para 8 archivos, edición cohesiva en un solo pase).
+* **`Model: "flash"`**: Úsalo (siempre acompañado de `CRITICAL PERFORMANCE DIRECTIVES`) en tareas mecánicas o de alto volumen de archivos de configuración, scripts Bash, documentación y HTML (~33 segundos por archivo en lotes de 19 archivos).

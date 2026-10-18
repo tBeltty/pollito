@@ -20,6 +20,7 @@ Any agent operating in this codebase must reference and respect the following co
    * **Security & Token Isolation**: [`docs/guidelines/SECURITY.md`](docs/guidelines/SECURITY.md)
    * **Definition of Done (DoD)**: [`docs/guidelines/DEFINITION_OF_DONE.md`](docs/guidelines/DEFINITION_OF_DONE.md)
    * **Release Process & Versioning**: [`docs/guidelines/RELEASE_PROCESS.md`](docs/guidelines/RELEASE_PROCESS.md)
+   * **Subagent Orchestration & Model Governance**: [`docs/guidelines/SUBAGENT_ORCHESTRATION.md`](docs/guidelines/SUBAGENT_ORCHESTRATION.md)
 4. **[Skills Suite](.agents/skills/)** (`.agents/skills/`):
    * Tracked skills for automated execution: `slack-block-kit`, `slack-security-auth`, `slack-bolt-architecture`, `slack-ai-agents`, `slack-app-distribution`, `competitor-alternatives`, `copywriting`, `copy-editing`, `text-humanizer`, `ogilvy`, `content-strategy`, `proofreading`, `paragraph-structure`.
 
@@ -28,7 +29,7 @@ Any agent operating in this codebase must reference and respect the following co
 ## ⚡ Mandatory Agent Protocols
 
 ### 1. Invariants of Voting & Privacy Architecture
-* **Double-Urn Secret Ballots**: In anonymous polls, never link a user ID directly to their selected vote choice in the database. Use HMAC-SHA256 salted tokens or an unlinked vote pool to ensure mathematical anonymity while preventing duplicate voting.
+* **Double-Urn Secret Ballots**: In anonymous polls, never link a user ID directly to their selected vote choice in the database. Use HKDF-SHA256 salted tokens or an unlinked vote pool to ensure mathematical anonymity while preventing duplicate voting.
 * **Deterministic Quorum Logic**: Quorum thresholds (50%, 66%, 75%, 80%, 100%) calculate participation as `(unique_voters / channel_members)`. When quorum is met, the poll automatically transitions to `CLOSED` and notifies the thread without revealing identities.
 * **Smart Nudges**: Nudges send ephemeral messages or DMs strictly to non-voters. Never leak who has already voted.
 * **Clock-Free UI**: Slack Block Kit builders in `src/slack/ui/` never read the system clock directly. Pass timestamps and computed states into builders so that rendering is 100% deterministic and pure.
@@ -47,7 +48,7 @@ Any agent operating in this codebase must reference and respect the following co
   * `src/slack/ui/`: Pure Block Kit view builders (no database access, no side effects).
   * `src/slack/handlers/`: Bolt action, command, and event dispatchers.
   * `src/services/`: Domain business logic, vote calculations, quorum detection, Prisma queries.
-  * `src/scheduler/`: Background workers for auto-closing timers and nudges.
+  * `src/workers/`: Background workers for auto-closing timers and nudges.
 * **Resilience**: Never crash the process. Wrap Slack API calls in localized `try/catch` blocks.
 * **Strict Types**: Use runtime Zod validation for external payloads and TypeScript strict types.
 
@@ -72,4 +73,10 @@ Any agent operating in this codebase must reference and respect the following co
   - Drafting competitor comparison pages or sales enablement narratives (*Pollito vs Simple Poll*, *Pollito vs Polly*).
 * **Action**: Delegate the task to subagent `wordsmith` via `invoke_subagent` (`TypeName: "wordsmith"`). `wordsmith` has access to the full writing and anti-slop skills suite (`no-ai-slop`, `text-humanizer`, `copywriting`, `copy-editing`, `proofreading`, `paragraph-structure`, `ogilvy`, `competitor-alternatives`).
 
-
+### 7. Subagent Session Hygiene & Model Governance
+* **Reference**: [`docs/guidelines/SUBAGENT_ORCHESTRATION.md`](docs/guidelines/SUBAGENT_ORCHESTRATION.md)
+* **1 Task = 1 Fresh Session**: Spawn a fresh subagent per task (`invoke_subagent`) and terminate it immediately upon completion (`manage_subagents(Action: "kill")`) to prevent context saturation.
+* **Mandatory Prompt Directives**: Embed the task specification directly in the subagent prompt, forbid reading closed phase files or planning docs, and require parallel `view_file` batching (5–8 files per turn).
+* **Model Selection (`inherit` vs. `flash`)**:
+  - Use `Model: "inherit"` for complex TypeScript architecture, cryptography, Slack Bolt handlers, Block Kit UI views, and unit test suites.
+  - Use `Model: "flash"` (strictly paired with parallel read and scope-lock directives) for high-volume mechanical updates across scripts, documentation, and HTML files.
