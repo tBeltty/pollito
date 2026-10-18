@@ -16,75 +16,9 @@ export interface CreatePollModalPreset {
   editTemplateId?: string;
   forwardToChannelOnHuddleEnd?: boolean;
   availableTemplates?: Array<{ id: string; name: string; isShared?: boolean }>;
+  createTemplateMode?: boolean;
+  isShared?: boolean;
 }
-
-export interface BuiltInPollTemplate {
-  name: string;
-  question: string;
-  options: string[];
-  isAnonymous: boolean;
-  allowMultipleVotes: boolean;
-  quorumType: 'PERCENTAGE' | 'NONE';
-  quorumTarget: number;
-  duration: string;
-}
-
-export const BUILT_IN_POLL_TEMPLATES: Record<string, BuiltInPollTemplate> = {
-  standup: {
-    name: 'Standup Check',
-    question: 'Do we have any blockers for today’s standup?',
-    options: [
-      'All clear — on track',
-      'Minor blocker — need sync',
-      'Blocked — need review',
-    ],
-    isAnonymous: false,
-    allowMultipleVotes: false,
-    quorumType: 'PERCENTAGE',
-    quorumTarget: 80,
-    duration: '15m',
-  },
-  retro: {
-    name: 'Retro Date',
-    question: 'Which sprint retrospective slot works best?',
-    options: [
-      'Thursday 14:00 UTC',
-      'Thursday 16:00 UTC',
-      'Friday 14:00 UTC',
-      'Friday 16:00 UTC',
-    ],
-    isAnonymous: false,
-    allowMultipleVotes: true,
-    quorumType: 'PERCENTAGE',
-    quorumTarget: 75,
-    duration: '24h',
-  },
-  rfc: {
-    name: 'Architecture RFC',
-    question: 'How should we proceed with the proposed Architecture RFC?',
-    options: [
-      'Approve as proposed',
-      'Approve with minor revisions',
-      'Needs deeper architecture review',
-      'Abstain',
-    ],
-    isAnonymous: true,
-    allowMultipleVotes: false,
-    quorumType: 'PERCENTAGE',
-    quorumTarget: 70,
-    duration: '72h',
-  },
-  lunch: {
-    name: 'Team Lunch',
-    question: 'Where should the team go for lunch this Friday?',
-    options: ['Tacos', 'Ramen', 'Wood-fired Pizza', 'Mediterranean'],
-    isAnonymous: true,
-    allowMultipleVotes: true,
-    quorumType: 'NONE',
-    quorumTarget: 51,
-    duration: '4h',
-  },
-};
 
 export function buildCreatePollModalView(
   channelIdOrPreset: string | CreatePollModalPreset = ''
@@ -96,6 +30,7 @@ export function buildCreatePollModalView(
 
   const channelId = preset.channelId ?? '';
   const isEditingTemplate = Boolean(preset.editTemplateId);
+  const isCreatingTemplate = Boolean(preset.createTemplateMode);
   const isHuddleMode = Boolean(preset.huddleMode || preset.threadTs);
 
   const anonymousOption: MrkdwnOption = {
@@ -150,6 +85,14 @@ export function buildCreatePollModalView(
       text: '*Save as reusable template*\nStore this question, options, and quorum setup in your Templates menu.',
     },
     value: 'save_as_template',
+  };
+
+  const shareTemplateOption: MrkdwnOption = {
+    text: {
+      type: 'mrkdwn',
+      text: '*Share with workspace as Quick Template*\nMake this template visible on App Home and accessible for all teammates to launch in one click.',
+    },
+    value: 'is_shared',
   };
 
   const initialSaveTemplateOptions: MrkdwnOption[] = [];
@@ -225,25 +168,37 @@ export function buildCreatePollModalView(
     type: 'modal',
     callback_id: isEditingTemplate
       ? 'edit_template_modal_submit'
-      : 'create_poll_modal_submit',
+      : isCreatingTemplate
+        ? 'create_template_modal_submit'
+        : 'create_poll_modal_submit',
     private_metadata: JSON.stringify({
       channelId,
       ...(preset.threadTs ? { threadTs: preset.threadTs } : {}),
       ...(preset.huddleMode ? { huddleMode: true } : {}),
       ...(preset.editTemplateId ? { editTemplateId: preset.editTemplateId } : {}),
+      ...(isCreatingTemplate ? { createTemplateMode: true } : {}),
+      ...(preset.isShared !== undefined ? { isShared: preset.isShared } : {}),
     }),
     title: {
       type: 'plain_text',
       text: isEditingTemplate
         ? 'Edit Poll Template'
-        : isHuddleMode
-          ? 'Create a Huddle Poll'
-          : 'Create a Poll',
+        : isCreatingTemplate
+          ? preset.isShared
+            ? 'New Workspace Template'
+            : 'New Poll Template'
+          : isHuddleMode
+            ? 'Create a Huddle Poll'
+            : 'Create a Poll',
       emoji: true,
     },
     submit: {
       type: 'plain_text',
-      text: isEditingTemplate ? 'Save Template' : 'Launch Poll',
+      text: isEditingTemplate
+        ? 'Save Template'
+        : isCreatingTemplate
+          ? 'Create Template'
+          : 'Launch Poll',
       emoji: true,
     },
     close: {
@@ -269,7 +224,7 @@ export function buildCreatePollModalView(
       {
         type: 'input',
         block_id: 'channel_block',
-        optional: isEditingTemplate || isHuddleMode,
+        optional: isEditingTemplate || isCreatingTemplate || isHuddleMode,
         element: {
           type: 'conversations_select',
           action_id: 'channel_select',
@@ -286,7 +241,7 @@ export function buildCreatePollModalView(
         },
         label: {
           type: 'plain_text',
-          text: 'Channel',
+          text: isCreatingTemplate ? 'Default Channel (Optional)' : 'Channel',
           emoji: true,
         },
       },
@@ -482,44 +437,84 @@ export function buildCreatePollModalView(
       {
         type: 'divider',
       },
-      {
-        type: 'input',
-        block_id: 'save_template_block',
-        optional: true,
-        element: {
-          type: 'checkboxes',
-          action_id: 'save_template_checkbox',
-          options: [saveAsTemplateOption],
-          ...(initialSaveTemplateOptions.length > 0
-            ? { initial_options: initialSaveTemplateOptions }
-            : {}),
-        },
-        label: {
-          type: 'plain_text',
-          text: 'Reusable Template',
-        },
-      },
-      {
-        type: 'input',
-        block_id: 'template_name_block',
-        optional: true,
-        element: {
-          type: 'plain_text_input',
-          action_id: 'template_name_input',
-          max_length: 75,
-          ...(preset.templateName
-            ? { initial_value: preset.templateName.slice(0, 75) }
-            : {}),
-          placeholder: {
-            type: 'plain_text',
-            text: 'Optional template name (defaults to question)',
-          },
-        },
-        label: {
-          type: 'plain_text',
-          text: 'Template Name',
-        },
-      },
+      ...(isCreatingTemplate || isEditingTemplate
+        ? [
+            {
+              type: 'input' as const,
+              block_id: 'template_name_block',
+              element: {
+                type: 'plain_text_input' as const,
+                action_id: 'template_name_input',
+                max_length: 75,
+                ...(preset.templateName
+                  ? { initial_value: preset.templateName.slice(0, 75) }
+                  : {}),
+                placeholder: {
+                  type: 'plain_text' as const,
+                  text: 'e.g. Daily Standup Blockers',
+                },
+              },
+              label: {
+                type: 'plain_text' as const,
+                text: 'Template Name',
+              },
+            },
+            {
+              type: 'input' as const,
+              block_id: 'template_share_block',
+              optional: true,
+              element: {
+                type: 'checkboxes' as const,
+                action_id: 'template_share_checkbox',
+                options: [shareTemplateOption],
+                ...(preset.isShared ? { initial_options: [shareTemplateOption] } : {}),
+              },
+              label: {
+                type: 'plain_text' as const,
+                text: 'Workspace Availability',
+              },
+            },
+          ]
+        : [
+            {
+              type: 'input' as const,
+              block_id: 'save_template_block',
+              optional: true,
+              element: {
+                type: 'checkboxes' as const,
+                action_id: 'save_template_checkbox',
+                options: [saveAsTemplateOption],
+                ...(initialSaveTemplateOptions.length > 0
+                  ? { initial_options: initialSaveTemplateOptions }
+                  : {}),
+              },
+              label: {
+                type: 'plain_text' as const,
+                text: 'Reusable Template',
+              },
+            },
+            {
+              type: 'input' as const,
+              block_id: 'template_name_block',
+              optional: true,
+              element: {
+                type: 'plain_text_input' as const,
+                action_id: 'template_name_input',
+                max_length: 75,
+                ...(preset.templateName
+                  ? { initial_value: preset.templateName.slice(0, 75) }
+                  : {}),
+                placeholder: {
+                  type: 'plain_text' as const,
+                  text: 'Optional template name (defaults to question)',
+                },
+              },
+              label: {
+                type: 'plain_text' as const,
+                text: 'Template Name',
+              },
+            },
+          ]),
     ],
   };
 }

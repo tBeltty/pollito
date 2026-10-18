@@ -25,50 +25,6 @@ import {
   getEligibleChannelMembers,
 } from '../utils/channelMembers.js';
 
-const APP_HOME_TEMPLATES: Record<string, CreatePollModalPreset> = {
-  standup: {
-    question: 'Do we have any blockers for today’s standup?',
-    options: ['All clear — on track', 'Minor blocker — need sync', 'Blocked — need review'],
-    isAnonymous: false,
-    allowMultipleVotes: false,
-    quorumType: 'PERCENTAGE',
-    quorumTarget: 80,
-    duration: '15m',
-  },
-  retro: {
-    question: 'Which sprint retrospective slot works best?',
-    options: ['Thursday 14:00 UTC', 'Thursday 16:00 UTC', 'Friday 14:00 UTC', 'Friday 16:00 UTC'],
-    isAnonymous: false,
-    allowMultipleVotes: true,
-    quorumType: 'PERCENTAGE',
-    quorumTarget: 75,
-    duration: '24h',
-  },
-  rfc: {
-    question: 'How should we proceed with the proposed Architecture RFC?',
-    options: [
-      'Approve as proposed',
-      'Approve with minor revisions',
-      'Needs deeper architecture review',
-      'Abstain',
-    ],
-    isAnonymous: true,
-    allowMultipleVotes: false,
-    quorumType: 'PERCENTAGE',
-    quorumTarget: 70,
-    duration: '72h',
-  },
-  lunch: {
-    question: 'Where should the team go for lunch this Friday?',
-    options: ['Tacos', 'Ramen', 'Wood-fired Pizza', 'Mediterranean'],
-    isAnonymous: true,
-    allowMultipleVotes: true,
-    quorumType: 'NONE',
-    quorumTarget: 51,
-    duration: '4h',
-  },
-};
-
 export function registerActionHandlers(app: App) {
   // Handle option vote buttons (matches vote_option_*)
   app.action(/^vote_option_/, async ({ action, ack, body, client }) => {
@@ -487,25 +443,40 @@ export function registerActionHandlers(app: App) {
     }
   });
 
-  // Handle Quick Template buttons from App Home or Templates Modal (matches app_home_template_*)
+  // Handle Quick Template buttons from App Home (matches app_home_template_*)
   app.action(/^app_home_template_/, async ({ action, ack, body, client }) => {
     await ack();
     const blockAction = body as BlockAction;
     const actionObj = action as { action_id?: string; value?: string };
-    const templateKey =
-      actionObj.value ??
-      actionObj.action_id?.replace(/^app_home_template_/, '') ??
-      'standup';
-    const preset = APP_HOME_TEMPLATES[templateKey] ?? APP_HOME_TEMPLATES.standup;
+    const templateId = actionObj.value;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+
+    if (!templateId) return;
 
     try {
+      const tpl = await PollService.getTemplate(templateId, workspaceId, userId);
+      if (!tpl) return;
+
+      const preset: CreatePollModalPreset = {
+        channelId: tpl.channelId ?? undefined,
+        question: tpl.question,
+        options: tpl.options,
+        isAnonymous: tpl.isAnonymous,
+        allowMultipleVotes: tpl.allowMultipleVotes,
+        quorumType: (tpl.quorumType as 'PERCENTAGE' | 'NONE') || 'PERCENTAGE',
+        quorumTarget: tpl.quorumTarget,
+        duration: tpl.duration as any,
+        forwardToChannelOnHuddleEnd: tpl.forwardToChannelOnHuddleEnd,
+      };
+
       const viewObj = (blockAction as any).view;
       if (viewObj?.type === 'modal' && viewObj?.id) {
         await client.views.update({
           view_id: viewObj.id,
           view: buildCreatePollModalView(preset),
         });
-      } else {
+      } else if (blockAction.trigger_id) {
         await client.views.open({
           trigger_id: blockAction.trigger_id,
           view: buildCreatePollModalView(preset),
@@ -513,6 +484,47 @@ export function registerActionHandlers(app: App) {
       }
     } catch (error) {
       console.error('Failed to open template modal from App Home:', error);
+    }
+  });
+
+  // Handle "Create Template" / "Add Workspace Template" button click
+  app.action('open_create_template_modal', async ({ action, ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+    const targetType = (action as { value?: string })?.value ?? 'workspace';
+
+    try {
+      const isManager = await PollService.isUserWorkspaceManager(client, userId, workspaceId);
+      const isShared = targetType === 'workspace' || isManager;
+
+      const view = buildCreatePollModalView({
+        createTemplateMode: true,
+        isShared,
+      });
+
+      const viewObj = (blockAction as any).view;
+      if (viewObj?.type === 'modal' && viewObj?.id) {
+        try {
+          if (typeof (client.views as any).push === 'function') {
+            await client.views.push({
+              trigger_id: blockAction.trigger_id,
+              view,
+            });
+            return;
+          }
+        } catch {
+          // fallback to views.open
+        }
+      }
+
+      await client.views.open({
+        trigger_id: blockAction.trigger_id,
+        view,
+      });
+    } catch (error) {
+      console.error('Failed to open create template modal:', error);
     }
   });
 
@@ -791,8 +803,13 @@ export function registerActionHandlers(app: App) {
           quorumType: (tpl.quorumType as 'PERCENTAGE' | 'NONE') || 'PERCENTAGE',
           quorumTarget: tpl.quorumTarget,
           duration: tpl.duration as any,
+          forwardToChannelOnHuddleEnd: tpl.forwardToChannelOnHuddleEnd,
           ...(verb === 'edit'
-            ? { templateName: tpl.name, editTemplateId: tpl.id }
+            ? {
+                templateName: tpl.name,
+                editTemplateId: tpl.id,
+                isShared: tpl.isShared,
+              }
             : {}),
         });
         if (viewId) {

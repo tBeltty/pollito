@@ -24,6 +24,7 @@ export interface AppHomeViewOptions extends Partial<AppHomeStats> {
   isManager?: boolean;
   maxNudgeChannelMembers?: number;
   allowVoterChoiceNudges?: boolean;
+  templates?: Array<{ id: string; name: string; isShared?: boolean }>;
 }
 
 export interface CsvFilterOptions {
@@ -316,6 +317,12 @@ export function buildAppHomeView(
     statsOrOptions.allowVoterChoiceNudges !== undefined
       ? statsOrOptions.allowVoterChoiceNudges
       : true;
+  const templates =
+    statsOrOptions &&
+    'templates' in statsOrOptions &&
+    Array.isArray(statsOrOptions.templates)
+      ? statsOrOptions.templates
+      : [];
 
   const totalActive = statsOrOptions?.totalActive ?? computed.totalActive;
   const totalQuorumsReached =
@@ -579,59 +586,82 @@ export function buildAppHomeView(
     {
       type: 'divider',
     },
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: '*Quick Templates & Export*\nLaunch a pre-configured engineering poll or export CSV records.',
-      },
-    },
-    {
-      type: 'actions',
-      block_id: 'app_home_template_actions',
-      elements: [
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: 'Standup Check',
-            emoji: true,
+    ...(templates.length > 0
+      ? [
+          {
+            type: 'section' as const,
+            text: {
+              type: 'mrkdwn' as const,
+              text: '*Quick Templates*\nLaunch a pre-configured team poll in one click.',
+            },
           },
-          action_id: 'app_home_template_standup',
-          value: 'standup',
-        },
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: 'Retro Date',
-            emoji: true,
+          {
+            type: 'actions' as const,
+            block_id: 'app_home_template_actions',
+            elements: [
+              ...templates.slice(0, 5).map((t) => ({
+                type: 'button' as const,
+                text: {
+                  type: 'plain_text' as const,
+                  text: t.name.slice(0, 24),
+                  emoji: true,
+                },
+                action_id: 'app_home_template_launch',
+                value: t.id,
+              })),
+              ...(isManager
+                ? [
+                    {
+                      type: 'button' as const,
+                      text: {
+                        type: 'plain_text' as const,
+                        text: '+ Add Template',
+                        emoji: true,
+                      },
+                      action_id: 'open_create_template_modal',
+                      value: 'workspace',
+                    },
+                  ]
+                : []),
+            ],
           },
-          action_id: 'app_home_template_retro',
-          value: 'retro',
-        },
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: 'Architecture RFC',
-            emoji: true,
-          },
-          action_id: 'app_home_template_rfc',
-          value: 'rfc',
-        },
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: 'Team Lunch',
-            emoji: true,
-          },
-          action_id: 'app_home_template_lunch',
-          value: 'lunch',
-        },
-      ],
-    },
+        ]
+      : isManager
+        ? [
+            {
+              type: 'section' as const,
+              text: {
+                type: 'mrkdwn' as const,
+                text: '*Quick Templates*\nNo workspace templates yet. As an admin, you can create quick templates for your team to launch in one click.',
+              },
+            },
+            {
+              type: 'actions' as const,
+              block_id: 'app_home_template_actions',
+              elements: [
+                {
+                  type: 'button' as const,
+                  text: {
+                    type: 'plain_text' as const,
+                    text: '+ Add Workspace Template',
+                    emoji: true,
+                  },
+                  style: 'primary' as const,
+                  action_id: 'open_create_template_modal',
+                  value: 'workspace',
+                },
+              ],
+            },
+          ]
+        : [
+            {
+              type: 'section' as const,
+              text: {
+                type: 'mrkdwn' as const,
+                text: '*Quick Templates*\nNo templates published by workspace admins yet. Open the *Templates* menu above to view or create personal templates.',
+              },
+            },
+          ]),
     {
       type: 'actions',
       block_id: 'app_home_utility_actions',

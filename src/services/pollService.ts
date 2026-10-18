@@ -958,7 +958,8 @@ export class PollService {
     id: string,
     workspaceId: string,
     ownerUserId: string,
-    updates: Partial<Omit<SavePollTemplateParams, 'workspaceId' | 'ownerUserId'>>
+    updates: Partial<Omit<SavePollTemplateParams, 'workspaceId' | 'ownerUserId'>>,
+    isManager = false
   ): Promise<PollTemplateData> {
     const existing = await prisma.pollTemplate.findFirst({
       where: { id, workspaceId },
@@ -968,8 +969,8 @@ export class PollService {
       throw new Error('Template not found.');
     }
 
-    if (existing.ownerUserId !== ownerUserId) {
-      throw new Error('Only the template owner can edit this template.');
+    if (existing.ownerUserId !== ownerUserId && !isManager) {
+      throw new Error('Only the template owner or a workspace admin can edit this template.');
     }
 
     const nextQuorumType =

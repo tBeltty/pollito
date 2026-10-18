@@ -15,7 +15,7 @@ export async function publishHomeTab(
   userId: string,
   workspaceId: string
 ): Promise<void> {
-  const [settings, viewer, polls] = await Promise.all([
+  const [settings, viewer, polls, templates] = await Promise.all([
     PollService.getWorkspaceSettings(workspaceId),
     PollService.getReportViewer(client, userId, workspaceId),
     prisma.poll.findMany({
@@ -27,6 +27,7 @@ export async function publishHomeTab(
       orderBy: { createdAt: 'desc' },
       take: 15,
     }),
+    PollService.listTemplates(workspaceId, userId),
   ]);
 
   const stats = await PollService.getPollAnalyticsStats(workspaceId, viewer, 30);
@@ -40,6 +41,11 @@ export async function publishHomeTab(
     isManager: viewer.isManager,
     maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
     allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+    templates: templates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      isShared: t.isShared,
+    })),
   });
 
   await client.views.publish({

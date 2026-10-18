@@ -317,7 +317,7 @@ export function registerViewHandlers(app: App) {
     }
   });
 
-  app.view('edit_template_modal_submit', async ({ ack, view, body }) => {
+  app.view('edit_template_modal_submit', async ({ ack, view, body, client }) => {
     const values = view.state.values;
     let editTemplateId = '';
     let channelIdFromMeta = '';
@@ -347,6 +347,10 @@ export function registerViewHandlers(app: App) {
     const allowMultipleVotes = selectedOptions.some((o: any) => o.value === 'allow_multiple_votes');
     const noQuorumChecked = selectedOptions.some((o: any) => o.value === 'no_quorum');
     const forwardToChannelOnHuddleEnd = selectedOptions.some((o: any) => o.value === 'forward_on_huddle_end');
+
+    const shareSelected =
+      values.template_share_block?.template_share_checkbox?.selected_options ?? [];
+    const isShared = shareSelected.some((o: any) => o.value === 'is_shared');
 
     const rawQuorum = values.quorum_block?.quorum_input?.value?.trim() ?? '';
     const quorumType: 'PERCENTAGE' | 'NONE' = noQuorumChecked ? 'NONE' : 'PERCENTAGE';
@@ -414,9 +418,131 @@ export function registerViewHandlers(app: App) {
         quorumTarget: validated.quorumTarget ?? 70,
         duration: durationValue,
         forwardToChannelOnHuddleEnd,
+        ...(shareSelected.length > 0 ? { isShared } : {}),
       });
+
+      await publishHomeTab(client, body.user.id, workspaceId);
     } catch (error) {
       console.error('Failed to update template from modal:', error);
+    }
+  });
+
+  app.view('create_template_modal_submit', async ({ ack, view, body, client }) => {
+    const values = view.state.values;
+
+    let metadata: any = {};
+    try {
+      metadata = JSON.parse(view.private_metadata || '{}');
+    } catch {
+      // ignore
+    }
+
+    const templateName = values.template_name_block?.template_name_input?.value?.trim() || '';
+    if (!templateName) {
+      await ack({
+        response_action: 'errors',
+        errors: {
+          template_name_block: 'Please provide a name for this template.',
+        },
+      });
+      return;
+    }
+
+    const channelIdFromMeta = metadata.channelId || '';
+    const selectedChannel =
+      values.channel_block?.channel_select?.selected_conversation ||
+      channelIdFromMeta ||
+      'C_TEMPLATE';
+    const question = values.question_block?.question_input?.value?.trim() ?? '';
+    const opt1 = values.option_1_block?.option_1_input?.value?.trim() ?? '';
+    const opt2 = values.option_2_block?.option_2_input?.value?.trim() ?? '';
+    const opt3 = values.option_3_block?.option_3_input?.value?.trim();
+    const opt4 = values.option_4_block?.option_4_input?.value?.trim();
+
+    const selectedOptions = values.settings_block?.anonymous_checkbox?.selected_options ?? [];
+    const isAnonymous = selectedOptions.some((o: any) => o.value === 'is_anonymous');
+    const allowMultipleVotes = selectedOptions.some((o: any) => o.value === 'allow_multiple_votes');
+    const noQuorumChecked = selectedOptions.some((o: any) => o.value === 'no_quorum');
+    const forwardToChannelOnHuddleEnd = selectedOptions.some(
+      (o: any) => o.value === 'forward_on_huddle_end'
+    );
+
+    const shareSelected =
+      values.template_share_block?.template_share_checkbox?.selected_options ?? [];
+    const isShared =
+      shareSelected.length > 0
+        ? shareSelected.some((o: any) => o.value === 'is_shared')
+        : Boolean(metadata.isShared);
+
+    const rawQuorum = values.quorum_block?.quorum_input?.value?.trim() ?? '';
+    const quorumType: 'PERCENTAGE' | 'NONE' = noQuorumChecked ? 'NONE' : 'PERCENTAGE';
+    const parsedQuorum = noQuorumChecked
+      ? undefined
+      : rawQuorum === ''
+        ? 70
+        : Number(rawQuorum);
+
+    const validationResult = createPollSubmissionSchema.safeParse({
+      selectedChannel,
+      question,
+      opt1,
+      opt2,
+      opt3: opt3 || undefined,
+      opt4: opt4 || undefined,
+      quorumTarget: parsedQuorum,
+    });
+
+    if (!validationResult.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of validationResult.error.issues) {
+        const field = issue.path[0];
+        if (field === 'question') errors.question_block = issue.message;
+        else if (field === 'opt1') errors.option_1_block = issue.message;
+        else if (field === 'opt2') errors.option_2_block = issue.message;
+        else if (field === 'opt3') errors.option_3_block = issue.message;
+        else if (field === 'opt4') errors.option_4_block = issue.message;
+        else if (field === 'quorumTarget') errors.quorum_block = issue.message;
+      }
+      await ack({ response_action: 'errors', errors });
+      return;
+    }
+
+    await ack();
+
+    const validated = validationResult.data;
+    const options = [validated.opt1, validated.opt2, validated.opt3, validated.opt4].filter(
+      (opt): opt is string => Boolean(opt && opt.trim().length > 0)
+    );
+    const durationValue = values.duration_block?.duration_select?.selected_option?.value ?? 'none';
+    const workspaceId =
+      body.team?.id ||
+      (body as any).view?.team_id ||
+      (body as any).user?.team_id ||
+      '';
+
+    try {
+      await PollService.saveTemplate({
+        workspaceId,
+        ownerUserId: body.user.id,
+        name: templateName,
+        channelId:
+          values.channel_block?.channel_select?.selected_conversation ||
+          channelIdFromMeta ||
+          undefined,
+        question: validated.question,
+        options,
+        isAnonymous,
+        allowMultipleVotes,
+        quorumType,
+        quorumTarget: validated.quorumTarget ?? 70,
+        duration: durationValue,
+        forwardToChannelOnHuddleEnd,
+        isShared,
+      });
+
+      await publishHomeTab(client, body.user.id, workspaceId);
+    } catch (error) {
+      console.error('Failed to create template from modal:', error);
     }
   });
 
