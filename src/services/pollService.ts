@@ -52,6 +52,26 @@ export class PollService {
       closesAt = null,
     } = params;
 
+    if (!workspaceId) {
+      throw new Error('Workspace ID is missing.');
+    }
+
+    // Ensure workspace and settings record exists to satisfy foreign key constraint
+    await prisma.workspace.upsert({
+      where: { id: workspaceId },
+      update: {},
+      create: {
+        id: workspaceId,
+        teamName: 'Workspace',
+        botToken: 'bot_token_managed',
+        settings: {
+          create: {
+            anonymousSalt: crypto.randomBytes(32).toString('hex'),
+          },
+        },
+      },
+    });
+
     return prisma.poll.create({
       data: {
         workspaceId,
