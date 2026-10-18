@@ -112,7 +112,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
         elements: [
           {
             type: 'mrkdwn',
-            text: '🔒 Double-urn cryptographic ballot protection • Flat $15/mo per workspace • Zero per-seat surcharges',
+            text: '🔒 Double-urn cryptographic ballot protection • 100% Free for your workspace • Zero fees',
           },
         ],
       },
