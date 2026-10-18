@@ -43,7 +43,8 @@ model Poll {
   quorumType         String              @default("PERCENTAGE") // PERCENTAGE | COUNT | NONE
   quorumTarget       Int                 @default(70)
   eligibleVoterCount Int                 @default(0)            // Member count in channel when poll launched
-  status             String              @default("ACTIVE")     // ACTIVE | QUORUM_REACHED | CLOSED
+  closesAt           DateTime?                                  // Optional deadline when poll closes automatically
+  status             String              @default("ACTIVE")     // ACTIVE | QUORUM_REACHED | CLOSED | TIME_EXPIRED
   createdAt          DateTime            @default(now())
   closedAt           DateTime?
   options            PollOption[]

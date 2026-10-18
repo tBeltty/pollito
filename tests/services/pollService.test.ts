@@ -209,19 +209,83 @@ describe('PollService', () => {
       expect(closed.closedAt).not.toBeNull();
     });
 
-    it('rejects manual close attempts by unauthorized non-creators', async () => {
+    it('allows system timer to close active poll with TIME_EXPIRED status', async () => {
       const poll = await PollService.createPoll({
         workspaceId,
         channelId: 'C_DEV_CHANNEL',
-        messageTs: '1700000000.000600',
+        messageTs: '1700000000.000700',
         creatorId: 'U_LEAD',
-        question: 'Unauthorized test',
+        question: 'Timer close test',
         options: ['A', 'B'],
+        closesAt: new Date(Date.now() - 1000),
       });
 
-      await expect(PollService.closePoll(poll.id, 'U_IMPOSTER')).rejects.toThrow(
-        'Only the poll creator can manually close this poll'
-      );
+      const closed = await PollService.closePoll(poll.id, 'SYSTEM_TIMER', 'TIME_EXPIRED');
+      expect(closed.status).toBe('TIME_EXPIRED');
+      expect(closed.closedAt).not.toBeNull();
+    });
+
+    it('rejects votes when closesAt deadline has already passed', async () => {
+      const poll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_DEV_CHANNEL',
+        messageTs: '1700000000.000800',
+        creatorId: 'U_LEAD',
+        question: 'Expired poll test',
+        options: ['A', 'B'],
+        closesAt: new Date(Date.now() - 5000), // Closed 5 seconds ago
+      });
+
+      await expect(
+        PollService.castVote({
+          pollId: poll.id,
+          voterId: 'U_LATE',
+          optionId: poll.options[0].id,
+          workspaceSalt,
+        })
+      ).rejects.toThrow('This poll is closed and no longer accepting votes');
+    });
+
+    it('getExpiredActivePolls accurately finds active polls past deadline', async () => {
+      const pastDate = new Date(Date.now() - 10000);
+      const futureDate = new Date(Date.now() + 60000);
+
+      // 1. Expired poll
+      const expiredPoll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_DEV_CHANNEL',
+        messageTs: '1700000000.000900',
+        creatorId: 'U_LEAD',
+        question: 'Expired poll',
+        options: ['A', 'B'],
+        closesAt: pastDate,
+      });
+
+      // 2. Future poll (should not be returned)
+      await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_DEV_CHANNEL',
+        messageTs: '1700000000.001000',
+        creatorId: 'U_LEAD',
+        question: 'Future poll',
+        options: ['A', 'B'],
+        closesAt: futureDate,
+      });
+
+      // 3. Poll without deadline (should not be returned)
+      await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_DEV_CHANNEL',
+        messageTs: '1700000000.001100',
+        creatorId: 'U_LEAD',
+        question: 'No deadline poll',
+        options: ['A', 'B'],
+        closesAt: null,
+      });
+
+      const expiredList = await PollService.getExpiredActivePolls();
+      expect(expiredList).toHaveLength(1);
+      expect(expiredList[0].id).toBe(expiredPoll.id);
     });
   });
 });

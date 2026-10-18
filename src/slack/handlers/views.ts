@@ -31,6 +31,21 @@ export function registerViewHandlers(app: App) {
     const rawQuorum = values.quorum_block?.quorum_input?.value?.trim() ?? '70';
     const quorumTarget = Math.max(10, Math.min(100, parseInt(rawQuorum, 10) || 70));
 
+    const durationValue = values.duration_block?.duration_select?.selected_option?.value ?? 'none';
+    let closesAt: Date | null = null;
+    const now = Date.now();
+    if (durationValue === '15m') {
+      closesAt = new Date(now + 15 * 60 * 1000);
+    } else if (durationValue === '1h') {
+      closesAt = new Date(now + 60 * 60 * 1000);
+    } else if (durationValue === '4h') {
+      closesAt = new Date(now + 4 * 60 * 60 * 1000);
+    } else if (durationValue === '24h') {
+      closesAt = new Date(now + 24 * 60 * 60 * 1000);
+    } else if (durationValue === '72h') {
+      closesAt = new Date(now + 72 * 60 * 60 * 1000);
+    }
+
     await ack();
 
     // Parse channel ID from metadata
@@ -76,6 +91,7 @@ export function registerViewHandlers(app: App) {
       quorumType: 'PERCENTAGE',
       quorumTarget,
       eligibleVoterCount: memberCount,
+      closesAt,
     });
 
     // 3. Render pure Block Kit card

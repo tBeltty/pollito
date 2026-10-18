@@ -45,10 +45,14 @@ export const app = new App(
       }
 );
 
+import { PollTimerWorker } from './workers/pollTimerWorker.js';
+
 registerCommandHandlers(app);
 registerActionHandlers(app);
 registerViewHandlers(app);
 registerEventHandlers(app);
+
+export const pollTimerWorker = new PollTimerWorker(app, 30000);
 
 async function startServer() {
   if (isSocketMode) {
@@ -56,12 +60,22 @@ async function startServer() {
   } else {
     await app.start(env.PORT);
   }
+  
+  pollTimerWorker.start();
+
   console.log(
     `🐣 Pollito Slack Bot is running in ${env.NODE_ENV} mode (${
       isSocketMode ? 'Socket Mode' : `HTTP port ${env.PORT}`
-    })`
+    }) with background deadline timer active`
   );
 }
+
+process.on('SIGTERM', () => {
+  pollTimerWorker.stop();
+});
+process.on('SIGINT', () => {
+  pollTimerWorker.stop();
+});
 
 if (process.env.NODE_ENV !== 'test') {
   startServer().catch((err) => {
