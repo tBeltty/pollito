@@ -13,6 +13,7 @@ describe('Anti-AI Slop Quality Gate', () => {
     /\bseamlessly integrate\b/i,
     /\bunlocking the power\b/i,
     /\brevolutionize\b/i,
+    /\bworkspace dashboard\b/i,
   ];
 
   const bannedBinaryContrasts = [

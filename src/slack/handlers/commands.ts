@@ -36,25 +36,44 @@ export function registerCommandHandlers(app: App) {
       const question = matches[0];
       const options = matches.slice(1, 7); // Up to 6 options
 
+      // Auto-join if public channel
+      try {
+        await client.conversations.join({ channel: command.channel_id });
+      } catch {
+        // Safe to ignore if already in channel or private channel
+      }
+
       // Fetch channel members for quorum calculation
-      let memberCount = 0;
+      let memberCount = 10;
       try {
         const membersRes = await client.conversations.members({
           channel: command.channel_id,
         });
-        memberCount = membersRes.members?.length ?? 0;
+        memberCount = membersRes.members?.length ?? 10;
       } catch {
-        // Fallback if bot cannot read channel members
         memberCount = 10;
       }
 
       // Initial placeholder message to reserve ts
-      const placeholder = await client.chat.postMessage({
-        channel: command.channel_id,
-        text: `🐣 Creating poll: ${question}...`,
-      });
+      let placeholder;
+      try {
+        placeholder = await client.chat.postMessage({
+          channel: command.channel_id,
+          text: `🐣 Creating poll: ${question}...`,
+        });
+      } catch (error: any) {
+        if (error?.data?.error === 'not_in_channel') {
+          await client.chat.postEphemeral({
+            channel: command.channel_id,
+            user: command.user_id,
+            text: '⚠️ Pollito needs to be invited to this channel first. Type `/invite @Pollito` and run `/pollito` again.',
+          });
+          return;
+        }
+        throw error;
+      }
 
-      if (!placeholder.ts) return;
+      if (!placeholder?.ts) return;
 
       const poll = await PollService.createPoll({
         workspaceId: command.team_id,
