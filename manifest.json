@@ -2,7 +2,7 @@
   "display_information": {
     "name": "Pollito",
     "description": "Fast team consensus inside Slack with automatic quorum closing and secret ballots",
-    "long_description": "Pollito is a Slack-native polling and team decision app designed to close debates fast without thread clutter.\n\nKey Capabilities:\n• Automatic Quorum Closing: Set percentage or count-based quorum targets. Polls close and announce results the second quorum is satisfied.\n• Double-Urn Secret Ballots: Cryptographically unlikable voting where voter participation is tracked without linking identities to ballot choices.\n• Real-Time Visual Progress: Clean block character meters directly inside Slack channel messages.\n• 'El Nido' App Home: Full workspace decision dispatch board to monitor active and past polls.\n• Transparent Pricing: Flat $15/mo per workspace with zero per-seat fees.",
+    "long_description": "Pollito is a Slack-native polling and team decision app designed to close debates fast without thread clutter.\n\nKey Capabilities:\n• Automatic Quorum Closing: Set percentage or count-based quorum targets. Polls close and announce results the second quorum is satisfied.\n• Double-Urn Secret Ballots: Cryptographically unlinkable voting where voter participation is tracked without linking identities to ballot choices.\n• Real-Time Visual Progress: Clean block character meters directly inside Slack channel messages.\n• App Home Dashboard: Full workspace decision dispatch board to monitor active and past polls.\n• Transparent Pricing: Flat $15/mo per workspace with zero per-seat fees.",
     "background_color": "#0f172a"
   },
   "features": {

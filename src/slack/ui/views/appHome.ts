@@ -17,7 +17,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: '🐣 El Nido — Pollito Dashboard',
+          text: '🐣 Pollito Workspace Dashboard',
           emoji: true,
         },
       },
