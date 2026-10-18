@@ -23,6 +23,29 @@ export function buildCreatePollModalView(channelId: string): ModalView {
     blocks: [
       {
         type: 'input',
+        block_id: 'channel_block',
+        element: {
+          type: 'conversations_select',
+          action_id: 'channel_select',
+          placeholder: {
+            type: 'plain_text',
+            text: 'Choose channel',
+            emoji: true,
+          },
+          filter: {
+            include: ['public', 'private'],
+            exclude_bot_users: true,
+          },
+          ...(channelId ? { initial_conversation: channelId } : {}),
+        },
+        label: {
+          type: 'plain_text',
+          text: 'Channel',
+          emoji: true,
+        },
+      },
+      {
+        type: 'input',
         block_id: 'question_block',
         element: {
           type: 'plain_text_input',

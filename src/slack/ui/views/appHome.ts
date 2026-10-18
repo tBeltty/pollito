@@ -17,7 +17,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: '🐣 Pollito Workspace Dashboard',
+          text: '🐣 Pollito',
           emoji: true,
         },
       },
@@ -25,7 +25,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: 'Track team consensus, monitor active quorums, and launch new polls without leaving Slack.',
+          text: 'Team polls, vote progress, and consensus thresholds in one place.',
         },
       },
       {
@@ -51,7 +51,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
             type: 'button',
             text: {
               type: 'plain_text',
-              text: '➕ Launch New Poll',
+              text: '➕ New Poll',
               emoji: true,
             },
             style: 'primary',
@@ -73,7 +73,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: 'Recent Channel Polls',
+          text: 'Recent Polls',
           emoji: true,
         },
       },
@@ -83,7 +83,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
               type: 'section' as const,
               text: {
                 type: 'mrkdwn' as const,
-                text: '_No polls created in this workspace yet. Type `/pollito` in any channel to launch your first poll._',
+                text: '_No polls yet. Type `/pollito` in any channel or click "New Poll" above._',
               },
             },
           ]
@@ -112,7 +112,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
         elements: [
           {
             type: 'mrkdwn',
-            text: 'Public and anonymous polls • 100% Free for your workspace',
+            text: 'Public and anonymous polls • Free for your workspace',
           },
         ],
       },

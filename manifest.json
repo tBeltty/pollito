@@ -33,6 +33,8 @@
       "bot": [
         "commands",
         "chat:write",
+        "chat:write.public",
+        "channels:join",
         "channels:read",
         "groups:read",
         "im:read",
