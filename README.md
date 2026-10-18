@@ -49,3 +49,12 @@ pnpm test
 # Compilar TypeScript
 pnpm build
 ```
+
+---
+
+## 📄 Licencia y Seguridad
+
+* **Licencia**: [Source-Available & Audit License](LICENSE).
+* **Política de Seguridad**: Consulta [SECURITY.md](SECURITY.md) para el reporte responsable de vulnerabilidades y los invariantes de privacidad.
+* **Historial de Versiones**: Registro atómico de cambios en [CHANGELOG.md](CHANGELOG.md) bajo Keep a Changelog 1.1.0 y SemVer.
+
