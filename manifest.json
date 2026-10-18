@@ -19,7 +19,7 @@
       {
         "command": "/pollito",
         "url": "https://pollito.tbelt.online/slack/events",
-        "description": "Create a fast team poll with automatic quorum",
+        "description": "Create a quick team poll with automatic closing",
         "usage_hint": "[create | help]",
         "should_escape": false
       }
