@@ -42,3 +42,9 @@ coverage/
 *.db
 *.db-wal
 *.db-shm
+
+# Internal documentation (Private - Not uploaded to GitHub)
+docs/internal/
+Technical Guide_ Building Slack Applications.md
+*Technical Guide*
+
