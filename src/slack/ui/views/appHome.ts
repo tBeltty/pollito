@@ -17,8 +17,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: '🐣 Pollito',
-          emoji: true,
+          text: 'Pollito',
         },
       },
       {
@@ -51,8 +50,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
             type: 'button',
             text: {
               type: 'plain_text',
-              text: '➕ New Poll',
-              emoji: true,
+              text: 'New Poll',
             },
             style: 'primary',
             action_id: 'app_home_launch_poll_click',
@@ -61,8 +59,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
             type: 'button',
             text: {
               type: 'plain_text',
-              text: '📖 Documentation',
-              emoji: true,
+              text: 'Documentation',
             },
             url: 'https://pollito.tbelt.online/support.html',
             action_id: 'app_home_docs_click',
@@ -74,7 +71,6 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
         text: {
           type: 'plain_text',
           text: 'Recent Polls',
-          emoji: true,
         },
       },
       ...(polls.length === 0
@@ -91,10 +87,10 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
             const votes = p.participations.length;
             const statusLabel =
               p.status === 'QUORUM_REACHED'
-                ? '🎉 Quorum reached'
+                ? 'Quorum reached'
                 : p.status === 'ACTIVE'
-                ? '🐣 Active'
-                : '🔒 Closed';
+                ? 'Active'
+                : 'Closed';
 
             return {
               type: 'section' as const,

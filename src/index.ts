@@ -142,7 +142,7 @@ async function startServer() {
   pollTimerWorker.start();
 
   console.log(
-    `🐣 Pollito Slack Bot is running in ${env.NODE_ENV} mode (${
+    `Pollito Slack Bot is running in ${env.NODE_ENV} mode (${
       isSocketMode ? 'Socket Mode' : `HTTP port ${env.PORT}`
     }) with background deadline timer active`
   );

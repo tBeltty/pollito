@@ -29,23 +29,18 @@ export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlo
   const totalVotes = poll.participations.length;
   const isClosed = poll.status === 'QUORUM_REACHED' || poll.status === 'CLOSED' || poll.status === 'TIME_EXPIRED';
 
-  // Determine reactive mascot state
-  let statusEmoji = '🐣';
+  // Determine status text
   let statusText = 'Poll active';
 
   if (poll.status === 'QUORUM_REACHED') {
-    statusEmoji = '🎉';
     statusText = 'Quorum reached • Closed';
   } else if (poll.status === 'TIME_EXPIRED') {
-    statusEmoji = '⏰';
     statusText = 'Time limit reached • Closed';
   } else if (poll.status === 'CLOSED') {
-    statusEmoji = '🔒';
     statusText = 'Poll closed';
   } else if (poll.eligibleVoterCount > 0) {
     const currentPct = (totalVotes / poll.eligibleVoterCount) * 100;
     if (currentPct >= (poll.quorumTarget * 0.7)) {
-      statusEmoji = '🧐';
       statusText = 'Approaching quorum target';
     }
   }
@@ -56,8 +51,7 @@ export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlo
       type: 'header',
       text: {
         type: 'plain_text',
-        text: `${statusEmoji} ${poll.question}`,
-        emoji: true,
+        text: poll.question,
       },
     },
     // Status & quorum badge
@@ -66,7 +60,7 @@ export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlo
       elements: [
         {
           type: 'mrkdwn',
-          text: `*Status:* ${statusText} • *Type:* ${poll.isAnonymous ? '🔒 Anonymous ballot' : '👥 Public vote'}`,
+          text: `*Status:* ${statusText} • *Type:* ${poll.isAnonymous ? 'Anonymous ballot' : 'Public vote'}`,
         },
       ],
     },
@@ -127,8 +121,8 @@ export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlo
   if (poll.closesAt) {
     const unixSec = Math.floor(new Date(poll.closesAt).getTime() / 1000);
     deadlineReadout = isClosed
-      ? ` • ⏰ Closed: <!date^${unixSec}^{date_short} {time}|${new Date(poll.closesAt).toISOString()}>`
-      : ` • ⏳ Closes: <!date^${unixSec}^{date_short} {time}|${new Date(poll.closesAt).toISOString()}>`;
+      ? ` • Closed: <!date^${unixSec}^{date_short} {time}|${new Date(poll.closesAt).toISOString()}>`
+      : ` • Closes: <!date^${unixSec}^{date_short} {time}|${new Date(poll.closesAt).toISOString()}>`;
   }
 
   blocks.push(
@@ -140,7 +134,7 @@ export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlo
       elements: [
         {
           type: 'mrkdwn',
-          text: `📊 ${quorumReadout}${deadlineReadout} • Created by <@${poll.creatorId}>`,
+          text: `${quorumReadout}${deadlineReadout} • Created by <@${poll.creatorId}>`,
         },
       ],
     }

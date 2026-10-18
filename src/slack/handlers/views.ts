@@ -89,7 +89,7 @@ export function registerViewHandlers(app: App) {
       // 3. Post placeholder message to reserve messageTs
       const placeholder = await client.chat.postMessage({
         channel: selectedChannel,
-        text: `🐣 Launching poll: ${question}...`,
+        text: `Launching poll: ${question}...`,
       });
 
       if (!placeholder.ts) {
@@ -130,8 +130,8 @@ export function registerViewHandlers(app: App) {
         error?.message?.includes('not_in_channel');
 
       const notice = isNotInChannel
-        ? `⚠️ Pollito is not in <#${selectedChannel}>. Please invite the bot by typing \`/invite @Pollito\` in that channel, then launch your poll.`
-        : `⚠️ Could not create poll: ${error?.message || 'Unknown error'}.`;
+        ? `Pollito is not in <#${selectedChannel}>. Please invite the bot by typing \`/invite @Pollito\` in that channel, then launch your poll.`
+        : `Could not create poll: ${error?.message || 'Unknown error'}.`;
 
       try {
         await client.chat.postMessage({
