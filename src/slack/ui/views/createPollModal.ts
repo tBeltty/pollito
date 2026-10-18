@@ -1,4 +1,5 @@
 import type { ModalView, MrkdwnOption, PlainTextOption } from '@slack/web-api';
+import { defaultTranslator, type Translator } from '../../../i18n/index.js';
 
 export interface CreatePollModalPreset {
   channelId?: string;
@@ -18,6 +19,7 @@ export interface CreatePollModalPreset {
   availableTemplates?: Array<{ id: string; name: string; isShared?: boolean }>;
   createTemplateMode?: boolean;
   isShared?: boolean;
+  translator?: Translator;
 }
 
 export function buildCreatePollModalView(
@@ -28,6 +30,9 @@ export function buildCreatePollModalView(
       ? { channelId: channelIdOrPreset }
       : channelIdOrPreset;
 
+  const translator = preset.translator ?? defaultTranslator;
+  const { t } = translator;
+
   const channelId = preset.channelId ?? '';
   const isEditingTemplate = Boolean(preset.editTemplateId);
   const isCreatingTemplate = Boolean(preset.createTemplateMode);
@@ -36,7 +41,7 @@ export function buildCreatePollModalView(
   const anonymousOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*Anonymous Voting (Double-Urn Secret Ballot)*',
+      text: t('cp.settings.anonymous'),
     },
     value: 'is_anonymous',
   };
@@ -44,7 +49,7 @@ export function buildCreatePollModalView(
   const multipleChoiceOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*Multiple Choice*\nAllow teammates to select more than one option.',
+      text: `${t('cp.settings.multiple')}\n${t('cp.settings.multipleHint')}`,
     },
     value: 'allow_multiple_votes',
   };
@@ -52,7 +57,7 @@ export function buildCreatePollModalView(
   const noQuorumOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*No Quorum Required*\nRun without a participation threshold (closes manually or on deadline).',
+      text: `${t('cp.settings.noQuorum')}\n${t('cp.settings.noQuorumHint')}`,
     },
     value: 'no_quorum',
   };
@@ -60,7 +65,7 @@ export function buildCreatePollModalView(
   const forwardOnHuddleEndOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*Remind in Channel When Huddle Ends*\nPost a "Remember to vote" link in the main channel if the poll is still active when the Huddle ends.',
+      text: `${t('cp.settings.forwardHuddle')}\n${t('cp.settings.forwardHuddleHint')}`,
     },
     value: 'forward_on_huddle_end',
   };
@@ -82,7 +87,7 @@ export function buildCreatePollModalView(
   const saveAsTemplateOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*Save as reusable template (Private to you)*\nStore this question, options, and quorum setup in your personal Templates.',
+      text: `${t('cp.template.save')}\n${t('cp.template.saveHint')}`,
     },
     value: 'save_as_template',
   };
@@ -90,7 +95,7 @@ export function buildCreatePollModalView(
   const shareTemplateOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*Make public to workspace*\nAllow all teammates to see and launch this template from App Home and the Templates directory.',
+      text: `${t('cp.template.share')}\n${t('cp.template.shareHint')}`,
     },
     value: 'is_shared',
   };
@@ -107,7 +112,7 @@ export function buildCreatePollModalView(
     {
       text: {
         type: 'plain_text',
-        text: 'No time limit (Manual / Quorum only)',
+        text: t('cp.duration.none'),
         emoji: true,
       },
       value: 'none',
@@ -115,7 +120,7 @@ export function buildCreatePollModalView(
     {
       text: {
         type: 'plain_text',
-        text: '15 minutes (Quick Standup)',
+        text: t('cp.duration.15m'),
         emoji: true,
       },
       value: '15m',
@@ -123,7 +128,7 @@ export function buildCreatePollModalView(
     {
       text: {
         type: 'plain_text',
-        text: '1 hour',
+        text: t('cp.duration.1h'),
         emoji: true,
       },
       value: '1h',
@@ -131,7 +136,7 @@ export function buildCreatePollModalView(
     {
       text: {
         type: 'plain_text',
-        text: '4 hours',
+        text: t('cp.duration.4h'),
         emoji: true,
       },
       value: '4h',
@@ -139,7 +144,7 @@ export function buildCreatePollModalView(
     {
       text: {
         type: 'plain_text',
-        text: '24 hours (1 day)',
+        text: t('cp.duration.24h'),
         emoji: true,
       },
       value: '24h',
@@ -147,7 +152,7 @@ export function buildCreatePollModalView(
     {
       text: {
         type: 'plain_text',
-        text: '3 days (72 hours)',
+        text: t('cp.duration.72h'),
         emoji: true,
       },
       value: '72h',
@@ -155,7 +160,7 @@ export function buildCreatePollModalView(
     {
       text: {
         type: 'plain_text',
-        text: '1 week (7 days)',
+        text: t('cp.duration.7d'),
         emoji: true,
       },
       value: '7d',
@@ -166,6 +171,22 @@ export function buildCreatePollModalView(
     durationOptions.find((opt) => opt.value === preset.duration) ?? durationOptions[0];
 
   const clampedQuorumTarget = Math.max(51, preset?.quorumTarget ?? 70);
+
+  const modalTitle = isEditingTemplate
+    ? t('cp.title.editTemplate')
+    : isCreatingTemplate
+      ? preset.isShared
+        ? t('cp.title.newWorkspaceTemplate')
+        : t('cp.title.newTemplate')
+      : isHuddleMode
+        ? t('cp.title.huddle')
+        : t('cp.title.create');
+
+  const submitLabel = isEditingTemplate
+    ? t('cp.submit.saveTemplate')
+    : isCreatingTemplate
+      ? t('cp.submit.createTemplate')
+      : t('cp.submit.launch');
 
   return {
     type: 'modal',
@@ -184,29 +205,17 @@ export function buildCreatePollModalView(
     }),
     title: {
       type: 'plain_text',
-      text: isEditingTemplate
-        ? 'Edit Poll Template'
-        : isCreatingTemplate
-          ? preset.isShared
-            ? 'New Workspace Template'
-            : 'New Poll Template'
-          : isHuddleMode
-            ? 'Create a Huddle Poll'
-            : 'Create a Poll',
+      text: modalTitle,
       emoji: true,
     },
     submit: {
       type: 'plain_text',
-      text: isEditingTemplate
-        ? 'Save Template'
-        : isCreatingTemplate
-          ? 'Create Template'
-          : 'Launch Poll',
+      text: submitLabel,
       emoji: true,
     },
     close: {
       type: 'plain_text',
-      text: 'Cancel',
+      text: t('common.cancel'),
       emoji: true,
     },
     blocks: [
@@ -218,8 +227,12 @@ export function buildCreatePollModalView(
               text: {
                 type: 'mrkdwn' as const,
                 text: preset.threadTs
-                  ? `🎧 *Target: Active Huddle Thread*${channelId ? ` in <#${channelId}>` : ''}\nThis poll will be posted directly inside the live Huddle thread.`
-                  : `🎧 *Target: Huddle Thread*${channelId ? ` in <#${channelId}>` : ''}\nPollito will auto-detect the active Huddle on launch, or you can paste the Huddle message link below.`,
+                  ? t('cp.huddle.bannerActive', {
+                      inChannel: channelId ? t('cp.huddle.inChannel', { channelId }) : '',
+                    })
+                  : t('cp.huddle.bannerPending', {
+                      inChannel: channelId ? t('cp.huddle.inChannel', { channelId }) : '',
+                    }),
               },
             },
           ]
@@ -233,7 +246,7 @@ export function buildCreatePollModalView(
           action_id: 'channel_select',
           placeholder: {
             type: 'plain_text',
-            text: 'Choose channel',
+            text: t('cp.channel.placeholder'),
             emoji: true,
           },
           filter: {
@@ -244,7 +257,7 @@ export function buildCreatePollModalView(
         },
         label: {
           type: 'plain_text',
-          text: isCreatingTemplate ? 'Default Channel (Optional)' : 'Channel',
+          text: isCreatingTemplate ? t('cp.channel.labelTemplate') : t('cp.channel.label'),
           emoji: true,
         },
       },
@@ -259,13 +272,13 @@ export function buildCreatePollModalView(
                 action_id: 'huddle_thread_input',
                 placeholder: {
                   type: 'plain_text' as const,
-                  text: 'Leave blank to auto-detect, or paste Huddle message link / thread ts',
+                  text: t('cp.huddleThread.placeholder'),
                 },
                 ...(preset.threadTs ? { initial_value: preset.threadTs } : {}),
               },
               label: {
                 type: 'plain_text' as const,
-                text: 'Huddle Thread Link or Timestamp (Optional)',
+                text: t('cp.huddleThread.label'),
               },
             },
           ]
@@ -280,12 +293,12 @@ export function buildCreatePollModalView(
           ...(preset.question ? { initial_value: preset.question.slice(0, 150) } : {}),
           placeholder: {
             type: 'plain_text',
-            text: 'e.g. Which sprint retrospective date works best?',
+            text: t('cp.question.placeholder'),
           },
         },
         label: {
           type: 'plain_text',
-          text: 'Poll Question',
+          text: t('cp.question.label'),
         },
       },
       {
@@ -298,12 +311,12 @@ export function buildCreatePollModalView(
           ...(preset.options?.[0] ? { initial_value: preset.options[0].slice(0, 200) } : {}),
           placeholder: {
             type: 'plain_text',
-            text: 'First option',
+            text: t('cp.option.placeholder1'),
           },
         },
         label: {
           type: 'plain_text',
-          text: 'Option 1',
+          text: t('cp.option.label', { number: 1 }),
         },
       },
       {
@@ -316,12 +329,12 @@ export function buildCreatePollModalView(
           ...(preset.options?.[1] ? { initial_value: preset.options[1].slice(0, 200) } : {}),
           placeholder: {
             type: 'plain_text',
-            text: 'Second option',
+            text: t('cp.option.placeholder2'),
           },
         },
         label: {
           type: 'plain_text',
-          text: 'Option 2',
+          text: t('cp.option.label', { number: 2 }),
         },
       },
       {
@@ -335,12 +348,12 @@ export function buildCreatePollModalView(
           ...(preset.options?.[2] ? { initial_value: preset.options[2].slice(0, 200) } : {}),
           placeholder: {
             type: 'plain_text',
-            text: 'Third option (optional)',
+            text: t('cp.option.placeholder3'),
           },
         },
         label: {
           type: 'plain_text',
-          text: 'Option 3',
+          text: t('cp.option.label', { number: 3 }),
         },
       },
       {
@@ -354,12 +367,12 @@ export function buildCreatePollModalView(
           ...(preset.options?.[3] ? { initial_value: preset.options[3].slice(0, 200) } : {}),
           placeholder: {
             type: 'plain_text',
-            text: 'Fourth option (optional)',
+            text: t('cp.option.placeholder4'),
           },
         },
         label: {
           type: 'plain_text',
-          text: 'Option 4',
+          text: t('cp.option.label', { number: 4 }),
         },
       },
       {
@@ -384,7 +397,7 @@ export function buildCreatePollModalView(
         },
         label: {
           type: 'plain_text',
-          text: 'Privacy Settings',
+          text: t('cp.settings.label'),
         },
       },
       {
@@ -405,11 +418,11 @@ export function buildCreatePollModalView(
         },
         label: {
           type: 'plain_text',
-          text: 'Target Quorum Percentage (%)',
+          text: t('cp.quorum.label'),
         },
         hint: {
           type: 'plain_text',
-          text: 'Minimum 51% (simple majority: half + 1). Leave blank or check "No Quorum Required" above for casual polls.',
+          text: t('cp.quorum.hint'),
         },
       },
       {
@@ -421,7 +434,7 @@ export function buildCreatePollModalView(
           action_id: 'duration_select',
           placeholder: {
             type: 'plain_text',
-            text: 'Select closing duration',
+            text: t('cp.duration.placeholder'),
             emoji: true,
           },
           initial_option: selectedDurationOption,
@@ -429,12 +442,12 @@ export function buildCreatePollModalView(
         },
         label: {
           type: 'plain_text',
-          text: 'Poll Duration / Deadline',
+          text: t('cp.duration.label'),
           emoji: true,
         },
         hint: {
           type: 'plain_text',
-          text: 'Automatically closes the vote when this time expires, even if quorum has not been reached.',
+          text: t('cp.duration.hint'),
         },
       },
       {
@@ -454,12 +467,12 @@ export function buildCreatePollModalView(
                   : {}),
                 placeholder: {
                   type: 'plain_text' as const,
-                  text: 'e.g. Daily Standup Blockers',
+                  text: t('cp.template.name.placeholderNew'),
                 },
               },
               label: {
                 type: 'plain_text' as const,
-                text: 'Template Name',
+                text: t('cp.template.name.label'),
               },
             },
             {
@@ -474,7 +487,7 @@ export function buildCreatePollModalView(
               },
               label: {
                 type: 'plain_text' as const,
-                text: 'Workspace Availability',
+                text: t('cp.template.availability.label'),
               },
             },
           ]
@@ -493,7 +506,7 @@ export function buildCreatePollModalView(
               },
               label: {
                 type: 'plain_text' as const,
-                text: 'Reusable Template',
+                text: t('cp.template.save.label'),
               },
             },
             {
@@ -509,12 +522,12 @@ export function buildCreatePollModalView(
                   : {}),
                 placeholder: {
                   type: 'plain_text' as const,
-                  text: 'Optional template name (defaults to question)',
+                  text: t('cp.template.name.placeholderOptional'),
                 },
               },
               label: {
                 type: 'plain_text' as const,
-                text: 'Template Name',
+                text: t('cp.template.name.label'),
               },
             },
           ]),

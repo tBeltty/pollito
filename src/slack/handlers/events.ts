@@ -30,7 +30,11 @@ export async function publishHomeTab(
     PollService.listTemplates(workspaceId, userId),
   ]);
 
-  const stats = await PollService.getPollAnalyticsStats(workspaceId, viewer, 30);
+  const { getRequestTranslator } = await import('../utils/locale.js');
+  const [stats, translator] = await Promise.all([
+    PollService.getPollAnalyticsStats(workspaceId, viewer, 30),
+    getRequestTranslator(client, { userId, workspaceId }),
+  ]);
 
   const homeView = buildAppHomeView(polls.slice(0, 10), {
     totalActive: stats.totalActive,
@@ -46,6 +50,7 @@ export async function publishHomeTab(
       name: t.name,
       isShared: t.isShared,
     })),
+    translator,
   });
 
   await client.views.publish({

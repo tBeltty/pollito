@@ -21,6 +21,7 @@ Any agent operating in this codebase must reference and respect the following co
    * **Definition of Done (DoD)**: [`docs/guidelines/DEFINITION_OF_DONE.md`](docs/guidelines/DEFINITION_OF_DONE.md)
    * **Release Process & Versioning**: [`docs/guidelines/RELEASE_PROCESS.md`](docs/guidelines/RELEASE_PROCESS.md)
    * **Subagent Orchestration & Model Governance**: [`docs/guidelines/SUBAGENT_ORCHESTRATION.md`](docs/guidelines/SUBAGENT_ORCHESTRATION.md)
+   * **Internationalization & Localization**: [`docs/guidelines/I18N.md`](docs/guidelines/I18N.md)
 4. **[Skills Suite](.agents/skills/)** (`.agents/skills/`):
    * Tracked skills for automated execution: `slack-block-kit`, `slack-security-auth`, `slack-bolt-architecture`, `slack-ai-agents`, `slack-app-distribution`, `competitor-alternatives`, `copywriting`, `copy-editing`, `text-humanizer`, `ogilvy`, `content-strategy`, `proofreading`, `paragraph-structure`.
 
@@ -40,8 +41,9 @@ Any agent operating in this codebase must reference and respect the following co
 * **Proactive Execution**: Run `no-ai-slop` and `text-humanizer` proactively.
 * **Zero AI-Slop**: Ban binary contrasts (*"not X, but Y"*), colon reveals, corporate buzzwords, and em-dash crutches in UI copy.
 * **Language Rules**:
-  * **Slack In-App Elements**: **100% Strict English Policy** for all Slack Block Kit components, modals, and bot notifications.
-  * **Spanish Documentation & Marketing**: **100% Tuteo** (`tú`/`tu`). Never voseo.
+  * **Code & Internal Identifiers**: 100% Strict English for code, identifiers, tests, database attributes, and internal comments.
+  * **Bilingual Localization (EN/ES)**: Typed message catalogs (`src/i18n/`) for Slack Block Kit components, modals, and notifications. English is base/default (`en`); Spanish (`es`) resolves dynamically based on user Slack language or workspace preference.
+  * **Spanish Copy Standards**: Strictly **100% Tuteo** (`tú`/`tu`) and RAE punctuation (`¿`, `¡`). Never voseo or formal *usted*.
 
 ### 3. Architecture & Code Boundaries
 * **Single Responsibility**:
@@ -83,11 +85,34 @@ Any agent operating in this codebase must reference and respect the following co
   - Monitoring self-hosted GitHub Actions runner health.
 * **Action**: Delegate the task to subagent `vps_guardian` via `invoke_subagent` (`TypeName: "vps_guardian"`).
 
+### 8. Specialist Subagent Delegation Matrix: `polyglot`
+* **Trigger**: Any internationalization (i18n), localization (l10n), translation, or cross-language formatting task involving:
+  - Designing, structuring, or auditing locale catalogs (`locales/*.json`) and verifying 100% key parity across languages.
+  - Extracting hardcoded UI copy into translation catalogs and implementing translation hooks or lookup helpers.
+  - Configuring multi-language URL routing, bidirectional `hreflang` tags, localized OpenGraph tags, and sitemaps.
+  - Implementing ICU MessageFormat, pluralization rules (`zero`, `one`, `few`, `many`, `other`), and grammatical gender.
+  - Applying standard ECMAScript `Intl` APIs for dates, times, relative intervals, currencies, and numbers.
+  - Auditing CSS for text expansion resilience (20–45% string growth in Spanish/German) and RTL / BiDi layout support.
+  - Enforcing regional linguistic rules: 100% strict English in Slack Block Kit components; 100% strict tuteo (`tú`/`tu`) and RAE punctuation in Spanish web and docs.
+* **Action**: Delegate the task to subagent `polyglot` via `invoke_subagent` (`TypeName: "polyglot"`).
 
-### 8. Subagent Session Hygiene & Model Governance
+### 9. Specialist Subagent Delegation Matrix: `git_sentinel`
+* **Trigger**: Any repository hygiene, GitHub best practices, commit audit, history cleansing, or release task involving:
+  - Auditing repository structure and blueprint files (`README.md`, `LICENSE`, `SECURITY.md`, `.gitignore`, `.github/PULL_REQUEST_TEMPLATE.md`), file placements (`scripts/`, `docs/`, `tests/`), and eliminating stray files.
+  - Verifying absence of sensitive data (`.env`, private keys, Slack/AWS/GitHub tokens) and enforcing `.gitignore`.
+  - Scrubbing amateur or agentic traces from commit messages, PR descriptions, and GitHub Actions (eliminating "prompt:", "as an AI assistant", "Co-authored-by: AI", internal slang like "slop").
+  - Enforcing Conventional Commits 1.0.0 and interactive history cleansing (rebase, squash, drop noisy WIP commits).
+  - Curating `CHANGELOG.md` under Keep a Changelog 1.1.0 and SemVer 2.0.0 with accurate GitHub comparison links.
+  - Managing GitHub Releases (`gh release create`), annotated tags (`git tag -a`), and release verification.
+* **Action**: Delegate the task to subagent `git_sentinel` via `invoke_subagent` (`TypeName: "git_sentinel"`).
+
+
+### 10. Subagent Session Hygiene & Model Governance
 * **Reference**: [`docs/guidelines/SUBAGENT_ORCHESTRATION.md`](docs/guidelines/SUBAGENT_ORCHESTRATION.md)
 * **1 Task = 1 Fresh Session**: Spawn a fresh subagent per task (`invoke_subagent`) and terminate it immediately upon completion (`manage_subagents(Action: "kill")`) to prevent context saturation.
 * **Mandatory Prompt Directives**: Embed the task specification directly in the subagent prompt, forbid reading closed phase files or planning docs, and require parallel `view_file` batching (5–8 files per turn).
 * **Model Selection (`inherit` vs. `flash`)**:
   - Use `Model: "inherit"` for complex TypeScript architecture, cryptography, Slack Bolt handlers, Block Kit UI views, and unit test suites.
   - Use `Model: "flash"` (strictly paired with parallel read and scope-lock directives) for high-volume mechanical updates across scripts, documentation, and HTML files.
+
+

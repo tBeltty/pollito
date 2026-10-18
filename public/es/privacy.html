@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidad — Pollito</title>
+  <meta name="description" content="Política de privacidad de Pollito. Arquitectura criptográfica de doble urna, cero retención de texto plano y estricto respeto a tus derechos de datos.">
+  <link rel="canonical" href="https://pollito.tbelt.online/es/privacy.html">
+  <link rel="alternate" hreflang="x-default" href="https://pollito.tbelt.online/privacy.html">
+  <link rel="alternate" hreflang="en" href="https://pollito.tbelt.online/privacy.html">
+  <link rel="alternate" hreflang="es" href="https://pollito.tbelt.online/es/privacy.html">
+  <meta property="og:title" content="Política de Privacidad — Pollito">
+  <meta property="og:description" content="Política de privacidad de Pollito. Arquitectura criptográfica de doble urna y protección estricta de datos.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://pollito.tbelt.online/es/privacy.html">
+  <meta property="og:locale" content="es_LA">
+  <meta property="og:locale:alternate" content="en_US">
+  <link rel="stylesheet" href="../styles.css?v=3">
+  <link rel="icon" type="image/png" href="../assets/plates/pollito-nav-logo.png?v=4">
+</head>
+<body>
+
+  <!-- Barra de Navegación -->
+  <header class="navbar container">
+    <nav class="nav-shell">
+      <a href="/es/" class="brand-link">
+        <span class="brand-icon">
+          <img src="../assets/plates/pollito-nav-logo.png?v=4" alt="Mascota Pollito" width="28" height="28">
+        </span>
+        <span>Pollito</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="/es/" class="nav-link">Inicio</a></li>
+        <li><a href="/es/#features" class="nav-link">Funciones</a></li>
+        <li><a href="/es/#pricing" class="nav-link">Precios</a></li>
+        <li><a href="support.html" class="nav-link">Soporte</a></li>
+      </ul>
+
+      <div class="lang-switch-wrap">
+        <a href="/privacy.html" class="lang-switch" title="Switch to English" aria-label="Change language to English">🇺🇸 EN</a>
+      </div>
+
+      <a href="https://slack.com/oauth/v2/authorize?client_id=12145588418240.12338463584437&scope=commands,chat:write,chat:write.public,channels:join,channels:read,groups:read,im:read,im:write,mpim:read,users:read" class="btn btn-slack">
+        <img src="../assets/icons/slack.svg" alt="Slack" width="18" height="18" class="slack-logo-icon">
+        <span>Añadir a Slack</span>
+      </a>
+    </nav>
+  </header>
+
+  <!-- Contenido Legal -->
+  <main class="container legal-container">
+    <article class="legal-article">
+      <header class="legal-header">
+        <span class="legal-kicker">Seguridad y Cumplimiento</span>
+        <h1 class="legal-title">Política de Privacidad</h1>
+        <p class="legal-meta">Fecha de entrada en vigor: 17 de octubre de 2026 • Última actualización: 17 de octubre de 2026</p>
+      </header>
+
+      <section class="legal-section">
+        <h2>1. Información General y Principios</h2>
+        <p>
+          Pollito («nosotros»), un servicio operado por TBelt Online, desarrolla herramientas para facilitar el consenso de equipos dentro de Slack. Nuestra arquitectura parte de un principio operativo estricto: solo recopilamos los datos indispensables para contabilizar votos, determinar el quórum y enviar recordatorios a quienes aún no han participado.
+        </p>
+        <p>
+          No vendemos datos de usuarios, no entrenamos modelos de inteligencia artificial con los mensajes de tu espacio de trabajo y no almacenamos identidades vinculadas a opciones en votaciones anónimas.
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h2>2. Anonimato Criptográfico con Doble Urna</h2>
+        <p>
+          Cuando configuras una votación como <strong>Anónima</strong>, Pollito aplica un modelo de aislamiento criptográfico en dos tablas para garantizar el voto secreto:
+        </p>
+        <ul>
+          <li>
+            <strong>Tabla de Participación:</strong> Registramos tu ID de usuario de Slack junto al ID de la votación únicamente para evitar votos duplicados e identificar a las personas pendientes de votar al emitir recordatorios. Esta tabla no contiene ninguna opción seleccionada.
+          </li>
+          <li>
+            <strong>Tabla de Urna de Votos:</strong> Tu opción elegida se guarda junto a un identificador seudónimo unidireccional: <code>HMAC_SHA256(SlackUserID + PollSecret, WorkspaceSalt)</code>.
+          </li>
+        </ul>
+        <p>
+          Ni el equipo de administración de la base de datos ni las personas con rol de administrador en tu espacio pueden reconstruir la relación entre un votante y la opción elegida.
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h2>3. Datos que Recopilamos</h2>
+        <p>Al instalar y utilizar Pollito en tu espacio de trabajo, procesamos las siguientes categorías de datos:</p>
+        <ul>
+          <li>
+            <strong>Identidad del Espacio de Trabajo en Slack:</strong> Identificador del equipo (Team ID), nombre del espacio, fecha de instalación y tokens de acceso de bot protegidos.
+          </li>
+          <li>
+            <strong>Metadatos de la Votación:</strong> Texto de la pregunta, títulos de las opciones, porcentajes de quórum requeridos, ID del creador en Slack, ID del canal y marcas de tiempo de los mensajes.
+          </li>
+          <li>
+            <strong>Votos en Votaciones Públicas:</strong> En votaciones abiertas, procesamos tu ID de usuario de Slack y la opción seleccionada para mostrar los avatares correspondientes en el hilo.
+          </li>
+          <li>
+            <strong>Métricas de Operación:</strong> Marcas temporales de votos registrados y recibos de entrega de recordatorios para gestionar las colas de peticiones dentro de los límites de la API de Slack.
+          </li>
+        </ul>
+      </section>
+
+      <section class="legal-section">
+        <h2>4. Almacenamiento y Retención de Datos</h2>
+        <p>
+          Toda la información se almacena en instancias aisladas de SQLite configuradas en modo Write-Ahead Logging (WAL), alojadas en servidores dedicados protegidos dentro de centros de datos en Norteamérica.
+        </p>
+        <p>
+          Si una organización desinstala Pollito de Slack, recibimos el evento <code>app_uninstalled</code> a través de un webhook seguro. En un plazo máximo de 30 días posteriores a este evento, todos los registros del espacio de trabajo, preguntas de votación e historiales de participación se eliminan de forma permanente e irrecuperable.
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h2>5. Tus Derechos de Privacidad (RGPD y CCPA)</h2>
+        <p>Sin importar tu ubicación geográfica, conservas pleno control y derechos sobre la información de tu espacio de trabajo:</p>
+        <ul>
+          <li><strong>Derecho de Acceso:</strong> La administración del espacio de trabajo puede solicitar una exportación completa en formato JSON de todas las votaciones públicas históricas y configuraciones del espacio.</li>
+          <li><strong>Derecho de Supresión:</strong> Puedes solicitar el borrado manual inmediato de votaciones específicas o de todo el historial de tu espacio.</li>
+          <li><strong>Derecho de Rectificación:</strong> Puedes ajustar títulos y opciones de votaciones activas antes de alcanzar el quórum directamente desde Slack.</li>
+        </ul>
+      </section>
+
+      <section class="legal-section">
+        <h2>6. Medidas de Seguridad</h2>
+        <p>
+          Protegemos todas las comunicaciones en tránsito mediante cifrado TLS 1.3 y verificamos cada solicitud entrante de Slack usando firmas criptográficas HMAC-SHA256 en el encabezado <code>X-Slack-Signature</code>. No guardamos tokens de bot en texto plano; las credenciales se cifran en reposo con AES-256-GCM.
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h2>7. Contacto</h2>
+        <p>
+          Si tienes preguntas sobre nuestras prácticas de privacidad, la implementación de doble urna o deseas ejercer tus derechos de datos, puedes escribir directamente a nuestro equipo de privacidad:
+        </p>
+        <p>
+          <strong>Correo electrónico:</strong> <a href="mailto:privacy@tbelt.online" class="legal-link">privacy@tbelt.online</a><br>
+          <strong>Entidad:</strong> TBelt Online — Operaciones de Pollito
+        </p>
+      </section>
+    </article>
+  </main>
+
+  <!-- Pie de Página -->
+  <footer class="footer">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <img src="../assets/plates/pollito-nav-logo.png?v=4" alt="Pollito" width="24" height="24">
+        <span>Pollito por TBelt</span>
+      </div>
+      <ul class="footer-links">
+        <li><a href="privacy.html" class="active">Privacidad</a></li>
+        <li><a href="terms.html">Términos</a></li>
+        <li><a href="support.html">Soporte</a></li>
+      </ul>
+      <p class="footer-copy">© 2026 TBelt Online. Todos los derechos reservados.</p>
+    </div>
+  </footer>
+
+</body>
+</html>

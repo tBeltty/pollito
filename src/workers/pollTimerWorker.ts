@@ -52,10 +52,16 @@ export class PollTimerWorker {
           const closedPoll = await PollService.closePoll(poll.id, 'SYSTEM_TIMER', 'TIME_EXPIRED');
 
           // 2. Update the main poll message in Slack
-          const updatedBlocks = buildPollMessageBlocks({
-            ...closedPoll,
-            participations: closedPoll.participations,
-          });
+          const { getPollTranslator } = await import('../slack/utils/locale.js');
+          const pollTranslator = getPollTranslator(closedPoll);
+
+          const updatedBlocks = buildPollMessageBlocks(
+            {
+              ...closedPoll,
+              participations: closedPoll.participations,
+            },
+            { translator: pollTranslator }
+          );
 
           const token =
             decryptToken(poll.workspace?.botToken ?? '', env.APP_SECRET_SALT) ??
@@ -65,12 +71,14 @@ export class PollTimerWorker {
             token,
             channel: poll.channelId,
             ts: poll.messageTs,
-            text: `[Closed] Poll: ${poll.question}`,
+            text: pollTranslator.t('poll.fallback.closed', { question: poll.question }),
             blocks: updatedBlocks,
           });
 
           // 3. Post thread announcement (inside Huddle thread if poll was posted in a Huddle)
-          const resultNotice = formatPollClosureSummary(closedPoll, 'TIME_EXPIRED');
+          const resultNotice = formatPollClosureSummary(closedPoll, 'TIME_EXPIRED', {
+            translator: pollTranslator,
+          });
 
           await this.app.client.chat.postMessage({
             token,

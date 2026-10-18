@@ -48,6 +48,7 @@ Pollito integra 13 habilidades de alto impacto para arquitectura de apps en Slac
 * **[Definition of Done (DoD)](file:///Users/jhonatan/Documents/pollito/docs/guidelines/DEFINITION_OF_DONE.md)**: Criterios no negociables para considerar completada una tarea.
 * **[Release Process & Versioning Standards](file:///Users/jhonatan/Documents/pollito/docs/guidelines/RELEASE_PROCESS.md)**: Versionado SemVer, changelog atómico y tags de release.
 * **[Subagent Orchestration & Model Governance](file:///Users/jhonatan/Documents/pollito/docs/guidelines/SUBAGENT_ORCHESTRATION.md)**: Protocolo Auditor/Executor, aislamiento de sesiones efímeras (`1 Tarea = 1 Subagente`), directivas de lectura en paralelo y matriz empírica de selección de modelos (`inherit` vs. `flash`).
+* **[Internationalization (i18n) & Localization (l10n)](file:///Users/jhonatan/Documents/pollito/docs/guidelines/I18N.md)**: Arquitectura bilingüe (EN/ES), catálogos tipados con paridad 100%, formateo ICU, resolución de locale en Slack y adaptación web.
 
 ---
 
@@ -67,6 +68,11 @@ Guía canónica: **[`docs/guidelines/SUBAGENT_ORCHESTRATION.md`](file:///Users/j
 * **`slack_buddy` (`Technical Executor`)**: Implementa una única tarea técnica a la vez (arquitectura Bolt, vistas Block Kit puras, criptografía HKDF/AES-256-GCM, OAuth 2.0, Prisma y suites de Vitest).
 * **`wordsmith` (`Editorial & Release Executor`)**: Audita y pule la prosa de cara al usuario (`public/*.html`, `PRODUCT.md`, `OPERATIONS.md`, `CHANGELOG.md`), aplica las reglas `no-ai-slop` y Keep a Changelog 1.1.0, y redacta notas de release y commits semánticos.
 * **`vps_guardian` (`Infrastructure & SRE Executor`)**: Especialista SRE y de seguridad de infraestructura para `mi-vps`. Gobierna diagnósticos SSH seguros, supervisión de PM2 (`pm2 status`, `pm2 logs --nostream`, `pm2 restart --update-env`), validación y recarga de Nginx (`nginx -t`), auditoría de permisos bajo el Blind-Secret Protocol (`chmod 600` en `.env`), durabilidad de SQLite WAL con backups atómicos (`sqlite3 .backup`) y monitoreo del runner self-hosted de GitHub Actions.
+* **`polyglot` (`i18n & Localization Executor`)**: Arquitecto de internacionalización y localización. Gobierna catálogos multi-idioma (`locales/*.json`), paridad estricta de claves, ICU MessageFormat, reglas de pluralización y género, APIs nativas `Intl` (fechas, monedas, números), enrutamiento SEO con `hreflang`, tolerancia a expansión de texto y soporte BiDi/RTL.
+* **`git_sentinel` (`GitHub & Repo Hygiene Executor`)**: Especialista en mejores prácticas de GitHub y sanidad de repositorios. Gobierna la estructura del repo y archivos base (`README.md`, `LICENSE`, `SECURITY.md`, `.gitignore`, plantillas de PR/issues), erradicación de secretos y huellas de principiantes/IA en commits y GitHub Actions, perfección de `CHANGELOG.md` (Keep a Changelog 1.1.0 / SemVer 2.0.0), limpieza de historial (`rebase`/`squash`) y gestión de releases oficiales con `gh`.
+
+
+
 
 
 ### Higiene de Sesiones (`1 Tarea = 1 Sesión Fresca`)

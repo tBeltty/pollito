@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <!-- Homepage EN (Default) -->
+  <url>
+    <loc>https://pollito.tbelt.online/</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pollito.tbelt.online/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pollito.tbelt.online/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://pollito.tbelt.online/es/"/>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Homepage ES -->
+  <url>
+    <loc>https://pollito.tbelt.online/es/</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pollito.tbelt.online/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pollito.tbelt.online/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://pollito.tbelt.online/es/"/>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Privacy Policy EN -->
+  <url>
+    <loc>https://pollito.tbelt.online/privacy.html</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pollito.tbelt.online/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pollito.tbelt.online/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://pollito.tbelt.online/es/privacy.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Privacy Policy ES -->
+  <url>
+    <loc>https://pollito.tbelt.online/es/privacy.html</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pollito.tbelt.online/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pollito.tbelt.online/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://pollito.tbelt.online/es/privacy.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Terms of Service EN -->
+  <url>
+    <loc>https://pollito.tbelt.online/terms.html</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pollito.tbelt.online/terms.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pollito.tbelt.online/terms.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://pollito.tbelt.online/es/terms.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Terms of Service ES -->
+  <url>
+    <loc>https://pollito.tbelt.online/es/terms.html</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pollito.tbelt.online/terms.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pollito.tbelt.online/terms.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://pollito.tbelt.online/es/terms.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Support EN -->
+  <url>
+    <loc>https://pollito.tbelt.online/support.html</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pollito.tbelt.online/support.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pollito.tbelt.online/support.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://pollito.tbelt.online/es/support.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Support ES -->
+  <url>
+    <loc>https://pollito.tbelt.online/es/support.html</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pollito.tbelt.online/support.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pollito.tbelt.online/support.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://pollito.tbelt.online/es/support.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>

@@ -31,6 +31,7 @@ model WorkspaceSettings {
   maxNudgeChannelMembers   Int       @default(50)
   allowMultipleActivePolls Boolean   @default(false)
   managerUserIds           String?   // Comma-separated Slack user IDs for delegated Bot Managers
+  locale                   String?   // Workspace language override (en | es); null follows each user's Slack language
   anonymousSalt            String    // Cryptographic salt for voter pseudonymization
 
   @@map("workspace_settings")
@@ -53,6 +54,7 @@ model Poll {
   closesAt           DateTime?                                  // Optional deadline when poll closes automatically
   forwardToChannelOnHuddleEnd Boolean @default(false)
   huddleEndReminderSent       Boolean @default(false)
+  locale             String              @default("en")         // Language of the shared channel card, resolved from the creator at launch
   status             String              @default("ACTIVE")     // ACTIVE | QUORUM_REACHED | CLOSED | TIME_EXPIRED
   createdAt          DateTime            @default(now())
   closedAt           DateTime?

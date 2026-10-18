@@ -1,5 +1,6 @@
 import type { Block, KnownBlock } from '@slack/web-api';
 import type { Poll, PollOption } from '@prisma/client';
+import { defaultTranslator, type Translator } from '../../../i18n/index.js';
 
 export type PollWithDetails = Omit<Poll, 'allowMultipleVotes'> & {
   allowMultipleVotes?: boolean;
@@ -26,15 +27,20 @@ export function renderProgressBar(percentage: number, totalSlots = 10): string {
 export interface PollMessageRenderOptions {
   maxNudgeChannelMembers?: number;
   allowVoterChoiceNudges?: boolean;
+  /** Translator for the card language. Defaults to English. */
+  translator?: Translator;
 }
 
 /**
  * Pure Block Kit message builder for Pollito in-channel and in-thread cards.
+ * Text comes from the translator, so the same input always renders the same card.
  */
 export function buildPollMessageBlocks(
   poll: PollWithDetails,
   options?: PollMessageRenderOptions
 ): (Block | KnownBlock)[] {
+  const translator = options?.translator ?? defaultTranslator;
+  const { t } = translator;
   const totalVotes = poll.participations.length;
   const isClosed =
     poll.status === 'QUORUM_REACHED' ||
@@ -58,23 +64,23 @@ export function buildPollMessageBlocks(
   }
 
   // Determine status text
-  let statusText = 'Poll active';
+  let statusText = t('poll.status.active');
 
   if (poll.status === 'QUORUM_REACHED') {
-    statusText = 'Quorum reached • Closed';
+    statusText = t('poll.status.quorumReached');
   } else if (poll.status === 'TIME_EXPIRED') {
-    statusText = 'Time limit reached • Closed';
+    statusText = t('poll.status.timeExpired');
   } else if (poll.status === 'CLOSED') {
-    statusText = 'Poll closed';
+    statusText = t('poll.status.closed');
   } else if (poll.quorumType !== 'NONE' && poll.eligibleVoterCount > 0) {
     const currentPct = (totalVotes / poll.eligibleVoterCount) * 100;
     if (currentPct >= poll.quorumTarget * 0.7) {
-      statusText = 'Approaching quorum target';
+      statusText = t('poll.status.approachingQuorum');
     }
   }
 
-  const ballotLabel = poll.isAnonymous ? 'Anonymous ballot' : 'Public vote';
-  const choiceLabel = poll.allowMultipleVotes ? 'Multiple choice' : 'Single choice';
+  const ballotLabel = poll.isAnonymous ? t('poll.ballot.anonymous') : t('poll.ballot.public');
+  const choiceLabel = poll.allowMultipleVotes ? t('poll.choice.multiple') : t('poll.choice.single');
 
   const blocks: (Block | KnownBlock)[] = [
     // Header block (defensively truncated to Slack's 150-char plain_text limit)
@@ -91,7 +97,12 @@ export function buildPollMessageBlocks(
       elements: [
         {
           type: 'mrkdwn',
-          text: `${mascot} *Status:* ${statusText} • *Type:* ${ballotLabel} • ${choiceLabel}`,
+          text: t('poll.context.status', {
+            mascot,
+            status: statusText,
+            ballot: ballotLabel,
+            choice: choiceLabel,
+          }),
         },
       ],
     },
@@ -105,7 +116,7 @@ export function buildPollMessageBlocks(
     const optionPct = totalVotes > 0 ? (option.voteCount / totalVotes) * 100 : 0;
     const bar = renderProgressBar(optionPct, 10);
 
-    let optionText = `*${option.index + 1}. ${option.text}*\n\`${bar}\` • *${option.voteCount}* ${option.voteCount === 1 ? 'vote' : 'votes'}`;
+    let optionText = `*${option.index + 1}. ${option.text}*\n\`${bar}\` • ${t('poll.option.votes', { count: option.voteCount })}`;
 
     if (!poll.isAnonymous && poll.publicVotes && poll.publicVotes.length > 0) {
       const optionVoters = poll.publicVotes.filter((v) => v.optionId === option.id);
@@ -116,7 +127,9 @@ export function buildPollMessageBlocks(
           .join(' ');
         const extraCount = optionVoters.length - 15;
         const mentionsLine =
-          extraCount > 0 ? `${visibleMentions} +${extraCount} more` : visibleMentions;
+          extraCount > 0
+            ? `${visibleMentions} ${t('poll.option.moreVoters', { count: extraCount })}`
+            : visibleMentions;
         optionText += `\n${mentionsLine}`;
       }
     }
@@ -140,7 +153,7 @@ export function buildPollMessageBlocks(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: `Vote ${option.index + 1}`,
+            text: t('poll.vote.button', { number: option.index + 1 }),
             emoji: true,
           },
           action_id: `vote_option_${option.id}`,
@@ -159,7 +172,7 @@ export function buildPollMessageBlocks(
         type: 'button',
         text: {
           type: 'plain_text',
-          text: 'Nudge Non-Voters',
+          text: t('poll.nudge.button'),
           emoji: true,
         },
         action_id: 'poll_nudge_click',
@@ -167,19 +180,19 @@ export function buildPollMessageBlocks(
         confirm: {
           title: {
             type: 'plain_text',
-            text: 'Send reminder to non-voters?',
+            text: t('poll.nudge.confirmTitle'),
           },
           text: {
             type: 'mrkdwn',
-            text: 'Pollito will send a private DM reminder to eligible members in this channel who have not voted yet. Only the poll creator can trigger reminders (4-hour cooldown applies).',
+            text: t('poll.nudge.confirmBody'),
           },
           confirm: {
             type: 'plain_text',
-            text: 'Send Reminders',
+            text: t('poll.nudge.confirmSubmit'),
           },
           deny: {
             type: 'plain_text',
-            text: 'Cancel',
+            text: t('common.cancel'),
           },
         },
       });
@@ -189,7 +202,7 @@ export function buildPollMessageBlocks(
       type: 'button',
       text: {
         type: 'plain_text',
-        text: 'Close Poll',
+        text: t('poll.close.button'),
         emoji: true,
       },
       action_id: 'poll_close_click',
@@ -198,19 +211,19 @@ export function buildPollMessageBlocks(
       confirm: {
         title: {
           type: 'plain_text',
-          text: 'Close this poll now?',
+          text: t('poll.close.confirmTitle'),
         },
         text: {
           type: 'mrkdwn',
-          text: 'Voting will end immediately and final results will be posted to the thread.',
+          text: t('poll.close.confirmBody'),
         },
         confirm: {
           type: 'plain_text',
-          text: 'Close Poll',
+          text: t('poll.close.button'),
         },
         deny: {
           type: 'plain_text',
-          text: 'Keep Open',
+          text: t('poll.close.confirmDeny'),
         },
       },
     });
@@ -225,23 +238,31 @@ export function buildPollMessageBlocks(
   // Footer telemetry block
   let quorumReadout = '';
   if (poll.quorumType === 'NONE') {
-    quorumReadout = `Total participants: ${totalVotes} • No quorum required`;
+    quorumReadout = t('poll.footer.participantsNoQuorum', { count: totalVotes });
   } else if (poll.quorumType === 'PERCENTAGE' && poll.eligibleVoterCount > 0) {
     const currentPct = Math.round((totalVotes / poll.eligibleVoterCount) * 100);
-    quorumReadout = `Quorum target: ${poll.quorumTarget}% (${totalVotes}/${poll.eligibleVoterCount} members • ${currentPct}% reached)`;
+    quorumReadout = t('poll.footer.quorumPercent', {
+      target: poll.quorumTarget,
+      votes: totalVotes,
+      eligible: poll.eligibleVoterCount,
+      reached: currentPct,
+    });
   } else if (poll.quorumType === 'COUNT') {
-    quorumReadout = `Quorum target: ${poll.quorumTarget} votes (${totalVotes}/${poll.quorumTarget} reached)`;
+    quorumReadout = t('poll.footer.quorumCount', {
+      target: poll.quorumTarget,
+      votes: totalVotes,
+    });
   } else {
-    quorumReadout = `Total participants: ${totalVotes}`;
+    quorumReadout = t('poll.footer.participants', { count: totalVotes });
   }
 
   let deadlineReadout = '';
   if (poll.closesAt) {
+    // Slack renders <!date> tokens in each viewer's own locale and timezone.
     const unixSec = Math.floor(poll.closesAt.getTime() / 1000);
     const isoStr = poll.closesAt.toISOString();
-    deadlineReadout = isClosed
-      ? ` • Closed: <!date^${unixSec}^{date_short} {time}|${isoStr}>`
-      : ` • Closes: <!date^${unixSec}^{date_short} {time}|${isoStr}>`;
+    const dateToken = `<!date^${unixSec}^{date_short} {time}|${isoStr}>`;
+    deadlineReadout = ` • ${t(isClosed ? 'poll.footer.closed' : 'poll.footer.closes', { date: dateToken })}`;
   }
 
   blocks.push(
@@ -253,7 +274,10 @@ export function buildPollMessageBlocks(
       elements: [
         {
           type: 'mrkdwn',
-          text: `${quorumReadout}${deadlineReadout} • Created by <@${poll.creatorId}> • ID: ${poll.id.slice(-6)}`,
+          text: `${quorumReadout}${deadlineReadout} • ${t('poll.footer.meta', {
+            creatorId: poll.creatorId,
+            pollId: poll.id.slice(-6),
+          })}`,
         },
       ],
     }

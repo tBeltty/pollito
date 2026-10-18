@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Comprehensive bilingual internationalization (i18n) and localization (l10n) architecture for English (`en`, default) and Spanish (`es`) across Slack and web surfaces.
+- Typed message catalogs (`src/i18n/catalogs/en.ts` and `src/i18n/catalogs/es.ts`) with 317 compile-time verified message keys and 100% key and parameter parity.
+- Lightweight, zero-dependency ICU MessageFormat parser supporting parameter interpolation, plurals (`Intl.PluralRules`), select branches, and ECMAScript `Intl` formatters (number, date, relative time, and list).
+- Dynamic Slack locale resolution hierarchy (`src/slack/utils/locale.ts`) checking user Slack language (`users.info` with 1-hour TTL cache), workspace settings default, and global fallback to English.
+- Workspace default language configuration dropdown in the Settings modal (`WorkspaceSettings.locale`) and creator locale persistence on `Poll.locale` for background announcements.
+- Full Spanish localized routes for marketing and legal pages (`public/es/index.html`, `public/es/privacy.html`, `public/es/terms.html`, `public/es/support.html`) and mirrored `/en/` paths with bidirectional `hreflang` tags (`en`, `es`, `x-default`) and localized OpenGraph metadata.
+- Multilingual XML sitemap (`public/sitemap.xml`) with alternate `hreflang` definitions.
+- Localized interactive Slack poll simulator (`public/app.js`) detecting `<html lang="es">` or `/es/` pathname and displaying Spanish poll states and tallies.
+- Comprehensive automated test suites in `tests/i18n/catalogParity.test.ts` (enforcing key parity, parameter matching, and locale resolution) and `tests/i18n/messageFormat.test.ts` (ICU plurals, selects, and Intl formatters).
+- Engineering guideline `docs/guidelines/I18N.md` detailing catalog conventions, ICU syntax, Slack Block Kit text expansion resilience, and Spanish editorial standards (100% tuteo, RAE punctuation, zero AI slop).
+
+### Changed
+- Refactored all Slack UI Block Kit view builders (`src/slack/ui/views/`) to accept pure `Translator` instances, maintaining deterministic, clock-free rendering without side effects.
+- Updated `public/styles.css` with responsive `.lang-switch-wrap` and `.lang-switch` pills and flexbox resilience for 20-45% text expansion in Spanish.
+- Updated `AGENTS.md` and `docs/KNOWLEDGE_INDEX.md` to reference the bilingual i18n architecture and guideline.
+
 ## [0.2.0] - 2026-10-18
 
 ### Added

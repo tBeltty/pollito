@@ -6,6 +6,7 @@ import type {
   PlainTextOption,
 } from '@slack/web-api';
 import type { Poll, PollOption } from '@prisma/client';
+import { defaultTranslator, type Translator } from '../../../i18n/index.js';
 
 export type PollSummary = Poll & {
   options: PollOption[];
@@ -25,6 +26,7 @@ export interface AppHomeViewOptions extends Partial<AppHomeStats> {
   maxNudgeChannelMembers?: number;
   allowVoterChoiceNudges?: boolean;
   templates?: Array<{ id: string; name: string; isShared?: boolean }>;
+  translator?: Translator;
 }
 
 export interface CsvFilterOptions {
@@ -38,6 +40,7 @@ export interface CsvExportModalInput {
   csvContent: string;
   polls?: PollSummary[];
   filters?: CsvFilterOptions;
+  translator?: Translator;
 }
 
 function escapeCsvCell(value: string | number | boolean): string {
@@ -78,29 +81,33 @@ export function buildPollsCsvReport(polls: PollSummary[]): string {
 }
 
 export function buildCsvExportModalView(
-  input: string | CsvExportModalInput
+  input: string | CsvExportModalInput,
+  options?: { translator?: Translator }
 ): ModalView {
   const parsed: CsvExportModalInput =
     typeof input === 'string' ? { csvContent: input } : input;
+  const translator = parsed.translator ?? options?.translator ?? defaultTranslator;
+  const { t } = translator;
+
   const csvContent = parsed.csvContent;
   const filters = parsed.filters;
   const polls = parsed.polls ?? [];
 
   const statusOptions: PlainTextOption[] = [
     {
-      text: { type: 'plain_text', text: 'All Poll Statuses', emoji: true },
+      text: { type: 'plain_text', text: t('csv.status.all'), emoji: true },
       value: 'ALL',
     },
     {
-      text: { type: 'plain_text', text: 'Quorum Reached Only', emoji: true },
+      text: { type: 'plain_text', text: t('csv.status.quorumReached'), emoji: true },
       value: 'QUORUM_REACHED',
     },
     {
-      text: { type: 'plain_text', text: 'Closed Polls Only', emoji: true },
+      text: { type: 'plain_text', text: t('csv.status.closed'), emoji: true },
       value: 'CLOSED',
     },
     {
-      text: { type: 'plain_text', text: 'Active Polls Only', emoji: true },
+      text: { type: 'plain_text', text: t('csv.status.active'), emoji: true },
       value: 'ACTIVE',
     },
   ];
@@ -114,7 +121,7 @@ export function buildCsvExportModalView(
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: 'Filter your poll records by date, status, or specific questions, then copy the CSV data below:',
+        text: t('csv.intro'),
       },
     },
     {
@@ -126,14 +133,14 @@ export function buildCsvExportModalView(
         action_id: 'csv_start_date_select',
         placeholder: {
           type: 'plain_text',
-          text: 'Select start date',
+          text: t('csv.startDate.placeholder'),
           emoji: true,
         },
         ...(filters?.startDate ? { initial_date: filters.startDate } : {}),
       },
       label: {
         type: 'plain_text',
-        text: 'Start Date (Optional)',
+        text: t('csv.startDate.label'),
         emoji: true,
       },
     },
@@ -146,14 +153,14 @@ export function buildCsvExportModalView(
         action_id: 'csv_end_date_select',
         placeholder: {
           type: 'plain_text',
-          text: 'Select end date',
+          text: t('csv.endDate.placeholder'),
           emoji: true,
         },
         ...(filters?.endDate ? { initial_date: filters.endDate } : {}),
       },
       label: {
         type: 'plain_text',
-        text: 'End Date (Optional)',
+        text: t('csv.endDate.label'),
         emoji: true,
       },
     },
@@ -169,7 +176,7 @@ export function buildCsvExportModalView(
       },
       label: {
         type: 'plain_text',
-        text: 'Poll Status Filter',
+        text: t('csv.statusFilter.label'),
         emoji: true,
       },
     },
@@ -200,7 +207,7 @@ export function buildCsvExportModalView(
         action_id: 'csv_polls_multi_select',
         placeholder: {
           type: 'plain_text',
-          text: 'All polls in range (or pick specific polls)',
+          text: t('csv.polls.placeholder'),
           emoji: true,
         },
         options: pollOptions,
@@ -210,7 +217,7 @@ export function buildCsvExportModalView(
       },
       label: {
         type: 'plain_text',
-        text: 'Specific Polls to Export',
+        text: t('csv.polls.label'),
         emoji: true,
       },
     });
@@ -225,7 +232,7 @@ export function buildCsvExportModalView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Apply Filters',
+            text: t('csv.apply'),
             emoji: true,
           },
           style: 'primary',
@@ -250,12 +257,12 @@ export function buildCsvExportModalView(
     callback_id: 'csv_export_modal',
     title: {
       type: 'plain_text',
-      text: 'Export Polls CSV',
+      text: t('csv.title'),
       emoji: true,
     },
     close: {
       type: 'plain_text',
-      text: 'Close',
+      text: t('common.close'),
       emoji: true,
     },
     blocks,
@@ -297,6 +304,11 @@ export function buildAppHomeView(
   statsOrOptions?: AppHomeStats | AppHomeViewOptions
 ): HomeView {
   const computed = computeAppHomeStats(polls);
+  const translator =
+    (statsOrOptions && 'translator' in statsOrOptions ? statsOrOptions.translator : undefined) ??
+    defaultTranslator;
+  const { t } = translator;
+
   const currentUserId =
     statsOrOptions && 'currentUserId' in statsOrOptions
       ? statsOrOptions.currentUserId
@@ -338,7 +350,7 @@ export function buildAppHomeView(
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: '_No polls yet. Type `/pollito` in any channel or click "Launch New Poll" above._',
+        text: t('home.recent.empty'),
       },
     });
   } else {
@@ -346,26 +358,26 @@ export function buildAppHomeView(
       const votes = p.participations.length;
       const statusLabel =
         p.status === 'QUORUM_REACHED'
-          ? 'Quorum reached'
+          ? t('status.quorumReached')
           : p.status === 'ACTIVE'
-          ? 'Active'
+          ? t('status.active')
           : p.status === 'TIME_EXPIRED'
-          ? 'Time expired'
-          : 'Closed';
+          ? t('status.timeExpired')
+          : t('status.closed');
 
       const isCreator = Boolean(currentUserId && p.creatorId === currentUserId);
       const canManagePoll = !currentUserId || isCreator || isManager;
       const roleBadge = currentUserId
         ? isCreator
-          ? ' • *You are the creator*'
-          : ' • _Participant_'
+          ? t('home.role.creator')
+          : t('home.role.participant')
         : '';
 
       const sectionBlock: any = {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*${p.question}*\nChannel: <#${p.channelId}> • *${votes}* votes • *${statusLabel}*${roleBadge}`,
+          text: `*${p.question}*\nChannel: <#${p.channelId}> • ${t('poll.option.votes', { count: votes })} • *${statusLabel}*${roleBadge}`,
         },
       };
 
@@ -386,7 +398,7 @@ export function buildAppHomeView(
               type: 'button',
               text: {
                 type: 'plain_text',
-                text: 'Nudge Non-Voters',
+                text: t('poll.nudge.button'),
                 emoji: true,
               },
               action_id: 'poll_nudge_click',
@@ -394,19 +406,19 @@ export function buildAppHomeView(
               confirm: {
                 title: {
                   type: 'plain_text',
-                  text: 'Send reminder to non-voters?',
+                  text: t('poll.nudge.confirmTitle'),
                 },
                 text: {
                   type: 'mrkdwn',
-                  text: 'Pollito will send a private DM reminder to eligible members in this channel who have not voted yet. Only the poll creator can trigger reminders (4-hour cooldown applies).',
+                  text: t('poll.nudge.confirmBody'),
                 },
                 confirm: {
                   type: 'plain_text',
-                  text: 'Send Reminders',
+                  text: t('poll.nudge.confirmSubmit'),
                 },
                 deny: {
                   type: 'plain_text',
-                  text: 'Cancel',
+                  text: t('common.cancel'),
                 },
               },
             });
@@ -416,7 +428,7 @@ export function buildAppHomeView(
             type: 'button',
             text: {
               type: 'plain_text',
-              text: 'Close Poll',
+              text: t('poll.close.button'),
               emoji: true,
             },
             action_id: 'poll_close_click',
@@ -425,19 +437,19 @@ export function buildAppHomeView(
             confirm: {
               title: {
                 type: 'plain_text',
-                text: 'Close this poll now?',
+                text: t('poll.close.confirmTitle'),
               },
               text: {
                 type: 'mrkdwn',
-                text: 'Voting will end immediately and final results will be posted to the thread.',
+                text: t('poll.close.confirmBody'),
               },
               confirm: {
                 type: 'plain_text',
-                text: 'Close Poll',
+                text: t('poll.close.button'),
               },
               deny: {
                 type: 'plain_text',
-                text: 'Keep Open',
+                text: t('poll.close.confirmDeny'),
               },
             },
           });
@@ -447,7 +459,7 @@ export function buildAppHomeView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'View Results',
+            text: t('home.button.viewResults'),
             emoji: true,
           },
           action_id: 'poll_view_results_click',
@@ -458,7 +470,7 @@ export function buildAppHomeView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Delete',
+            text: t('common.delete'),
             emoji: true,
           },
           action_id: 'poll_delete_click',
@@ -467,19 +479,19 @@ export function buildAppHomeView(
           confirm: {
             title: {
               type: 'plain_text',
-              text: 'Delete this poll?',
+              text: t('home.delete.confirmTitle'),
             },
             text: {
               type: 'mrkdwn',
-              text: 'This permanently removes the poll record from App Home and workspace analytics.',
+              text: t('home.delete.confirmBody'),
             },
             confirm: {
               type: 'plain_text',
-              text: 'Delete',
+              text: t('common.delete'),
             },
             deny: {
               type: 'plain_text',
-              text: 'Cancel',
+              text: t('common.cancel'),
             },
           },
         });
@@ -494,15 +506,15 @@ export function buildAppHomeView(
   }
 
   const greetingText = currentUserId
-    ? `Hi, <@${currentUserId}> — team polls, consensus thresholds, and results in one place.`
-    : 'Team polls, vote progress, and consensus thresholds in one place.';
+    ? t('home.greeting.user', { userId: currentUserId })
+    : t('home.greeting.anonymous');
 
   const blocks: (Block | KnownBlock)[] = [
     {
       type: 'header',
       text: {
         type: 'plain_text',
-        text: 'Pollito',
+        text: t('home.title'),
       },
     },
     {
@@ -520,7 +532,7 @@ export function buildAppHomeView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Launch New Poll',
+            text: t('home.button.launch'),
           },
           style: 'primary',
           action_id: 'app_home_launch_poll_click',
@@ -529,7 +541,7 @@ export function buildAppHomeView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Results & Analytics',
+            text: t('home.button.analytics'),
           },
           action_id: 'open_analytics_modal',
         },
@@ -537,7 +549,7 @@ export function buildAppHomeView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Templates',
+            text: t('home.button.templates'),
           },
           action_id: 'open_templates_modal',
         },
@@ -545,7 +557,7 @@ export function buildAppHomeView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Guide',
+            text: t('home.button.guide'),
           },
           action_id: 'open_guide_modal',
         },
@@ -553,7 +565,7 @@ export function buildAppHomeView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Settings',
+            text: t('home.button.settings'),
           },
           action_id: 'open_settings_modal',
         },
@@ -567,19 +579,19 @@ export function buildAppHomeView(
       fields: [
         {
           type: 'mrkdwn',
-          text: `*Active Polls:*\n${totalActive}`,
+          text: t('home.stat.active', { count: totalActive }),
         },
         {
           type: 'mrkdwn',
-          text: `*Quorums Reached:*\n${totalQuorumsReached}`,
+          text: t('home.stat.quorums', { count: totalQuorumsReached }),
         },
         {
           type: 'mrkdwn',
-          text: `*Closed Polls:*\n${totalClosed}`,
+          text: t('home.stat.closed', { count: totalClosed }),
         },
         {
           type: 'mrkdwn',
-          text: `*Avg. Participation:*\nAvg. Participation: ${avgParticipationPct}%`,
+          text: t('home.stat.participation', { pct: avgParticipationPct }),
         },
       ],
     },
@@ -592,22 +604,22 @@ export function buildAppHomeView(
             type: 'section' as const,
             text: {
               type: 'mrkdwn' as const,
-              text: '*Quick Templates*\nLaunch a pre-configured team poll in one click.',
+              text: t('home.templates.intro'),
             },
           },
           {
             type: 'actions' as const,
             block_id: 'app_home_template_actions',
             elements: [
-              ...templates.slice(0, 5).map((t) => ({
+              ...templates.slice(0, 5).map((tpl) => ({
                 type: 'button' as const,
                 text: {
                   type: 'plain_text' as const,
-                  text: t.name.slice(0, 24),
+                  text: tpl.name.slice(0, 24),
                   emoji: true,
                 },
                 action_id: 'app_home_template_launch',
-                value: t.id,
+                value: tpl.id,
               })),
               ...(isManager
                 ? [
@@ -615,7 +627,7 @@ export function buildAppHomeView(
                       type: 'button' as const,
                       text: {
                         type: 'plain_text' as const,
-                        text: '+ Add Template',
+                        text: t('home.templates.add'),
                         emoji: true,
                       },
                       action_id: 'open_create_template_modal',
@@ -632,7 +644,7 @@ export function buildAppHomeView(
               type: 'section' as const,
               text: {
                 type: 'mrkdwn' as const,
-                text: '*Quick Templates*\nNo workspace templates yet. As an admin, you can create quick templates for your team to launch in one click.',
+                text: t('home.templates.emptyManager'),
               },
             },
             {
@@ -643,7 +655,7 @@ export function buildAppHomeView(
                   type: 'button' as const,
                   text: {
                     type: 'plain_text' as const,
-                    text: '+ Add Workspace Template',
+                    text: t('home.templates.addWorkspace'),
                     emoji: true,
                   },
                   style: 'primary' as const,
@@ -658,7 +670,7 @@ export function buildAppHomeView(
               type: 'section' as const,
               text: {
                 type: 'mrkdwn' as const,
-                text: '*Quick Templates*\nNo templates published by workspace admins yet. Open the *Templates* menu above to view or create personal templates.',
+                text: t('home.templates.emptyMember'),
               },
             },
           ]),
@@ -670,7 +682,7 @@ export function buildAppHomeView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Export CSV',
+            text: t('home.button.exportCsv'),
           },
           action_id: 'app_home_export_csv_click',
         },
@@ -678,7 +690,7 @@ export function buildAppHomeView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Documentation',
+            text: t('home.button.docs'),
           },
           url: 'https://pollito.tbelt.online/support.html',
           action_id: 'app_home_docs_click',
@@ -689,7 +701,7 @@ export function buildAppHomeView(
       type: 'header',
       text: {
         type: 'plain_text',
-        text: 'Recent Polls',
+        text: t('home.recent.header'),
       },
     },
     ...(polls.length > 0
@@ -702,7 +714,7 @@ export function buildAppHomeView(
                 type: 'button' as const,
                 text: {
                   type: 'plain_text' as const,
-                  text: 'Select Polls to Delete',
+                  text: t('home.button.manageHistory'),
                   emoji: true,
                 },
                 action_id: 'app_home_manage_history_click',
@@ -711,7 +723,7 @@ export function buildAppHomeView(
                 type: 'button' as const,
                 text: {
                   type: 'plain_text' as const,
-                  text: 'Clear Closed Polls',
+                  text: t('home.button.clearClosed'),
                   emoji: true,
                 },
                 action_id: 'app_home_clear_closed_click',
@@ -719,19 +731,19 @@ export function buildAppHomeView(
                 confirm: {
                   title: {
                     type: 'plain_text' as const,
-                    text: 'Clear closed polls?',
+                    text: t('home.clear.confirmTitle'),
                   },
                   text: {
                     type: 'mrkdwn' as const,
-                    text: 'This permanently removes finished polls from your App Home history.',
+                    text: t('home.clear.confirmBody'),
                   },
                   confirm: {
                     type: 'plain_text' as const,
-                    text: 'Clear Closed Polls',
+                    text: t('home.button.clearClosed'),
                   },
                   deny: {
                     type: 'plain_text' as const,
-                    text: 'Cancel',
+                    text: t('common.cancel'),
                   },
                 },
               },
@@ -748,7 +760,7 @@ export function buildAppHomeView(
       elements: [
         {
           type: 'mrkdwn',
-          text: 'Public and anonymous polls • Quorum & Huddle thread support',
+          text: t('home.footer'),
         },
       ],
     },
@@ -760,16 +772,22 @@ export function buildAppHomeView(
   };
 }
 
-export function buildManageHistoryModalView(polls: PollSummary[]): ModalView {
+export function buildManageHistoryModalView(
+  polls: PollSummary[],
+  options?: { translator?: Translator }
+): ModalView {
+  const translator = options?.translator ?? defaultTranslator;
+  const { t } = translator;
+
   const pollOptions: PlainTextOption[] = polls.slice(0, 50).map((p) => {
     const statusLabel =
       p.status === 'QUORUM_REACHED'
-        ? 'Quorum reached'
+        ? t('status.quorumReached')
         : p.status === 'ACTIVE'
-        ? 'Active'
+        ? t('status.active')
         : p.status === 'TIME_EXPIRED'
-        ? 'Time expired'
-        : 'Closed';
+        ? t('status.timeExpired')
+        : t('status.closed');
     return {
       text: {
         type: 'plain_text',
@@ -785,17 +803,17 @@ export function buildManageHistoryModalView(polls: PollSummary[]): ModalView {
     callback_id: 'manage_history_modal_submit',
     title: {
       type: 'plain_text',
-      text: 'Manage Poll History',
+      text: t('history.title'),
       emoji: true,
     },
     submit: {
       type: 'plain_text',
-      text: 'Delete Selected',
+      text: t('history.submit'),
       emoji: true,
     },
     close: {
       type: 'plain_text',
-      text: 'Cancel',
+      text: t('common.cancel'),
       emoji: true,
     },
     blocks: [
@@ -803,7 +821,7 @@ export function buildManageHistoryModalView(polls: PollSummary[]): ModalView {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: 'Select one or more polls to permanently remove from App Home history and analytics:',
+          text: t('history.intro'),
         },
       },
       {
@@ -814,14 +832,14 @@ export function buildManageHistoryModalView(polls: PollSummary[]): ModalView {
           action_id: 'delete_polls_multi_select',
           placeholder: {
             type: 'plain_text',
-            text: 'Choose polls to delete',
+            text: t('history.placeholder'),
             emoji: true,
           },
           options: pollOptions,
         },
         label: {
           type: 'plain_text',
-          text: 'Polls to Delete',
+          text: t('history.label'),
           emoji: true,
         },
       },

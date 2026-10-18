@@ -8,6 +8,7 @@ import {
   parseHuddleThreadInput,
 } from '../utils/huddleDiscovery.js';
 import { publishHomeTab } from './events.js';
+import { normalizeLocale } from '../../i18n/index.js';
 
 export const createPollSubmissionSchema = z.object({
   selectedChannel: z.string().min(1, 'Please select a channel for this poll'),
@@ -263,6 +264,12 @@ export function registerViewHandlers(app: App) {
       }
 
       // 4. Persist in database
+      const { getRequestTranslator, getPollTranslator } = await import('../utils/locale.js');
+      const creatorTranslator = await getRequestTranslator(client, {
+        userId: body.user.id,
+        workspaceId,
+      });
+
       const poll = await PollService.createPoll({
         workspaceId,
         channelId: validated.selectedChannel,
@@ -278,12 +285,14 @@ export function registerViewHandlers(app: App) {
         eligibleVoterCount: memberCount,
         closesAt,
         forwardToChannelOnHuddleEnd,
+        locale: creatorTranslator.locale,
       });
 
       // 5. Render pure Block Kit card with workspace settings
       const settings = workspaceId
         ? await PollService.getWorkspaceSettings(workspaceId)
         : undefined;
+      const pollTranslator = getPollTranslator(poll);
       const blocks = buildPollMessageBlocks(
         {
           ...poll,
@@ -292,13 +301,14 @@ export function registerViewHandlers(app: App) {
         {
           maxNudgeChannelMembers: settings?.maxNudgeChannelMembers,
           allowVoterChoiceNudges: settings?.allowVoterChoiceNudges,
+          translator: pollTranslator,
         }
       );
 
       await client.chat.update({
         channel: validated.selectedChannel,
         ts: placeholder.ts,
-        text: `Poll: ${validated.question}`,
+        text: pollTranslator.t('poll.fallback.active', { question: validated.question }),
         blocks,
       });
     } catch (error: any) {
@@ -606,6 +616,11 @@ export function registerViewHandlers(app: App) {
     const managerUserIds =
       values.manager_settings_block?.manager_users_select?.selected_users ?? [];
 
+    const selectedLocaleValue =
+      values.workspace_locale_block?.workspace_locale_select?.selected_option?.value;
+    const localeToSave =
+      selectedLocaleValue === 'auto' ? null : normalizeLocale(selectedLocaleValue);
+
     await ack();
 
     try {
@@ -617,6 +632,7 @@ export function registerViewHandlers(app: App) {
         allowVoterChoiceNudges,
         maxNudgeChannelMembers: parsedMaxNudge,
         managerUserIds,
+        ...(selectedLocaleValue !== undefined ? { locale: localeToSave } : {}),
       });
 
       await publishHomeTab(client, body.user.id, workspaceId);
