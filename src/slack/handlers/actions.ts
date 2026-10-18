@@ -8,6 +8,7 @@ import {
 import {
   buildCsvExportModalView,
   buildPollsCsvReport,
+  buildManageHistoryModalView,
 } from '../ui/views/appHome.js';
 import {
   buildAnalyticsModalView,
@@ -213,6 +214,112 @@ export function registerActionHandlers(app: App) {
         }
       }
     }
+  });
+
+  // Handle poll deletion from App Home button (matches poll_delete_click)
+  app.action(/^poll_delete_click/, async ({ action, ack, body, client }) => {
+    await ack();
+
+    const blockAction = body as BlockAction;
+    const rawVal = (action as { value?: string }).value;
+    if (!rawVal) return;
+
+    let pollId = rawVal;
+    try {
+      const parsed = JSON.parse(rawVal);
+      if (typeof parsed === 'object' && parsed !== null && parsed.pollId) {
+        pollId = parsed.pollId;
+      }
+    } catch {
+      // plain string ID
+    }
+
+    const userId = blockAction.user.id;
+    const workspaceId = blockAction.team?.id ?? '';
+
+    try {
+      const isManager = await PollService.isUserWorkspaceManager(
+        client,
+        userId,
+        workspaceId
+      );
+      const deleted = await PollService.deletePoll(pollId, userId, isManager);
+
+      try {
+        await client.chat?.delete?.({
+          channel: deleted.channelId,
+          ts: deleted.messageTs,
+        });
+      } catch {
+        // ignore message deletion failures
+      }
+
+      await publishHomeTab(client, userId, workspaceId);
+    } catch (error) {
+      console.error('Failed to delete poll:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Could not delete poll.';
+      try {
+        await client.chat?.postEphemeral?.({
+          channel: (blockAction.channel as any)?.id || userId,
+          user: userId,
+          text: errorMessage,
+        });
+      } catch {
+        // ignore
+      }
+    }
+  });
+
+  // Handle Manage History modal from App Home button
+  app.action('app_home_manage_history_click', async ({ ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+
+    try {
+      const viewer = await PollService.getReportViewer(client, userId, workspaceId);
+      const polls = await PollService.getAuthorizedPolls(workspaceId, viewer, 50);
+      if (polls.length === 0) return;
+
+      await client.views.open({
+        trigger_id: blockAction.trigger_id,
+        view: buildManageHistoryModalView(polls),
+      });
+    } catch (error) {
+      console.error('Failed to open manage history modal:', error);
+    }
+  });
+
+  // Handle Clear Closed Polls from App Home button
+  app.action('app_home_clear_closed_click', async ({ ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+
+    try {
+      const isManager = await PollService.isUserWorkspaceManager(client, userId, workspaceId);
+      const { deletedPolls } = await PollService.clearClosedPolls(workspaceId, userId, isManager);
+
+      for (const p of deletedPolls) {
+        try {
+          await client.chat?.delete?.({ channel: p.channelId, ts: p.messageTs });
+        } catch {
+          // ignore failures deleting already removed or old messages
+        }
+      }
+
+      await publishHomeTab(client, userId, workspaceId);
+    } catch (error) {
+      console.error('Failed to clear closed polls:', error);
+    }
+  });
+
+  // Handle Jump to Poll link button click acknowledgment
+  app.action('huddle_reminder_jump_link', async ({ ack }) => {
+    await ack();
   });
 
   // Handle Smart Nudge button click (matches poll_nudge_click)

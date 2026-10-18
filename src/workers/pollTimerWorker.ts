@@ -2,6 +2,10 @@ import type { App } from '@slack/bolt';
 import { PollService } from '../services/pollService.js';
 import { buildPollMessageBlocks } from '../slack/ui/views/pollMessage.js';
 import { formatPollClosureSummary } from '../slack/utils/channelMembers.js';
+import {
+  findChannelHuddles,
+  notifyMainChannelOnHuddleEnd,
+} from '../slack/utils/huddleDiscovery.js';
 import { decryptToken } from '../utils/crypto.js';
 import { env } from '../config/env.js';
 
@@ -21,6 +25,9 @@ export class PollTimerWorker {
     this.timer = setInterval(() => {
       this.checkAndCloseExpiredPolls().catch((err) => {
         console.error('Error in PollTimerWorker tick:', err);
+      });
+      this.checkHuddleEndedPolls().catch((err) => {
+        console.error('Error in checkHuddleEndedPolls tick:', err);
       });
     }, this.intervalMs);
   }
@@ -79,4 +86,40 @@ export class PollTimerWorker {
       this.isProcessing = false;
     }
   }
+
+  async checkHuddleEndedPolls() {
+    try {
+      const pendingPolls = await PollService.getActiveHuddlePollsPendingReminder();
+      if (pendingPolls.length === 0) return;
+
+      for (const poll of pendingPolls) {
+        try {
+          const token =
+            decryptToken(poll.workspace?.botToken ?? '', env.APP_SECRET_SALT) ??
+            env.SLACK_BOT_TOKEN;
+
+          const huddles = await findChannelHuddles(
+            this.app.client,
+            poll.channelId,
+            token
+          );
+
+          const relatedHuddle = poll.threadTs
+            ? huddles.find((h) => h.ts === poll.threadTs)
+            : huddles[0];
+
+          // If no active huddles found in channel or the related huddle has ended
+          const isEnded = !relatedHuddle || !relatedHuddle.isActive;
+          if (isEnded) {
+            await notifyMainChannelOnHuddleEnd(this.app.client, poll, token);
+          }
+        } catch (pollErr) {
+          console.error(`Failed checking huddle status for poll ${poll.id}:`, pollErr);
+        }
+      }
+    } catch (err) {
+      console.error('Error in checkHuddleEndedPolls:', err);
+    }
+  }
 }
+

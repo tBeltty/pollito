@@ -4,7 +4,9 @@ import {
   findChannelHuddles,
   findActiveHuddleThread,
   parseHuddleThreadInput,
+  notifyMainChannelOnHuddleEnd,
 } from '../../src/slack/utils/huddleDiscovery.js';
+import { PollService } from '../../src/services/pollService.js';
 import { registerCommandHandlers } from '../../src/slack/handlers/commands.js';
 import { registerViewHandlers } from '../../src/slack/handlers/views.js';
 
@@ -234,4 +236,49 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
       expect(createdPoll?.threadTs).toBe('1700000000.123456');
     });
   });
+
+  describe('Huddle End Notification Flow', () => {
+    it('posts a "Remember to vote" reminder to the main channel when Huddle ends with an active poll', async () => {
+      const poll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_REMINDER_TEST_CH',
+        messageTs: '1700000000.003001',
+        threadTs: '1700000000.003000',
+        creatorId: 'U_LEAD',
+        question: 'Sprint retrospective feedback',
+        options: ['Great', 'Needs work'],
+        forwardToChannelOnHuddleEnd: true,
+      });
+
+      const postMessageSpy = vi.fn().mockResolvedValue({ ok: true });
+      const getPermalinkSpy = vi.fn().mockResolvedValue({
+        ok: true,
+        permalink:
+          'https://workspace.slack.com/archives/C_REMINDER_TEST_CH/p1700000000003001?thread_ts=1700000000.003000',
+      });
+
+      const mockClient = {
+        chat: {
+          postMessage: postMessageSpy,
+          getPermalink: getPermalinkSpy,
+        },
+      } as any;
+
+      const sent = await notifyMainChannelOnHuddleEnd(mockClient, poll);
+      expect(sent).toBe(true);
+
+      expect(postMessageSpy).toHaveBeenCalledTimes(1);
+      const postArgs = postMessageSpy.mock.calls[0][0];
+      expect(postArgs.channel).toBe('C_REMINDER_TEST_CH');
+      expect(postArgs.text).toContain('Remember to vote');
+      expect(postArgs.text).toContain('Sprint retrospective feedback');
+      expect(postArgs.unfurl_links).toBe(true);
+
+      // Verify the reminder cannot be sent twice (claim prevents duplicates)
+      const secondAttempt = await notifyMainChannelOnHuddleEnd(mockClient, poll);
+      expect(secondAttempt).toBe(false);
+      expect(postMessageSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });
+

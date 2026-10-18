@@ -76,6 +76,7 @@ export function registerViewHandlers(app: App) {
     const isAnonymous = selectedOptions.some((o: any) => o.value === 'is_anonymous');
     const allowMultipleVotes = selectedOptions.some((o: any) => o.value === 'allow_multiple_votes');
     const noQuorumChecked = selectedOptions.some((o: any) => o.value === 'no_quorum');
+    const forwardToChannelOnHuddleEnd = selectedOptions.some((o: any) => o.value === 'forward_on_huddle_end');
 
     const rawQuorum = values.quorum_block?.quorum_input?.value?.trim() ?? '';
     const quorumType: 'PERCENTAGE' | 'NONE' = noQuorumChecked ? 'NONE' : 'PERCENTAGE';
@@ -226,6 +227,7 @@ export function registerViewHandlers(app: App) {
           quorumType,
           quorumTarget: validated.quorumTarget ?? 70,
           duration: durationValue,
+          forwardToChannelOnHuddleEnd,
         });
       } catch (tplErr) {
         console.error('Failed to save template during poll creation:', tplErr);
@@ -270,6 +272,7 @@ export function registerViewHandlers(app: App) {
         quorumTarget: validated.quorumTarget ?? 70,
         eligibleVoterCount: memberCount,
         closesAt,
+        forwardToChannelOnHuddleEnd,
       });
 
       // 5. Render pure Block Kit card with workspace settings
@@ -343,6 +346,7 @@ export function registerViewHandlers(app: App) {
     const isAnonymous = selectedOptions.some((o: any) => o.value === 'is_anonymous');
     const allowMultipleVotes = selectedOptions.some((o: any) => o.value === 'allow_multiple_votes');
     const noQuorumChecked = selectedOptions.some((o: any) => o.value === 'no_quorum');
+    const forwardToChannelOnHuddleEnd = selectedOptions.some((o: any) => o.value === 'forward_on_huddle_end');
 
     const rawQuorum = values.quorum_block?.quorum_input?.value?.trim() ?? '';
     const quorumType: 'PERCENTAGE' | 'NONE' = noQuorumChecked ? 'NONE' : 'PERCENTAGE';
@@ -409,6 +413,7 @@ export function registerViewHandlers(app: App) {
         quorumType,
         quorumTarget: validated.quorumTarget ?? 70,
         duration: durationValue,
+        forwardToChannelOnHuddleEnd,
       });
     } catch (error) {
       console.error('Failed to update template from modal:', error);
@@ -486,6 +491,57 @@ export function registerViewHandlers(app: App) {
       await publishHomeTab(client, body.user.id, workspaceId);
     } catch (error) {
       console.error('Failed to save workspace settings:', error);
+    }
+  });
+
+  app.view('manage_history_modal_submit', async ({ ack, view, body, client }) => {
+    const selected =
+      view.state.values.delete_polls_select_block?.delete_polls_multi_select?.selected_options ?? [];
+    const pollIds = selected.map((o: any) => o.value).filter(Boolean);
+
+    if (pollIds.length === 0) {
+      await ack({
+        response_action: 'errors',
+        errors: {
+          delete_polls_select_block: 'Please select at least one poll to delete.',
+        },
+      });
+      return;
+    }
+
+    await ack();
+
+    const workspaceId =
+      body.team?.id ||
+      (body as any).view?.team_id ||
+      (body as any).user?.team_id ||
+      '';
+    const userId = body.user.id;
+
+    try {
+      const isManager = await PollService.isUserWorkspaceManager(
+        client,
+        userId,
+        workspaceId
+      );
+      const { deletedPolls } = await PollService.deletePollsBulk(
+        pollIds,
+        workspaceId,
+        userId,
+        isManager
+      );
+
+      for (const p of deletedPolls) {
+        try {
+          await client.chat?.delete?.({ channel: p.channelId, ts: p.messageTs });
+        } catch {
+          // ignore failures deleting already removed or old messages
+        }
+      }
+
+      await publishHomeTab(client, userId, workspaceId);
+    } catch (error) {
+      console.error('Failed to bulk delete polls:', error);
     }
   });
 }

@@ -25,6 +25,7 @@ export interface CreatePollParams {
   eligibleVoterCount?: number;
   closesAt?: Date | null;
   enforceChannelConcurrency?: boolean;
+  forwardToChannelOnHuddleEnd?: boolean;
 }
 
 export interface VoteParams {
@@ -69,6 +70,7 @@ export interface PollTemplateData {
   quorumType: 'PERCENTAGE' | 'NONE';
   quorumTarget: number;
   duration: string;
+  forwardToChannelOnHuddleEnd: boolean;
   isShared: boolean;
 }
 
@@ -84,6 +86,7 @@ export interface SavePollTemplateParams {
   quorumType?: 'PERCENTAGE' | 'NONE';
   quorumTarget?: number;
   duration?: string;
+  forwardToChannelOnHuddleEnd?: boolean;
   isShared?: boolean;
 }
 
@@ -108,6 +111,7 @@ function mapTemplateRecord(record: {
   quorumType: string;
   quorumTarget: number;
   duration: string;
+  forwardToChannelOnHuddleEnd?: boolean;
   isShared: boolean;
 }): PollTemplateData {
   let parsedOptions: string[] = [];
@@ -136,6 +140,7 @@ function mapTemplateRecord(record: {
         ? record.quorumTarget
         : Math.max(MIN_QUORUM_PERCENTAGE, Math.min(100, record.quorumTarget)),
     duration: record.duration || 'none',
+    forwardToChannelOnHuddleEnd: record.forwardToChannelOnHuddleEnd ?? false,
     isShared: record.isShared,
   };
 }
@@ -415,6 +420,7 @@ export class PollService {
       eligibleVoterCount = 0,
       closesAt = null,
       enforceChannelConcurrency = false,
+      forwardToChannelOnHuddleEnd = false,
     } = params;
 
     if (!workspaceId) {
@@ -460,6 +466,7 @@ export class PollService {
         quorumTarget: normalizedQuorumTarget,
         eligibleVoterCount,
         closesAt,
+        forwardToChannelOnHuddleEnd: Boolean(forwardToChannelOnHuddleEnd),
         status: 'ACTIVE',
         options: {
           create: options.map((text, index) => ({
@@ -921,6 +928,7 @@ export class PollService {
         quorumType: normalizedQuorumType,
         quorumTarget: normalizedQuorumTarget,
         duration,
+        forwardToChannelOnHuddleEnd: Boolean(params.forwardToChannelOnHuddleEnd),
         isShared,
       },
       create: {
@@ -935,6 +943,7 @@ export class PollService {
         quorumType: normalizedQuorumType,
         quorumTarget: normalizedQuorumTarget,
         duration,
+        forwardToChannelOnHuddleEnd: Boolean(params.forwardToChannelOnHuddleEnd),
         isShared,
       },
     });
@@ -1000,6 +1009,9 @@ export class PollService {
         quorumType: nextQuorumType,
         quorumTarget: nextQuorumTarget,
         ...(updates.duration !== undefined ? { duration: updates.duration } : {}),
+        ...(updates.forwardToChannelOnHuddleEnd !== undefined
+          ? { forwardToChannelOnHuddleEnd: updates.forwardToChannelOnHuddleEnd }
+          : {}),
         ...(updates.isShared !== undefined ? { isShared: updates.isShared } : {}),
       },
     });
@@ -1178,5 +1190,143 @@ export class PollService {
     });
 
     return mapTemplateRecord(updated);
+  }
+
+  /**
+   * Deletes a poll if the caller is the creator or a Workspace Manager.
+   */
+  static async deletePoll(
+    pollId: string,
+    userId: string,
+    isManager = false
+  ): Promise<{ id: string; channelId: string; messageTs: string; workspaceId: string }> {
+    const poll = await prisma.poll.findUnique({
+      where: { id: pollId },
+      select: {
+        id: true,
+        channelId: true,
+        messageTs: true,
+        workspaceId: true,
+        creatorId: true,
+      },
+    });
+
+    if (!poll) {
+      throw new Error('Poll not found.');
+    }
+
+    if (poll.creatorId !== userId && !isManager) {
+      throw new Error(
+        'Only the poll creator or a workspace admin can delete this poll.'
+      );
+    }
+
+    await prisma.poll.delete({ where: { id: pollId } });
+    return poll;
+  }
+
+  /**
+   * Deletes multiple polls in bulk that the user is authorized to manage.
+   */
+  static async deletePollsBulk(
+    pollIds: string[],
+    workspaceId: string,
+    userId: string,
+    isManager = false
+  ): Promise<{
+    deletedCount: number;
+    deletedPolls: Array<{ id: string; channelId: string; messageTs: string }>;
+  }> {
+    if (!pollIds.length) {
+      return { deletedCount: 0, deletedPolls: [] };
+    }
+
+    const where: any = {
+      id: { in: pollIds },
+      workspaceId,
+    };
+    if (!isManager) {
+      where.creatorId = userId;
+    }
+
+    const polls = await prisma.poll.findMany({
+      where,
+      select: { id: true, channelId: true, messageTs: true },
+    });
+
+    const allowedIds = polls.map((p) => p.id);
+    if (!allowedIds.length) {
+      return { deletedCount: 0, deletedPolls: [] };
+    }
+
+    await prisma.poll.deleteMany({
+      where: { id: { in: allowedIds } },
+    });
+
+    return { deletedCount: allowedIds.length, deletedPolls: polls };
+  }
+
+  /**
+   * Clears all closed/finished polls that the user is authorized to manage.
+   */
+  static async clearClosedPolls(
+    workspaceId: string,
+    userId: string,
+    isManager = false
+  ): Promise<{
+    deletedCount: number;
+    deletedPolls: { id: string; channelId: string; messageTs: string }[];
+  }> {
+    const where: any = {
+      workspaceId,
+      status: { in: ['CLOSED', 'QUORUM_REACHED', 'TIME_EXPIRED'] },
+    };
+    if (!isManager) {
+      where.creatorId = userId;
+    }
+
+    const polls = await prisma.poll.findMany({
+      where,
+      select: { id: true, channelId: true, messageTs: true },
+    });
+
+    const res = await prisma.poll.deleteMany({ where });
+    return { deletedCount: res.count, deletedPolls: polls };
+  }
+
+  /**
+   * Finds all active Huddle polls waiting for a "Remember to vote" reminder once their Huddle ends.
+   */
+  static async getActiveHuddlePollsPendingReminder(channelId?: string) {
+    return prisma.poll.findMany({
+      where: {
+        status: 'ACTIVE',
+        threadTs: { not: null },
+        forwardToChannelOnHuddleEnd: true,
+        huddleEndReminderSent: false,
+        ...(channelId ? { channelId } : {}),
+      },
+      include: {
+        workspace: { select: { botToken: true } },
+        options: { orderBy: { index: 'asc' } },
+        participations: { select: { voterId: true } },
+      },
+    });
+  }
+
+  /**
+   * Atomically claims the Huddle-end reminder for a poll to prevent duplicate messages.
+   */
+  static async claimHuddleEndReminder(pollId: string): Promise<boolean> {
+    const res = await prisma.poll.updateMany({
+      where: {
+        id: pollId,
+        huddleEndReminderSent: false,
+      },
+      data: {
+        huddleEndReminderSent: true,
+      },
+    });
+    return res.count > 0;
   }
 }

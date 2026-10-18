@@ -3,7 +3,12 @@ import { prisma } from '../../db/prisma.js';
 import { PollService } from '../../services/pollService.js';
 import { ENV_MANAGED_TOKEN } from '../../utils/crypto.js';
 import { buildAppHomeView } from '../ui/views/appHome.js';
-import { recordHuddleMessageEvent } from '../utils/huddleDiscovery.js';
+import {
+  recordHuddleMessageEvent,
+  isHuddleMessage,
+  isHuddleEnded,
+  notifyMainChannelOnHuddleEnd,
+} from '../utils/huddleDiscovery.js';
 
 export async function publishHomeTab(
   client: any,
@@ -44,11 +49,25 @@ export async function publishHomeTab(
 }
 
 export function registerEventHandlers(app: App) {
-  // Track Huddle thread root timestamps from channel message events
+  // Track Huddle thread root timestamps and detect Huddle closure from message events
   if (typeof (app as any).event === 'function') {
-    app.event('message', async ({ event }) => {
+    app.event('message', async ({ event, client }: any) => {
       try {
         recordHuddleMessageEvent(event);
+
+        if (
+          isHuddleMessage(event) &&
+          isHuddleEnded(event) &&
+          (event as any).channel
+        ) {
+          const channelId = (event as any).channel;
+          const pendingPolls =
+            await PollService.getActiveHuddlePollsPendingReminder(channelId);
+
+          for (const poll of pendingPolls) {
+            await notifyMainChannelOnHuddleEnd(client, poll);
+          }
+        }
       } catch {
         // ignore non-critical huddle cache errors
       }
