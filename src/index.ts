@@ -6,7 +6,7 @@ import { registerActionHandlers } from './slack/handlers/actions.js';
 import { registerViewHandlers } from './slack/handlers/views.js';
 import { registerEventHandlers } from './slack/handlers/events.js';
 
-const isSocketMode = Boolean(env.SLACK_APP_TOKEN);
+const isSocketMode = env.SLACK_SOCKET_MODE === true && Boolean(env.SLACK_APP_TOKEN);
 
 const customRoutes = [
   {

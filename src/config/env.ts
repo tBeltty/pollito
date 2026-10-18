@@ -11,6 +11,7 @@ const envSchema = z.object({
   SLACK_SIGNING_SECRET: z.string().min(1, 'SLACK_SIGNING_SECRET is required'),
   SLACK_BOT_TOKEN: z.string().min(1, 'SLACK_BOT_TOKEN is required'),
   SLACK_APP_TOKEN: z.string().optional(),
+  SLACK_SOCKET_MODE: z.string().optional().transform((v) => v === 'true'),
 });
 
 export const env = envSchema.parse(process.env);
