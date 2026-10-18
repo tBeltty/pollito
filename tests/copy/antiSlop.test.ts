@@ -14,6 +14,15 @@ describe('Anti-AI Slop Quality Gate', () => {
     /\bunlocking the power\b/i,
     /\brevolutionize\b/i,
     /\bworkspace dashboard\b/i,
+    /\bconsensus telemetry\b/i,
+    /\bCSV telemetry\b/i,
+    /\bLeading choice:/i,
+  ];
+
+  const bannedBotPricingClaims = [
+    /\bzero fees\b/i,
+    /\bzero cost\b/i,
+    /\bfree\b/i,
   ];
 
   const bannedBinaryContrasts = [
@@ -22,10 +31,23 @@ describe('Anti-AI Slop Quality Gate', () => {
     /\bnot\s+just\s+[^,.]*,\s*it's\b/i,
   ];
 
-  const targetFiles = [
+  const botAndManifestFiles = [
+    path.resolve(process.cwd(), 'manifest.json'),
+    path.resolve(process.cwd(), 'src/slack/utils/channelMembers.ts'),
     path.resolve(process.cwd(), 'src/slack/ui/views/pollMessage.ts'),
     path.resolve(process.cwd(), 'src/slack/ui/views/appHome.ts'),
     path.resolve(process.cwd(), 'src/slack/ui/views/createPollModal.ts'),
+    path.resolve(process.cwd(), 'src/slack/ui/views/analyticsModal.ts'),
+    path.resolve(process.cwd(), 'src/slack/ui/views/templatesModal.ts'),
+    path.resolve(process.cwd(), 'src/slack/ui/views/settingsModal.ts'),
+    path.resolve(process.cwd(), 'src/slack/ui/views/guideModal.ts'),
+    path.resolve(process.cwd(), 'src/slack/handlers/actions.ts'),
+    path.resolve(process.cwd(), 'src/slack/handlers/commands.ts'),
+    path.resolve(process.cwd(), 'src/slack/handlers/views.ts'),
+  ];
+
+  const targetFiles = [
+    ...botAndManifestFiles,
     path.resolve(process.cwd(), 'public/privacy.html'),
     path.resolve(process.cwd(), 'public/terms.html'),
     path.resolve(process.cwd(), 'public/support.html'),
@@ -54,6 +76,21 @@ describe('Anti-AI Slop Quality Gate', () => {
         expect(
           match,
           `Found banned binary contrast ${pattern} in ${filename}`
+        ).toBeNull();
+      }
+    });
+  });
+
+  botAndManifestFiles.forEach((file) => {
+    const filename = path.basename(file);
+
+    it(`${filename} contains no hardcoded 'Free' or 'Zero Fees' pricing claims`, () => {
+      const content = fs.readFileSync(file, 'utf-8');
+      for (const pattern of bannedBotPricingClaims) {
+        const match = content.match(pattern);
+        expect(
+          match,
+          `Found hardcoded pricing claim ${pattern} in ${filename}`
         ).toBeNull();
       }
     });

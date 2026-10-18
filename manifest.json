@@ -1,8 +1,8 @@
 {
   "display_information": {
     "name": "Pollito",
-    "description": "Team polls with automatic closing, live progress bars, and zero fees",
-    "long_description": "Pollito is a native Slack app for team polls and fast consensus without messy message threads.\n\nKey Capabilities:\n• Public or Anonymous Ballots: Create open polls with visible votes, or switch on anonymous voting so teammates can participate honestly without social pressure.\n• Automatic Closing: Set a quorum target (such as 70% of channel members) or a deadline timer. The poll closes and announces the final result the moment consensus is reached.\n• Live In-Channel Meters: Real-time vote counts and monospace progress bars updated directly in the message card.\n• Channel Flexibility: Launch instant polls from any channel with /pollito or schedule them from the App Home.\n• Zero Cost: Unlimited polls, votes, and team members with no subscriptions.",
+    "description": "Team polls with automatic quorum closing, secret ballots, and live progress bars",
+    "long_description": "Pollito is a native Slack app for team polls and fast consensus without messy message threads.\n\nKey Capabilities:\n• Public or Anonymous Ballots: Create open polls with visible votes, or switch on double-urn anonymous voting so teammates can participate honestly without social pressure.\n• Automatic Quorum & Timer Closing: Set a strict majority quorum target (51%–100% of channel members), a deadline timer, or run casual polls with no threshold. The poll closes and announces the winner or tie the moment consensus is reached.\n• Live In-Channel Meters: Real-time vote counts and monospace progress bars updated directly in the message card.\n• Channel & Huddle Flexibility: Launch polls in any channel with /pollito, post directly into active Huddle threads with /pollito huddle, or manage reusable templates from App Home.",
     "background_color": "#1a1d21"
   },
   "features": {
@@ -20,7 +20,7 @@
         "command": "/pollito",
         "url": "https://pollito.tbelt.online/slack/events",
         "description": "Create a team poll with automatic closing",
-        "usage_hint": "[create | help]",
+        "usage_hint": "[huddle | report | close | nudge | help]",
         "should_escape": false
       }
     ]
@@ -36,10 +36,14 @@
         "chat:write.public",
         "channels:join",
         "channels:read",
+        "channels:history",
         "groups:read",
+        "groups:history",
         "im:read",
+        "im:history",
         "im:write",
         "mpim:read",
+        "mpim:history",
         "users:read"
       ]
     }
@@ -54,7 +58,10 @@
       "bot_events": [
         "app_home_opened",
         "app_uninstalled",
-        "tokens_revoked"
+        "tokens_revoked",
+        "message.channels",
+        "message.groups",
+        "message.mpim"
       ]
     },
     "org_deploy_enabled": false,

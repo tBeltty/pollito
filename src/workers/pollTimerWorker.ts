@@ -1,6 +1,7 @@
 import type { App } from '@slack/bolt';
 import { PollService } from '../services/pollService.js';
 import { buildPollMessageBlocks } from '../slack/ui/views/pollMessage.js';
+import { formatPollClosureSummary } from '../slack/utils/channelMembers.js';
 import { decryptToken } from '../utils/crypto.js';
 import { env } from '../config/env.js';
 
@@ -43,17 +44,7 @@ export class PollTimerWorker {
           // 1. Mark poll as closed due to TIME_EXPIRED
           const closedPoll = await PollService.closePoll(poll.id, 'SYSTEM_TIMER', 'TIME_EXPIRED');
 
-          // 2. Resolve winning option for summary
-          let winnerText = 'No votes cast';
-          let maxVotes = 0;
-          for (const opt of closedPoll.options) {
-            if (opt.voteCount > maxVotes) {
-              maxVotes = opt.voteCount;
-              winnerText = opt.text;
-            }
-          }
-
-          // 3. Update the main poll message in Slack
+          // 2. Update the main poll message in Slack
           const updatedBlocks = buildPollMessageBlocks({
             ...closedPoll,
             participations: closedPoll.participations,
@@ -71,16 +62,13 @@ export class PollTimerWorker {
             blocks: updatedBlocks,
           });
 
-          // 4. Post thread announcement
-          const resultNotice =
-            maxVotes > 0
-              ? `⏰ *Poll Closed (Deadline Reached)*\n\nThe voting window has ended with ${closedPoll.participations.length} total votes. Winner: *${winnerText}* (${maxVotes} ${maxVotes === 1 ? 'vote' : 'votes'}).`
-              : `⏰ *Poll Closed (Deadline Reached)*\n\nThe voting window has ended without any cast votes.`;
+          // 3. Post thread announcement (inside Huddle thread if poll was posted in a Huddle)
+          const resultNotice = formatPollClosureSummary(closedPoll, 'TIME_EXPIRED');
 
           await this.app.client.chat.postMessage({
             token,
             channel: poll.channelId,
-            thread_ts: poll.messageTs,
+            thread_ts: poll.threadTs || poll.messageTs,
             text: resultNotice,
           });
         } catch (pollErr) {

@@ -1,58 +1,65 @@
 import type { App } from '@slack/bolt';
 import { prisma } from '../../db/prisma.js';
+import { PollService } from '../../services/pollService.js';
 import { ENV_MANAGED_TOKEN } from '../../utils/crypto.js';
 import { buildAppHomeView } from '../ui/views/appHome.js';
+import { recordHuddleMessageEvent } from '../utils/huddleDiscovery.js';
+
+export async function publishHomeTab(
+  client: any,
+  userId: string,
+  workspaceId: string
+): Promise<void> {
+  const [settings, viewer, polls] = await Promise.all([
+    PollService.getWorkspaceSettings(workspaceId),
+    PollService.getReportViewer(client, userId, workspaceId),
+    prisma.poll.findMany({
+      where: { workspaceId },
+      include: {
+        options: { orderBy: { index: 'asc' } },
+        participations: { select: { voterId: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+    }),
+  ]);
+
+  const stats = await PollService.getPollAnalyticsStats(workspaceId, viewer, 30);
+
+  const homeView = buildAppHomeView(polls.slice(0, 10), {
+    totalActive: stats.totalActive,
+    totalQuorumsReached: stats.totalQuorumsReached,
+    totalClosed: stats.totalClosed,
+    avgParticipationPct: stats.avgParticipationPct,
+    currentUserId: userId,
+    isManager: viewer.isManager,
+    maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
+    allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+  });
+
+  await client.views.publish({
+    user_id: userId,
+    view: homeView,
+  });
+}
 
 export function registerEventHandlers(app: App) {
+  // Track Huddle thread root timestamps from channel message events
+  if (typeof (app as any).event === 'function') {
+    app.event('message', async ({ event }) => {
+      try {
+        recordHuddleMessageEvent(event);
+      } catch {
+        // ignore non-critical huddle cache errors
+      }
+    });
+  }
+
   // App Home Opened Event
   app.event('app_home_opened', async ({ event, client, body }) => {
     try {
       const workspaceId = body.team_id ?? '';
-
-      const [polls, totalActive, totalQuorumsReached, totalClosed] = await Promise.all([
-        prisma.poll.findMany({
-          where: { workspaceId },
-          include: {
-            options: { orderBy: { index: 'asc' } },
-            participations: { select: { voterId: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 50,
-        }),
-        prisma.poll.count({ where: { workspaceId, status: 'ACTIVE' } }),
-        prisma.poll.count({ where: { workspaceId, status: 'QUORUM_REACHED' } }),
-        prisma.poll.count({
-          where: {
-            workspaceId,
-            status: { in: ['CLOSED', 'TIME_EXPIRED', 'QUORUM_REACHED'] },
-          },
-        }),
-      ]);
-
-      const eligiblePolls = polls.filter((p) => p.eligibleVoterCount > 0);
-      const avgParticipationPct =
-        eligiblePolls.length > 0
-          ? Math.round(
-              eligiblePolls.reduce(
-                (acc, p) =>
-                  acc +
-                  Math.min(100, (p.participations.length / p.eligibleVoterCount) * 100),
-                0
-              ) / eligiblePolls.length
-            )
-          : 0;
-
-      const homeView = buildAppHomeView(polls.slice(0, 10), {
-        totalActive,
-        totalQuorumsReached,
-        totalClosed,
-        avgParticipationPct,
-      });
-
-      await client.views.publish({
-        user_id: event.user,
-        view: homeView,
-      });
+      await publishHomeTab(client, event.user, workspaceId);
     } catch (error) {
       console.error('Failed to publish App Home view:', error);
     }

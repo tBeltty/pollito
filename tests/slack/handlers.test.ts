@@ -24,6 +24,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
     await prisma.pollParticipation.deleteMany();
     await prisma.pollOption.deleteMany();
     await prisma.poll.deleteMany();
+    await prisma.pollTemplate.deleteMany();
     await prisma.workspaceSettings.deleteMany();
     await prisma.workspace.deleteMany();
 
@@ -99,14 +100,14 @@ describe('Slack Handlers & Channel Member Governance', () => {
       expect(summary).toContain('🎉 *Quorum Reached — Poll Closed*');
       expect(summary).toContain('*Sprint Retro Date*');
       expect(summary).toContain('*3* participants');
-      expect(summary).toContain('Leading choice: *Thursday 2pm* (5 votes)');
+      expect(summary).toContain('Winner: *Thursday 2pm* (5 votes)');
     });
 
     it('formats CLOSED summary with winning option when votes cast', () => {
       const summary = formatPollClosureSummary(mockPoll, 'CLOSED');
       expect(summary).toContain('🔒 *Poll Closed by Creator*');
       expect(summary).toContain('*3* total participants');
-      expect(summary).toContain('Leading choice: *Thursday 2pm* (5 votes)');
+      expect(summary).toContain('Winner: *Thursday 2pm* (5 votes)');
     });
 
     it('formats CLOSED summary with 0 votes cast', () => {
@@ -123,7 +124,23 @@ describe('Slack Handlers & Channel Member Governance', () => {
     it('formats TIME_EXPIRED summary', () => {
       const summary = formatPollClosureSummary(mockPoll, 'TIME_EXPIRED');
       expect(summary).toContain('⏰ *Poll Closed — Time Expired*');
-      expect(summary).toContain('Leading choice: *Thursday 2pm* (5 votes)');
+      expect(summary).toContain('Winner: *Thursday 2pm* (5 votes)');
+    });
+
+    it('formats tied outcome accurately when multiple options share top votes', () => {
+      const tiedPoll = {
+        question: 'Sprint Retro Date',
+        options: [
+          { text: 'Thursday 2pm', voteCount: 3 },
+          { text: 'Friday 10am', voteCount: 3 },
+          { text: 'Monday 9am', voteCount: 1 },
+        ],
+        participations: Array.from({ length: 7 }, (_, i) => ({ voterId: `U${i}` })),
+      };
+      const summary = formatPollClosureSummary(tiedPoll, 'QUORUM_REACHED');
+      expect(summary).toContain(
+        'Result: Tie between *Thursday 2pm*, *Friday 10am* (3 votes each).'
+      );
     });
   });
 
@@ -324,7 +341,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
         expect.objectContaining({
           channel: 'C_DEV_2',
           user: 'U_INTRUDER_BOB',
-          text: expect.stringContaining('Only the poll creator can manually close this poll'),
+          text: expect.stringContaining('Only the poll creator'),
         })
       );
     });
@@ -451,9 +468,78 @@ describe('Slack Handlers & Channel Member Governance', () => {
         })
       );
     });
+
+    it('blocks poll_nudge_click when channel has more than maxNudgeChannelMembers (default 50)', async () => {
+      const poll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_LARGE_CHANNEL',
+        messageTs: '1700000000.000350',
+        creatorId: 'U_CREATOR_CAROL',
+        question: 'All-Hands Poll',
+        options: ['Option A', 'Option B'],
+        eligibleVoterCount: 65,
+      });
+
+      const actionHandlers: Map<string | RegExp, Function> = new Map();
+      const mockApp = {
+        action: (pattern: any, handler: any) => actionHandlers.set(pattern, handler),
+      } as any;
+
+      registerActionHandlers(mockApp);
+
+      let nudgeHandler: Function | undefined;
+      for (const [pattern, handler] of actionHandlers.entries()) {
+        if (pattern instanceof RegExp && pattern.test('poll_nudge_click')) {
+          nudgeHandler = handler;
+          break;
+        }
+      }
+
+      const postMessageSpy = vi.fn().mockResolvedValue({ ok: true });
+      const postEphemeralSpy = vi.fn().mockResolvedValue({ ok: true });
+
+      const sixtyMembers = Array.from({ length: 60 }, (_, i) => `U_MEM_${i + 1}`);
+      const mockClient = {
+        auth: {
+          test: vi.fn().mockResolvedValue({ user_id: 'B_BOT' }),
+        },
+        conversations: {
+          members: vi.fn().mockResolvedValue({
+            members: sixtyMembers,
+            response_metadata: {},
+          }),
+        },
+        chat: {
+          postMessage: postMessageSpy,
+          postEphemeral: postEphemeralSpy,
+        },
+      } as any;
+
+      await nudgeHandler!({
+        action: { value: JSON.stringify({ pollId: poll.id }) },
+        ack: vi.fn().mockResolvedValue(undefined),
+        body: {
+          user: { id: 'U_CREATOR_CAROL' },
+          channel: { id: 'C_LARGE_CHANNEL' },
+          team: { id: workspaceId },
+        },
+        client: mockClient,
+      });
+
+      expect(postMessageSpy).not.toHaveBeenCalled();
+      expect(postEphemeralSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: 'C_LARGE_CHANNEL',
+          user: 'U_CREATOR_CAROL',
+          text: expect.stringContaining(
+            'Smart Nudges are disabled for channels with more than 50 members'
+          ),
+        })
+      );
+    });
   });
 
-  describe('Command Handlers (/pollito close and /pollito nudge)', () => {
+  describe('Command Handlers (/pollito close, nudge, huddle, and concurrency)', () => {
     it('executes /pollito close to manually close the latest active poll in channel', async () => {
       const poll = await PollService.createPoll({
         workspaceId,
@@ -588,12 +674,320 @@ describe('Slack Handlers & Channel Member Governance', () => {
           text: expect.stringContaining('/pollito nudge'),
         })
       );
+      expect(postEphemeralSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: expect.stringContaining('/pollito huddle'),
+        })
+      );
+    });
+
+    it('enforces single active poll per channel unless allowMultipleActivePolls is enabled', async () => {
+      await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_SINGLE_ACTIVE',
+        messageTs: '1700000000.000500',
+        creatorId: 'U_CREATOR_1',
+        question: 'First Active Poll',
+        options: ['Yes', 'No'],
+      });
+
+      const commandHandlers: Map<string, Function> = new Map();
+      const mockApp = {
+        command: (cmd: string, handler: Function) => commandHandlers.set(cmd, handler),
+      } as any;
+
+      registerCommandHandlers(mockApp);
+      const handler = commandHandlers.get('/pollito');
+
+      const postEphemeralSpy = vi.fn().mockResolvedValue({ ok: true });
+      const postMessageSpy = vi.fn().mockResolvedValue({ ok: true, ts: '1700000000.000501' });
+      const updateSpy = vi.fn().mockResolvedValue({ ok: true });
+
+      const mockClient = {
+        auth: { test: vi.fn().mockResolvedValue({ user_id: 'B_BOT' }) },
+        conversations: {
+          join: vi.fn().mockResolvedValue({ ok: true }),
+          members: vi.fn().mockResolvedValue({ members: ['U1', 'U2'], response_metadata: {} }),
+        },
+        chat: {
+          postEphemeral: postEphemeralSpy,
+          postMessage: postMessageSpy,
+          update: updateSpy,
+        },
+      } as any;
+
+      // 1. Attempt second poll while allowMultipleActivePolls is false (default)
+      await handler!({
+        command: {
+          text: '"Second Poll?" "Opt 1" "Opt 2"',
+          user_id: 'U_CREATOR_2',
+          channel_id: 'C_SINGLE_ACTIVE',
+          team_id: workspaceId,
+        },
+        ack: vi.fn().mockResolvedValue(undefined),
+        client: mockClient,
+      });
+
+      expect(postMessageSpy).not.toHaveBeenCalled();
+      expect(postEphemeralSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: 'C_SINGLE_ACTIVE',
+          user: 'U_CREATOR_2',
+          text: expect.stringContaining('An active poll is already running in this channel'),
+        })
+      );
+
+      // 2. Enable allowMultipleActivePolls -> second poll succeeds
+      await PollService.updateWorkspaceSettings(workspaceId, {
+        allowMultipleActivePolls: true,
+      });
+
+      await handler!({
+        command: {
+          text: '"Second Poll?" "Opt 1" "Opt 2"',
+          user_id: 'U_CREATOR_2',
+          channel_id: 'C_SINGLE_ACTIVE',
+          team_id: workspaceId,
+        },
+        ack: vi.fn().mockResolvedValue(undefined),
+        client: mockClient,
+      });
+
+      expect(postMessageSpy).toHaveBeenCalledTimes(1);
+      expect(updateSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles /pollito huddle when no active Huddle thread exists, opens modal when found, and posts inline when quoted options are given', async () => {
+      const commandHandlers: Map<string, Function> = new Map();
+      const mockApp = {
+        command: (cmd: string, handler: Function) => commandHandlers.set(cmd, handler),
+      } as any;
+
+      registerCommandHandlers(mockApp);
+      const handler = commandHandlers.get('/pollito');
+
+      const postEphemeralSpy = vi.fn().mockResolvedValue({ ok: true });
+      const viewsOpenSpy = vi.fn().mockResolvedValue({ ok: true });
+      const postMessageSpy = vi.fn().mockResolvedValue({ ok: true, ts: '1700000000.000602' });
+      const updateSpy = vi.fn().mockResolvedValue({ ok: true });
+      const historySpy = vi.fn();
+
+      const mockClient = {
+        auth: { test: vi.fn().mockResolvedValue({ user_id: 'B_BOT' }) },
+        conversations: {
+          history: historySpy,
+          join: vi.fn().mockResolvedValue({ ok: true }),
+          members: vi.fn().mockResolvedValue({ members: ['U1', 'U2'], response_metadata: {} }),
+        },
+        views: {
+          open: viewsOpenSpy,
+        },
+        chat: {
+          postEphemeral: postEphemeralSpy,
+          postMessage: postMessageSpy,
+          update: updateSpy,
+        },
+      } as any;
+
+      // 1. No active Huddle thread in channel
+      historySpy.mockResolvedValueOnce({
+        messages: [{ ts: '1700000000.000100', text: 'Regular chat message' }],
+      });
+
+      await handler!({
+        command: {
+          text: 'huddle',
+          user_id: 'U_HUDDLE_USER',
+          channel_id: 'C_HUDDLE_CH',
+          team_id: workspaceId,
+          trigger_id: 'TRIG_1',
+        },
+        ack: vi.fn().mockResolvedValue(undefined),
+        client: mockClient,
+      });
+
+      expect(postEphemeralSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: 'C_HUDDLE_CH',
+          user: 'U_HUDDLE_USER',
+          text: expect.stringContaining('No active Huddle thread was found'),
+        })
+      );
+      expect(viewsOpenSpy).not.toHaveBeenCalled();
+
+      // 2. Active Huddle thread exists -> plain `/pollito huddle` opens modal with threadTs in private_metadata
+      historySpy.mockResolvedValueOnce({
+        messages: [
+          {
+            ts: '1700000000.000600',
+            subtype: 'huddle_thread',
+            text: 'A huddle started',
+          },
+        ],
+      });
+
+      await handler!({
+        command: {
+          text: 'huddle',
+          user_id: 'U_HUDDLE_USER',
+          channel_id: 'C_HUDDLE_CH',
+          team_id: workspaceId,
+          trigger_id: 'TRIG_2',
+        },
+        ack: vi.fn().mockResolvedValue(undefined),
+        client: mockClient,
+      });
+
+      expect(viewsOpenSpy).toHaveBeenCalledTimes(1);
+      const openedModal = viewsOpenSpy.mock.calls[0][0].view;
+      const meta = JSON.parse(openedModal.private_metadata);
+      expect(meta.channelId).toBe('C_HUDDLE_CH');
+      expect(meta.threadTs).toBe('1700000000.000600');
+
+      // 3. `/pollito huddle "Sprint Vote" "Yes" "No"` posts directly inside the Huddle thread
+      historySpy.mockResolvedValueOnce({
+        messages: [
+          {
+            ts: '1700000000.000600',
+            subtype: 'huddle_thread',
+            text: 'A huddle started',
+          },
+        ],
+      });
+
+      await handler!({
+        command: {
+          text: 'huddle "Sprint Vote" "Yes" "No"',
+          user_id: 'U_HUDDLE_USER',
+          channel_id: 'C_HUDDLE_CH',
+          team_id: workspaceId,
+          trigger_id: 'TRIG_3',
+        },
+        ack: vi.fn().mockResolvedValue(undefined),
+        client: mockClient,
+      });
+
+      expect(postMessageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: 'C_HUDDLE_CH',
+          thread_ts: '1700000000.000600',
+        })
+      );
+
+      const savedHuddlePoll = await prisma.poll.findFirst({
+        where: { channelId: 'C_HUDDLE_CH', question: 'Sprint Vote' },
+      });
+      expect(savedHuddlePoll?.threadTs).toBe('1700000000.000600');
+    });
+  });
+
+  describe('Role-scoped poll_view_results_click and open_analytics_modal', () => {
+    it('allows poll creator and workspace manager to view detailed poll results, and blocks regular participants', async () => {
+      const poll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_RESULTS_CH',
+        messageTs: '1700000000.000700',
+        creatorId: 'U_POLL_OWNER',
+        question: 'Architecture Vote',
+        options: ['Option 1', 'Option 2'],
+      });
+
+      const actionHandlers: Map<string | RegExp, Function> = new Map();
+      const mockApp = {
+        action: (pattern: any, handler: any) => actionHandlers.set(pattern, handler),
+      } as any;
+
+      registerActionHandlers(mockApp);
+
+      let resultsHandler: Function | undefined;
+      for (const [pattern, handler] of actionHandlers.entries()) {
+        if (pattern instanceof RegExp && pattern.test('poll_view_results_click')) {
+          resultsHandler = handler;
+          break;
+        }
+      }
+      expect(resultsHandler).toBeDefined();
+
+      const viewsOpenSpy = vi.fn().mockResolvedValue({ ok: true });
+      const postEphemeralSpy = vi.fn().mockResolvedValue({ ok: true });
+
+      const mockClient = {
+        users: {
+          info: vi.fn().mockResolvedValue({
+            user: { id: 'U_REGULAR_VOTER', is_admin: false, is_owner: false },
+          }),
+        },
+        views: {
+          open: viewsOpenSpy,
+        },
+        chat: {
+          postEphemeral: postEphemeralSpy,
+          postMessage: vi.fn().mockResolvedValue({ ok: true }),
+        },
+      } as any;
+
+      // 1. Regular non-creator user is blocked
+      await resultsHandler!({
+        action: { value: JSON.stringify({ pollId: poll.id }) },
+        ack: vi.fn().mockResolvedValue(undefined),
+        body: {
+          user: { id: 'U_REGULAR_VOTER' },
+          channel: { id: 'C_RESULTS_CH' },
+          team: { id: workspaceId },
+          trigger_id: 'TRIG_REG',
+        },
+        client: mockClient,
+      });
+
+      expect(viewsOpenSpy).not.toHaveBeenCalled();
+      expect(postEphemeralSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: 'U_REGULAR_VOTER',
+          text: expect.stringContaining(
+            'Only the poll creator or a workspace admin can view detailed results'
+          ),
+        })
+      );
+
+      // 2. Poll creator is allowed
+      await resultsHandler!({
+        action: { value: JSON.stringify({ pollId: poll.id }) },
+        ack: vi.fn().mockResolvedValue(undefined),
+        body: {
+          user: { id: 'U_POLL_OWNER' },
+          channel: { id: 'C_RESULTS_CH' },
+          team: { id: workspaceId },
+          trigger_id: 'TRIG_OWNER',
+        },
+        client: mockClient,
+      });
+
+      expect(viewsOpenSpy).toHaveBeenCalledTimes(1);
+
+      // 3. Workspace manager (via managerUserIds) is allowed
+      await PollService.updateWorkspaceSettings(workspaceId, {
+        managerUserIds: ['U_DESIGNATED_MANAGER'],
+      });
+
+      await resultsHandler!({
+        action: { value: JSON.stringify({ pollId: poll.id }) },
+        ack: vi.fn().mockResolvedValue(undefined),
+        body: {
+          user: { id: 'U_DESIGNATED_MANAGER' },
+          channel: { id: 'C_RESULTS_CH' },
+          team: { id: workspaceId },
+          trigger_id: 'TRIG_MGR',
+        },
+        client: mockClient,
+      });
+
+      expect(viewsOpenSpy).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('Modal Submission Validation (Zod & Views)', () => {
-    it('validates schema correctly and rejects invalid submissions with field-specific errors', () => {
-      // Valid input
+    it('validates schema correctly, rejects quorumTarget=50, and accepts quorumTarget=51', () => {
+      // Valid input (70%)
       const valid = createPollSubmissionSchema.safeParse({
         selectedChannel: 'C123',
         question: 'What is your favorite color?',
@@ -602,6 +996,26 @@ describe('Slack Handlers & Channel Member Governance', () => {
         quorumTarget: 70,
       });
       expect(valid.success).toBe(true);
+
+      // 50% is NEVER quorum -> must fail validation
+      const fiftyPercent = createPollSubmissionSchema.safeParse({
+        selectedChannel: 'C123',
+        question: 'Is 50% a quorum?',
+        opt1: 'Yes',
+        opt2: 'No',
+        quorumTarget: 50,
+      });
+      expect(fiftyPercent.success).toBe(false);
+
+      // 51% strict majority -> must pass validation
+      const fiftyOnePercent = createPollSubmissionSchema.safeParse({
+        selectedChannel: 'C123',
+        question: 'Is 51% a quorum?',
+        opt1: 'Yes',
+        opt2: 'No',
+        quorumTarget: 51,
+      });
+      expect(fiftyOnePercent.success).toBe(true);
 
       // Question over 150 chars
       const tooLongQuestion = createPollSubmissionSchema.safeParse({
@@ -673,6 +1087,56 @@ describe('Slack Handlers & Channel Member Governance', () => {
             option_1_block: expect.any(String),
             option_2_block: expect.any(String),
             quorum_block: expect.any(String),
+          }),
+        })
+      );
+    });
+
+    it('rejects create_poll_modal_submit with channel_block error when an active poll already exists in the channel', async () => {
+      await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_MODAL_CONCURRENCY',
+        messageTs: '1700000000.000800',
+        creatorId: 'U_EXISTING',
+        question: 'Existing Poll',
+        options: ['Yes', 'No'],
+      });
+
+      const viewHandlers: Map<string, Function> = new Map();
+      const mockApp = {
+        view: (id: string, handler: Function) => viewHandlers.set(id, handler),
+      } as any;
+
+      registerViewHandlers(mockApp);
+      const handler = viewHandlers.get('create_poll_modal_submit');
+
+      const ackSpy = vi.fn().mockResolvedValue(undefined);
+
+      await handler!({
+        ack: ackSpy,
+        view: {
+          state: {
+            values: {
+              channel_block: {
+                channel_select: { selected_conversation: 'C_MODAL_CONCURRENCY' },
+              },
+              question_block: { question_input: { value: 'Second Poll' } },
+              option_1_block: { option_1_input: { value: 'Yes' } },
+              option_2_block: { option_2_input: { value: 'No' } },
+              quorum_block: { quorum_input: { value: '70' } },
+            },
+          },
+          private_metadata: '',
+        },
+        body: { user: { id: 'U_TESTER' }, team: { id: workspaceId } },
+        client: {} as any,
+      });
+
+      expect(ackSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          response_action: 'errors',
+          errors: expect.objectContaining({
+            channel_block: expect.stringContaining('An active poll is already running in this channel'),
           }),
         })
       );

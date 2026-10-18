@@ -18,10 +18,14 @@ export const BOT_SCOPES = [
   'chat:write.public',
   'channels:join',
   'channels:read',
+  'channels:history',
   'groups:read',
+  'groups:history',
   'im:read',
+  'im:history',
   'im:write',
   'mpim:read',
+  'mpim:history',
   'users:read',
 ].join(',');
 
