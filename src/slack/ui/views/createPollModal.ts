@@ -117,7 +117,7 @@ export function buildCreatePollModalView(channelId: string): ModalView {
             {
               text: {
                 type: 'mrkdwn',
-                text: '*Anonymous Ballot*\nKeep voter choices confidential with double-urn cryptographic tokens.',
+                text: '*Anonymous Ballot*\nKeep votes private so nobody can see who chose what.',
               },
               value: 'is_anonymous',
             },

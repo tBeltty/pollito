@@ -72,7 +72,7 @@
         
         <h3>Can workspace admins see who voted in an anonymous poll?</h3>
         <p>
-          No. Pollito uses a cryptographic double-urn architecture. Participation records (used to prevent double votes) and ballot urns (used to store choices) are stored in completely separate database tables with one-way salted hashes. Not even our own infrastructure engineers can tie a specific user to their ballot choice.
+          No. In anonymous polls, whether you voted and what option you picked are stored completely separately. Nobody—not even channel admins or poll creators—can see which choice any individual made.
         </p>
 
         <h3>How does quorum auto-closing work?</h3>

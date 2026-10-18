@@ -46,7 +46,7 @@ export function registerActionHandlers(app: App) {
 
       // Ephemeral confirmation
       const noticeText = result.poll.isAnonymous
-        ? '🔒 Your anonymous vote has been recorded with double-urn encryption.'
+        ? '🔒 Your anonymous vote has been recorded.'
         : '✅ Your vote has been recorded!';
 
       await client.chat.postEphemeral({
