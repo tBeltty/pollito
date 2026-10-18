@@ -941,4 +941,112 @@ describe('PollService', () => {
       expect(postArgs.token).toBe(env.SLACK_BOT_TOKEN);
     });
   });
+
+  describe('App Home History Deletion & Huddle End Reminder Workflow', () => {
+    it('deletes an individual poll when requested by the creator or workspace manager', async () => {
+      const poll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_DEL_TEST',
+        messageTs: '1700000000.002001',
+        creatorId: 'U_OWNER_1',
+        question: 'Poll to be deleted',
+        options: ['Yes', 'No'],
+      });
+
+      // Regular user cannot delete another person's poll
+      await expect(PollService.deletePoll(poll.id, 'U_OTHER_USER', false)).rejects.toThrow(
+        /Only the poll creator or a workspace admin can delete this poll/
+      );
+
+      // Creator can delete their poll
+      const deleted = await PollService.deletePoll(poll.id, 'U_OWNER_1', false);
+      expect(deleted.id).toBe(poll.id);
+
+      const check = await prisma.poll.findUnique({ where: { id: poll.id } });
+      expect(check).toBeNull();
+    });
+
+    it('bulk deletes multiple authorized polls and clears closed polls without deleting active ones', async () => {
+      const p1 = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_BULK_TEST',
+        messageTs: '1700000000.002002',
+        creatorId: 'U_OWNER_2',
+        question: 'Poll Bulk 1',
+        options: ['A', 'B'],
+      });
+      const p2 = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_BULK_TEST',
+        messageTs: '1700000000.002003',
+        creatorId: 'U_OWNER_2',
+        question: 'Poll Bulk 2',
+        options: ['A', 'B'],
+      });
+
+      // Bulk delete both
+      const bulkRes = await PollService.deletePollsBulk(
+        [p1.id, p2.id],
+        workspaceId,
+        'U_OWNER_2',
+        false
+      );
+      expect(bulkRes.deletedPolls).toHaveLength(2);
+
+      // Clear closed polls test
+      const activePoll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_BULK_TEST',
+        messageTs: '1700000000.002004',
+        creatorId: 'U_OWNER_2',
+        question: 'Active Poll',
+        options: ['1', '2'],
+      });
+      const closedPoll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_BULK_TEST',
+        messageTs: '1700000000.002005',
+        creatorId: 'U_OWNER_2',
+        question: 'Closed Poll',
+        options: ['1', '2'],
+      });
+      await PollService.closePoll(closedPoll.id, 'U_OWNER_2', 'CLOSED');
+
+      const clearRes = await PollService.clearClosedPolls(workspaceId, 'U_OWNER_2', false);
+      expect(clearRes.deletedCount).toBeGreaterThanOrEqual(1);
+
+      // Verify active poll still exists
+      const remainingActive = await prisma.poll.findUnique({ where: { id: activePoll.id } });
+      expect(remainingActive).not.toBeNull();
+      expect(remainingActive?.status).toBe('ACTIVE');
+    });
+
+    it('queries active Huddle polls needing reminder and atomically claims reminder to avoid duplicate messages', async () => {
+      const huddlePoll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_HUDDLE_REMINDER_TEST',
+        messageTs: '1700000000.002010',
+        threadTs: '1700000000.002000',
+        creatorId: 'U_HUDDLE_CREATOR',
+        question: 'Pending Huddle Poll',
+        options: ['Agree', 'Disagree'],
+        forwardToChannelOnHuddleEnd: true,
+      });
+
+      const pendingList = await PollService.getActiveHuddlePollsPendingReminder('C_HUDDLE_REMINDER_TEST');
+      expect(pendingList.some((p) => p.id === huddlePoll.id)).toBe(true);
+
+      // First claim succeeds
+      const claimedFirst = await PollService.claimHuddleEndReminder(huddlePoll.id);
+      expect(claimedFirst).toBe(true);
+
+      // Second claim returns false (preventing race condition)
+      const claimedSecond = await PollService.claimHuddleEndReminder(huddlePoll.id);
+      expect(claimedSecond).toBe(false);
+
+      // Poll is no longer in pending list
+      const afterClaimList = await PollService.getActiveHuddlePollsPendingReminder('C_HUDDLE_REMINDER_TEST');
+      expect(afterClaimList.some((p) => p.id === huddlePoll.id)).toBe(false);
+    });
+  });
 });

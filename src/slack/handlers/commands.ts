@@ -128,6 +128,7 @@ export function registerCommandHandlers(app: App) {
               (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'PERCENTAGE',
             quorumTarget: settings.defaultQuorumPct,
             eligibleVoterCount: memberCount,
+            forwardToChannelOnHuddleEnd: true,
           });
 
           const blocks = buildPollMessageBlocks(

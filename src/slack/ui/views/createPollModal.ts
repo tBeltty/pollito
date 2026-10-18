@@ -14,6 +14,7 @@ export interface CreatePollModalPreset {
   saveAsTemplate?: boolean;
   templateName?: string;
   editTemplateId?: string;
+  forwardToChannelOnHuddleEnd?: boolean;
   availableTemplates?: Array<{ id: string; name: string; isShared?: boolean }>;
 }
 
@@ -95,6 +96,7 @@ export function buildCreatePollModalView(
 
   const channelId = preset.channelId ?? '';
   const isEditingTemplate = Boolean(preset.editTemplateId);
+  const isHuddleMode = Boolean(preset.huddleMode || preset.threadTs);
 
   const anonymousOption: MrkdwnOption = {
     text: {
@@ -120,6 +122,14 @@ export function buildCreatePollModalView(
     value: 'no_quorum',
   };
 
+  const forwardOnHuddleEndOption: MrkdwnOption = {
+    text: {
+      type: 'mrkdwn',
+      text: '*Remind in Channel When Huddle Ends*\nPost a "Remember to vote" link in the main channel if the poll is still active when the Huddle ends.',
+    },
+    value: 'forward_on_huddle_end',
+  };
+
   const initialSettingsOptions: MrkdwnOption[] = [];
   if (preset.isAnonymous) {
     initialSettingsOptions.push(anonymousOption);
@@ -129,6 +139,9 @@ export function buildCreatePollModalView(
   }
   if (preset.quorumType === 'NONE') {
     initialSettingsOptions.push(noQuorumOption);
+  }
+  if (preset.forwardToChannelOnHuddleEnd ?? (Boolean(preset.huddleMode) && !isEditingTemplate)) {
+    initialSettingsOptions.push(forwardOnHuddleEndOption);
   }
 
   const saveAsTemplateOption: MrkdwnOption = {
@@ -207,7 +220,6 @@ export function buildCreatePollModalView(
     durationOptions.find((opt) => opt.value === preset.duration) ?? durationOptions[0];
 
   const clampedQuorumTarget = Math.max(51, preset?.quorumTarget ?? 70);
-  const isHuddleMode = Boolean(preset.huddleMode || preset.threadTs);
 
   return {
     type: 'modal',
@@ -402,7 +414,12 @@ export function buildCreatePollModalView(
         element: {
           type: 'checkboxes',
           action_id: 'anonymous_checkbox',
-          options: [anonymousOption, multipleChoiceOption, noQuorumOption],
+          options: [
+            anonymousOption,
+            multipleChoiceOption,
+            noQuorumOption,
+            forwardOnHuddleEndOption,
+          ],
           ...(initialSettingsOptions.length > 0
             ? { initial_options: initialSettingsOptions }
             : {}),

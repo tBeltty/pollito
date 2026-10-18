@@ -357,3 +357,79 @@ export async function findActiveHuddleThread(
   const active = huddles.find((h) => h.isActive);
   return active ? active.ts : null;
 }
+
+/**
+ * Posts a "Remember to vote" reminder and permalink to the main channel when a Huddle concludes.
+ */
+export async function notifyMainChannelOnHuddleEnd(
+  client: any,
+  poll: {
+    id: string;
+    channelId: string;
+    messageTs: string;
+    threadTs?: string | null;
+    question: string;
+  },
+  token?: string
+): Promise<boolean> {
+  const { PollService } = await import('../../services/pollService.js');
+  const claimed = await PollService.claimHuddleEndReminder(poll.id);
+  if (!claimed) {
+    return false;
+  }
+
+  let permalink = '';
+  try {
+    const permRes = await client.chat?.getPermalink?.({
+      channel: poll.channelId,
+      message_ts: poll.messageTs,
+      ...(token ? { token } : {}),
+    });
+    permalink = permRes?.permalink || '';
+  } catch {
+    // fallback to reconstructed permalink
+  }
+
+  if (!permalink) {
+    const cleanedTs = poll.messageTs.replace('.', '');
+    permalink = `https://slack.com/archives/${poll.channelId}/p${cleanedTs}${
+      poll.threadTs ? `?thread_ts=${poll.threadTs}&cid=${poll.channelId}` : ''
+    }`;
+  }
+
+  try {
+    await client.chat.postMessage({
+      ...(token ? { token } : {}),
+      channel: poll.channelId,
+      unfurl_links: true,
+      unfurl_media: true,
+      text: `🗳️ *Remember to vote:* The Huddle has ended, and *${poll.question}* is still open! <${permalink}|View poll in Huddle thread>`,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `🗳️ *Remember to vote!*\nThe Huddle has ended, and *<${permalink}|${poll.question}>* is still open for voting in the Huddle thread.`,
+          },
+          accessory: {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: 'Jump to Poll',
+              emoji: true,
+            },
+            url: permalink,
+            action_id: 'huddle_reminder_jump_link',
+          },
+        },
+      ],
+    });
+    return true;
+  } catch (err) {
+    console.error(
+      `Failed to post Huddle-end reminder to channel ${poll.channelId}:`,
+      err
+    );
+    return false;
+  }
+}

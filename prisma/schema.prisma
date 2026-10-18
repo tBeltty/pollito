@@ -51,6 +51,8 @@ model Poll {
   quorumTarget       Int                 @default(70)
   eligibleVoterCount Int                 @default(0)            // Member count in channel when poll launched
   closesAt           DateTime?                                  // Optional deadline when poll closes automatically
+  forwardToChannelOnHuddleEnd Boolean @default(false)
+  huddleEndReminderSent       Boolean @default(false)
   status             String              @default("ACTIVE")     // ACTIVE | QUORUM_REACHED | CLOSED | TIME_EXPIRED
   createdAt          DateTime            @default(now())
   closedAt           DateTime?
@@ -134,6 +136,7 @@ model PollTemplate {
   quorumType         String   @default("PERCENTAGE")
   quorumTarget       Int      @default(70)
   duration           String   @default("none")
+  forwardToChannelOnHuddleEnd Boolean @default(false)
   isShared           Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

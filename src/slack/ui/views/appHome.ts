@@ -362,55 +362,75 @@ export function buildAppHomeView(
         },
       };
 
-      if (p.status !== 'ACTIVE' && canManagePoll) {
-        sectionBlock.accessory = {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: 'View Results',
-            emoji: true,
-          },
-          action_id: 'poll_view_results_click',
-          value: JSON.stringify({ pollId: p.id }),
-        };
-      }
-
       recentPollBlocks.push(sectionBlock);
 
-      if (p.status === 'ACTIVE' && canManagePoll) {
+      if (canManagePoll) {
         const actionElements: any[] = [];
-        const canOfferNudge =
-          isCreator &&
-          allowVoterChoiceNudges !== false &&
-          (p.eligibleVoterCount <= 0 ||
-            p.eligibleVoterCount <= maxNudgeChannelMembers);
 
-        if (canOfferNudge) {
+        if (p.status === 'ACTIVE') {
+          const canOfferNudge =
+            isCreator &&
+            allowVoterChoiceNudges !== false &&
+            (p.eligibleVoterCount <= 0 ||
+              p.eligibleVoterCount <= maxNudgeChannelMembers);
+
+          if (canOfferNudge) {
+            actionElements.push({
+              type: 'button',
+              text: {
+                type: 'plain_text',
+                text: 'Nudge Non-Voters',
+                emoji: true,
+              },
+              action_id: 'poll_nudge_click',
+              value: JSON.stringify({ pollId: p.id }),
+              confirm: {
+                title: {
+                  type: 'plain_text',
+                  text: 'Send reminder to non-voters?',
+                },
+                text: {
+                  type: 'mrkdwn',
+                  text: 'Pollito will send a private DM reminder to eligible members in this channel who have not voted yet. Only the poll creator can trigger reminders (4-hour cooldown applies).',
+                },
+                confirm: {
+                  type: 'plain_text',
+                  text: 'Send Reminders',
+                },
+                deny: {
+                  type: 'plain_text',
+                  text: 'Cancel',
+                },
+              },
+            });
+          }
+
           actionElements.push({
             type: 'button',
             text: {
               type: 'plain_text',
-              text: 'Nudge Non-Voters',
+              text: 'Close Poll',
               emoji: true,
             },
-            action_id: 'poll_nudge_click',
+            action_id: 'poll_close_click',
             value: JSON.stringify({ pollId: p.id }),
+            style: 'danger',
             confirm: {
               title: {
                 type: 'plain_text',
-                text: 'Send reminder to non-voters?',
+                text: 'Close this poll now?',
               },
               text: {
                 type: 'mrkdwn',
-                text: 'Pollito will send a private DM reminder to eligible members in this channel who have not voted yet. Only the poll creator can trigger reminders (4-hour cooldown applies).',
+                text: 'Voting will end immediately and final results will be posted to the thread.',
               },
               confirm: {
                 type: 'plain_text',
-                text: 'Send Reminders',
+                text: 'Close Poll',
               },
               deny: {
                 type: 'plain_text',
-                text: 'Cancel',
+                text: 'Keep Open',
               },
             },
           });
@@ -420,41 +440,41 @@ export function buildAppHomeView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Close Poll',
+            text: 'View Results',
             emoji: true,
           },
-          action_id: 'poll_close_click',
+          action_id: 'poll_view_results_click',
           value: JSON.stringify({ pollId: p.id }),
-          style: 'danger',
-          confirm: {
-            title: {
-              type: 'plain_text',
-              text: 'Close this poll now?',
-            },
-            text: {
-              type: 'mrkdwn',
-              text: 'Voting will end immediately and final results will be posted to the thread.',
-            },
-            confirm: {
-              type: 'plain_text',
-              text: 'Close Poll',
-            },
-            deny: {
-              type: 'plain_text',
-              text: 'Keep Open',
-            },
-          },
         });
 
         actionElements.push({
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'View Results',
+            text: 'Delete',
             emoji: true,
           },
-          action_id: 'poll_view_results_click',
+          action_id: 'poll_delete_click',
           value: JSON.stringify({ pollId: p.id }),
+          style: 'danger',
+          confirm: {
+            title: {
+              type: 'plain_text',
+              text: 'Delete this poll?',
+            },
+            text: {
+              type: 'mrkdwn',
+              text: 'This permanently removes the poll record from App Home and workspace analytics.',
+            },
+            confirm: {
+              type: 'plain_text',
+              text: 'Delete',
+            },
+            deny: {
+              type: 'plain_text',
+              text: 'Cancel',
+            },
+          },
         });
 
         recentPollBlocks.push({
@@ -642,6 +662,53 @@ export function buildAppHomeView(
         text: 'Recent Polls',
       },
     },
+    ...(polls.length > 0
+      ? [
+          {
+            type: 'actions' as const,
+            block_id: 'app_home_history_actions',
+            elements: [
+              {
+                type: 'button' as const,
+                text: {
+                  type: 'plain_text' as const,
+                  text: 'Select Polls to Delete',
+                  emoji: true,
+                },
+                action_id: 'app_home_manage_history_click',
+              },
+              {
+                type: 'button' as const,
+                text: {
+                  type: 'plain_text' as const,
+                  text: 'Clear Closed Polls',
+                  emoji: true,
+                },
+                action_id: 'app_home_clear_closed_click',
+                style: 'danger' as const,
+                confirm: {
+                  title: {
+                    type: 'plain_text' as const,
+                    text: 'Clear closed polls?',
+                  },
+                  text: {
+                    type: 'mrkdwn' as const,
+                    text: 'This permanently removes finished polls from your App Home history.',
+                  },
+                  confirm: {
+                    type: 'plain_text' as const,
+                    text: 'Clear Closed Polls',
+                  },
+                  deny: {
+                    type: 'plain_text' as const,
+                    text: 'Cancel',
+                  },
+                },
+              },
+            ],
+          },
+        ]
+      : []),
     ...recentPollBlocks,
     {
       type: 'divider',
@@ -660,5 +727,74 @@ export function buildAppHomeView(
   return {
     type: 'home',
     blocks: blocks.slice(0, 98),
+  };
+}
+
+export function buildManageHistoryModalView(polls: PollSummary[]): ModalView {
+  const pollOptions: PlainTextOption[] = polls.slice(0, 50).map((p) => {
+    const statusLabel =
+      p.status === 'QUORUM_REACHED'
+        ? 'Quorum reached'
+        : p.status === 'ACTIVE'
+        ? 'Active'
+        : p.status === 'TIME_EXPIRED'
+        ? 'Time expired'
+        : 'Closed';
+    return {
+      text: {
+        type: 'plain_text',
+        text: `${p.question.slice(0, 55)} (${statusLabel})`.slice(0, 75),
+        emoji: true,
+      },
+      value: p.id,
+    };
+  });
+
+  return {
+    type: 'modal',
+    callback_id: 'manage_history_modal_submit',
+    title: {
+      type: 'plain_text',
+      text: 'Manage Poll History',
+      emoji: true,
+    },
+    submit: {
+      type: 'plain_text',
+      text: 'Delete Selected',
+      emoji: true,
+    },
+    close: {
+      type: 'plain_text',
+      text: 'Cancel',
+      emoji: true,
+    },
+    blocks: [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: 'Select one or more polls to permanently remove from App Home history and analytics:',
+        },
+      },
+      {
+        type: 'input',
+        block_id: 'delete_polls_select_block',
+        element: {
+          type: 'multi_static_select',
+          action_id: 'delete_polls_multi_select',
+          placeholder: {
+            type: 'plain_text',
+            text: 'Choose polls to delete',
+            emoji: true,
+          },
+          options: pollOptions,
+        },
+        label: {
+          type: 'plain_text',
+          text: 'Polls to Delete',
+          emoji: true,
+        },
+      },
+    ],
   };
 }
