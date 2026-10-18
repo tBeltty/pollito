@@ -1,8 +1,8 @@
 {
   "display_information": {
     "name": "Pollito",
-    "description": "Quick polls in Slack with automatic closing, anonymous voting, and zero fees",
-    "long_description": "Pollito helps teams make fast decisions in Slack without messy threads or eternal discussions.\n\nKey features:\n• Automatic closing: Set a vote target (like 75% of the channel) or a time limit. The poll closes and posts the results the moment enough people vote.\n• Anonymous voting: Teammates can vote honestly without pressure. Nobody can see who picked what, not even channel admins.\n• Private reminders: Ping only teammates who have not voted yet, without tagging the entire channel.\n• In-channel results: See live vote counts and progress bars directly inside the message.\n• 100% free: Unlimited polls, votes, and team members with zero fees.",
+    "description": "Quick public or anonymous polls in Slack with automatic closing and zero fees",
+    "long_description": "Pollito helps teams make fast decisions in Slack without messy threads or eternal discussions.\n\nKey features:\n• Public or anonymous polls: Run open polls where votes are visible to the team, or switch on anonymous voting so teammates can share honest input without social pressure.\n• Automatic closing: Set a vote target (like 75% of the channel) or a time limit. The poll closes and posts the results the moment enough people vote.\n• Private reminders: Ping only teammates who have not voted yet, without tagging the entire channel.\n• In-channel results: See live vote counts and progress bars directly inside the message.\n• 100% free: Unlimited polls, votes, and team members with zero fees.",
     "background_color": "#0f172a"
   },
   "features": {
