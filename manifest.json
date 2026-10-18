@@ -1,0 +1,59 @@
+{
+  "display_information": {
+    "name": "Pollito",
+    "description": "Fast team consensus inside Slack with automatic quorum closing and secret ballots",
+    "long_description": "Pollito is a Slack-native polling and team decision app designed to close debates fast without thread clutter.\n\nKey Capabilities:\n• Automatic Quorum Closing: Set percentage or count-based quorum targets. Polls close and announce results the second quorum is satisfied.\n• Double-Urn Secret Ballots: Cryptographically unlikable voting where voter participation is tracked without linking identities to ballot choices.\n• Real-Time Visual Progress: Clean block character meters directly inside Slack channel messages.\n• 'El Nido' App Home: Full workspace decision dispatch board to monitor active and past polls.\n• Transparent Pricing: Flat $15/mo per workspace with zero per-seat fees.",
+    "background_color": "#0f172a"
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": true,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "Pollito",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/pollito",
+        "url": "https://pollito.tbelt.online/slack/events",
+        "description": "Create a fast team poll with automatic quorum",
+        "usage_hint": "[create | help]",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "redirect_urls": [
+      "https://pollito.tbelt.online/slack/oauth_redirect"
+    ],
+    "scopes": {
+      "bot": [
+        "commands",
+        "chat:write",
+        "channels:read",
+        "groups:read",
+        "im:read",
+        "mpim:read",
+        "users:read"
+      ]
+    }
+  },
+  "settings": {
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://pollito.tbelt.online/slack/events"
+    },
+    "event_subscriptions": {
+      "request_url": "https://pollito.tbelt.online/slack/events",
+      "bot_events": [
+        "app_home_opened"
+      ]
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}
