@@ -18,13 +18,13 @@ Static HTML/CSS/modern JS (Vanilla modern web, TTFB <100ms, zero-runtime build d
 
 ## Product Purpose
 
-Pollito is a native Slack application for team decision-making and consensus-building. It combines interactive in-channel polls (with quorum detection, secret ballots, and smart nudges) with a complete analytical command center built directly inside Slack's **App Home** tab ("El Nido"), backed by an authoritative, zero-bloat web surface at `pollito.tbelt.online`.
+Pollito is a native Slack application for team decision-making and consensus-building. It combines interactive in-channel polls (with quorum detection, deadline auto-closing, secret ballots, and smart nudges) with a complete analytical command center built directly inside Slack's **App Home** tab, backed by an authoritative, zero-bloat web surface at `pollito.tbelt.online`.
 
 ## Positioning
 
 Unlike market leaders (Simple Poll, Polly) that enforce punitive per-seat pricing, force users out of Slack into external web dashboards, or require invasive permissions, Pollito:
 1. Keeps 100% of the operational and analytical experience inside Slack (App Home dashboard).
-2. Features automatic quorum-based closing and smart nudges to non-voters without exposing voter identity.
+2. Features automatic quorum-based and time-based closing, plus smart nudges to non-voters without exposing voter identity.
 3. Operates on a predictable flat-rate workspace tier ($15/month) with zero external AI dependencies and $0 marginal cost per vote.
 4. Embodies a charming, memorable brand mascot (Pollito) with reactive micro-expressions, balancing warmth with technical sobriety.
 
@@ -38,7 +38,7 @@ Unlike market leaders (Simple Poll, Polly) that enforce punitive per-seat pricin
 - **Backend**: Node.js, TypeScript, `@slack/bolt`, Prisma ORM with SQLite in WAL mode.
 - **Transport**: Dual mode (Socket Mode for development, HTTP ExpressReceiver for production).
 - **Web Frontend**: Native HTML5, modern CSS (Custom Properties, Container Queries, `:has()`, Fluid Typography), vanilla JavaScript.
-- **Voting Mechanics**: Single-choice, multiple-choice, secret ballot (double-urn architecture with HMAC-SHA256 salted tokens), quorum thresholds (50%, 66%, 75%, 80%, 100%), and smart nudges.
+- **Voting Mechanics**: Single-choice, multiple-choice, secret ballot (double-urn architecture with HMAC-SHA256 salted tokens), quorum thresholds (50%, 66%, 75%, 80%, 100%), time-based closing (15m, 1h, 4h, 24h, 72h) with automated background timer worker, and smart nudges.
 - **Editorial Standard**: Strict Anti-AI Slop prose protocol, zero binary contrasts, zero colon reveals, zero em-dashes in Block Kit, 100% tuteo in Spanish, native direct English for Slack Directory.
 
 ## Brand Commitments
