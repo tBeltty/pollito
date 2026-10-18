@@ -1,4 +1,5 @@
 import type { Block, KnownBlock, ModalView } from '@slack/web-api';
+import { defaultTranslator, type Translator } from '../../../i18n/index.js';
 import { renderProgressBar } from './pollMessage.js';
 
 export interface AnalyticsModalStats {
@@ -15,21 +16,49 @@ export interface AnalyticsModalStats {
   polls: any[];
 }
 
-function formatStatusLabel(status?: string): string {
-  if (status === 'QUORUM_REACHED') return 'Quorum reached';
-  if (status === 'ACTIVE') return 'Active';
-  if (status === 'TIME_EXPIRED') return 'Time expired';
-  return 'Closed';
+export function formatStatusLabel(
+  status: string | undefined,
+  translator: Translator = defaultTranslator
+): string {
+  if (status === 'QUORUM_REACHED') return translator.t('status.quorumReached');
+  if (status === 'ACTIVE') return translator.t('status.active');
+  if (status === 'TIME_EXPIRED') return translator.t('status.timeExpired');
+  return translator.t('status.closed');
+}
+
+function formatOutcomeLabel(
+  options: any[],
+  status: string | undefined,
+  translator: Translator
+): string {
+  const { t } = translator;
+  const maxVotes = options.reduce((max: number, o: any) => Math.max(max, o.voteCount ?? 0), 0);
+  if (maxVotes === 0) return t('analytics.outcome.none');
+
+  const topOptions = options.filter((o: any) => (o.voteCount ?? 0) === maxVotes);
+  const isTie = topOptions.length > 1;
+  const names = translator.formatList(topOptions.map((o: any) => `*${o.text}*`));
+
+  if (status === 'ACTIVE') {
+    return isTie
+      ? t('analytics.outcome.tiedLead', { options: names, votes: maxVotes })
+      : t('analytics.outcome.leading', { option: topOptions[0].text, votes: maxVotes });
+  }
+  return isTie
+    ? t('analytics.outcome.tie', { options: names, votes: maxVotes })
+    : t('analytics.outcome.winner', { option: topOptions[0].text, votes: maxVotes });
 }
 
 export function buildAnalyticsModalView(
   stats: AnalyticsModalStats,
-  days = 30
+  days = 30,
+  translator: Translator = defaultTranslator
 ): ModalView {
-  const scopeText =
-    stats.scope === 'personal'
-      ? `Your poll results and participation metrics for the *last ${days} days*. Only polls you created appear here. Workspace-wide analytics are visible to workspace admins and bot managers.`
-      : `Workspace-wide poll results and participation metrics for the *last ${days} days*.`;
+  const { t } = translator;
+  const scopeText = t(
+    stats.scope === 'personal' ? 'analytics.scope.personal' : 'analytics.scope.workspace',
+    { days }
+  );
 
   const blocks: (Block | KnownBlock)[] = [
     {
@@ -44,19 +73,28 @@ export function buildAnalyticsModalView(
       fields: [
         {
           type: 'mrkdwn',
-          text: `*Quorum Achievement*\n*${stats.quorumComplianceRate}%* (${stats.totalQuorumsReached} reached quorum)`,
+          text: t('analytics.metric.quorum', {
+            rate: stats.quorumComplianceRate,
+            count: stats.totalQuorumsReached,
+          }),
         },
         {
           type: 'mrkdwn',
-          text: `*Avg. Participation*\n*${stats.avgParticipationPct}%* across eligible members`,
+          text: t('analytics.metric.participation', { pct: stats.avgParticipationPct }),
         },
         {
           type: 'mrkdwn',
-          text: `*Total Ballots Cast*\n*${stats.totalBallotsCast}* votes across *${stats.totalPolls}* polls`,
+          text: t('analytics.metric.ballots', {
+            votes: stats.totalBallotsCast,
+            polls: stats.totalPolls,
+          }),
         },
         {
           type: 'mrkdwn',
-          text: `*Privacy Split*\n*${stats.publicPollsCount}* Public • *${stats.anonymousPollsCount}* Anonymous`,
+          text: t('analytics.metric.privacy', {
+            publicCount: stats.publicPollsCount,
+            anonymousCount: stats.anonymousPollsCount,
+          }),
         },
       ],
     },
@@ -68,7 +106,7 @@ export function buildAnalyticsModalView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Customize & Export CSV',
+            text: t('analytics.export.button'),
             emoji: true,
           },
           action_id: 'app_home_export_csv_click',
@@ -82,7 +120,7 @@ export function buildAnalyticsModalView(
       type: 'header',
       text: {
         type: 'plain_text',
-        text: 'Recent Poll Results',
+        text: t('analytics.recent.header'),
       },
     },
   ];
@@ -92,39 +130,16 @@ export function buildAnalyticsModalView(
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: 'No polls recorded in this timeframe.',
+        text: t('analytics.empty'),
       },
     });
   } else {
     for (const p of stats.polls.slice(0, 10)) {
       const totalParticipants = p.participations?.length ?? 0;
       const options = Array.isArray(p.options) ? p.options : [];
-      const maxVotes = options.reduce(
-        (max: number, o: any) => Math.max(max, o.voteCount ?? 0),
-        0
-      );
-      const topOptions =
-        maxVotes > 0
-          ? options.filter((o: any) => (o.voteCount ?? 0) === maxVotes)
-          : [];
-
-      let outcomeLabel = 'No votes cast';
-      if (maxVotes > 0) {
-        if (p.status === 'ACTIVE') {
-          outcomeLabel =
-            topOptions.length > 1
-              ? `Tied lead: ${topOptions.map((o: any) => `*${o.text}*`).join(', ')} (${maxVotes})`
-              : `Leading: *${topOptions[0].text}* (${maxVotes})`;
-        } else {
-          outcomeLabel =
-            topOptions.length > 1
-              ? `Tie: ${topOptions.map((o: any) => `*${o.text}*`).join(', ')} (${maxVotes})`
-              : `Winner: *${topOptions[0].text}* (${maxVotes})`;
-        }
-      }
-
-      const statusLabel = formatStatusLabel(p.status);
-      const ballotMode = p.isAnonymous ? 'Anonymous' : 'Public';
+      const outcomeLabel = formatOutcomeLabel(options, p.status, translator);
+      const statusLabel = formatStatusLabel(p.status, translator);
+      const ballotMode = p.isAnonymous ? t('common.anonymous') : t('common.public');
 
       const optionLines = options.map((opt: any, idx: number) => {
         const count = opt.voteCount ?? 0;
@@ -140,15 +155,21 @@ export function buildAnalyticsModalView(
               .map((v: any) => `<@${v.voterId}>`)
               .join(' ');
             const extra = voters.length - 10;
-            line += `\n   ${extra > 0 ? `${mentions} +${extra} more` : mentions}`;
+            line += `\n   ${extra > 0 ? `${mentions} ${t('poll.option.moreVoters', { count: extra })}` : mentions}`;
           }
         }
         return line;
       });
 
       const pollBody = [
-        `*${String(p.question ?? 'Untitled Poll').slice(0, 140)}*`,
-        `Channel: <#${p.channelId}> • *${statusLabel}* • *${ballotMode}* • *${totalParticipants}* participants • ${outcomeLabel}`,
+        `*${String(p.question ?? t('common.untitledPoll')).slice(0, 140)}*`,
+        t('analytics.poll.summary', {
+          channelId: p.channelId,
+          status: statusLabel,
+          mode: ballotMode,
+          participants: totalParticipants,
+          outcome: outcomeLabel,
+        }),
         ...optionLines,
       ].join('\n');
 
@@ -166,57 +187,47 @@ export function buildAnalyticsModalView(
     type: 'modal',
     title: {
       type: 'plain_text',
-      text: 'Poll Results & Analytics',
+      text: t('analytics.title'),
       emoji: true,
     },
     close: {
       type: 'plain_text',
-      text: 'Close',
+      text: t('common.close'),
       emoji: true,
     },
     blocks: blocks.slice(0, 98),
   };
 }
 
-export function buildPollDetailModalView(poll: any): ModalView {
+export function buildPollDetailModalView(
+  poll: any,
+  translator: Translator = defaultTranslator
+): ModalView {
+  const { t } = translator;
   const totalParticipants = poll.participations?.length ?? 0;
-  const statusLabel = formatStatusLabel(poll.status);
-  const ballotMode = poll.isAnonymous ? 'Anonymous (Double-Urn)' : 'Public';
-  const choiceMode = poll.allowMultipleVotes ? 'Multiple choice' : 'Single choice';
+  const statusLabel = formatStatusLabel(poll.status, translator);
+  const ballotMode = poll.isAnonymous ? t('detail.mode.anonymous') : t('common.public');
+  const choiceMode = poll.allowMultipleVotes
+    ? t('poll.choice.multiple')
+    : t('poll.choice.single');
 
   const options = Array.isArray(poll.options) ? poll.options : [];
-  const maxVotes = options.reduce(
-    (max: number, o: any) => Math.max(max, o.voteCount ?? 0),
-    0
-  );
-  const topOptions =
-    maxVotes > 0
-      ? options.filter((o: any) => (o.voteCount ?? 0) === maxVotes)
-      : [];
+  const outcomeLabel = formatOutcomeLabel(options, poll.status, translator);
 
-  let outcomeLabel = 'No votes cast';
-  if (maxVotes > 0) {
-    if (poll.status === 'ACTIVE') {
-      outcomeLabel =
-        topOptions.length > 1
-          ? `Tied lead: ${topOptions.map((o: any) => `*${o.text}*`).join(', ')} (${maxVotes})`
-          : `Leading: *${topOptions[0].text}* (${maxVotes})`;
-    } else {
-      outcomeLabel =
-        topOptions.length > 1
-          ? `Tie: ${topOptions.map((o: any) => `*${o.text}*`).join(', ')} (${maxVotes})`
-          : `Winner: *${topOptions[0].text}* (${maxVotes})`;
-    }
-  }
-
-  let quorumSummary = 'No quorum required';
+  let quorumSummary = t('detail.quorum.none');
   if (poll.quorumType === 'PERCENTAGE' && poll.eligibleVoterCount > 0) {
-    const achievedPct = Math.round(
-      (totalParticipants / poll.eligibleVoterCount) * 100
-    );
-    quorumSummary = `Target: ${poll.quorumTarget}% • Achieved: ${achievedPct}% (${totalParticipants}/${poll.eligibleVoterCount} members)`;
+    const achievedPct = Math.round((totalParticipants / poll.eligibleVoterCount) * 100);
+    quorumSummary = t('detail.quorum.full', {
+      target: poll.quorumTarget,
+      achieved: achievedPct,
+      votes: totalParticipants,
+      eligible: poll.eligibleVoterCount,
+    });
   } else if (poll.quorumType === 'PERCENTAGE') {
-    quorumSummary = `Target: ${poll.quorumTarget}% • Participants: ${totalParticipants}`;
+    quorumSummary = t('detail.quorum.partial', {
+      target: poll.quorumTarget,
+      count: totalParticipants,
+    });
   }
 
   const blocks: (Block | KnownBlock)[] = [
@@ -224,7 +235,7 @@ export function buildPollDetailModalView(poll: any): ModalView {
       type: 'header',
       text: {
         type: 'plain_text',
-        text: String(poll.question ?? 'Poll Results').slice(0, 150),
+        text: String(poll.question ?? t('detail.fallbackQuestion')).slice(0, 150),
       },
     },
     {
@@ -232,19 +243,19 @@ export function buildPollDetailModalView(poll: any): ModalView {
       fields: [
         {
           type: 'mrkdwn',
-          text: `*Channel*\n<#${poll.channelId}>`,
+          text: t('detail.field.channel', { channelId: poll.channelId }),
         },
         {
           type: 'mrkdwn',
-          text: `*Status & Outcome*\n${statusLabel} • ${outcomeLabel}`,
+          text: t('detail.field.status', { status: statusLabel, outcome: outcomeLabel }),
         },
         {
           type: 'mrkdwn',
-          text: `*Ballot Mode*\n${ballotMode} • ${choiceMode}`,
+          text: t('detail.field.ballot', { mode: ballotMode, choice: choiceMode }),
         },
         {
           type: 'mrkdwn',
-          text: `*Quorum & Turnout*\n${quorumSummary}`,
+          text: t('detail.field.quorum', { summary: quorumSummary }),
         },
       ],
     },
@@ -257,7 +268,7 @@ export function buildPollDetailModalView(poll: any): ModalView {
     const pct = totalParticipants > 0 ? (count / totalParticipants) * 100 : 0;
     const bar = renderProgressBar(pct, 10);
 
-    let text = `*${idx + 1}. ${opt.text}*\n\`${bar}\` • *${count}* ${count === 1 ? 'vote' : 'votes'}`;
+    let text = `*${idx + 1}. ${opt.text}*\n\`${bar}\` • ${t('poll.option.votes', { count })}`;
 
     if (
       !poll.isAnonymous &&
@@ -271,7 +282,7 @@ export function buildPollDetailModalView(poll: any): ModalView {
           .map((v: any) => `<@${v.voterId}>`)
           .join(' ');
         const extra = voters.length - 15;
-        text += `\n${extra > 0 ? `${mentions} +${extra} more` : mentions}`;
+        text += `\n${extra > 0 ? `${mentions} ${t('poll.option.moreVoters', { count: extra })}` : mentions}`;
       }
     }
 
@@ -293,7 +304,10 @@ export function buildPollDetailModalView(poll: any): ModalView {
       elements: [
         {
           type: 'mrkdwn',
-          text: `Created by <@${poll.creatorId}> • Poll ID: ${String(poll.id ?? '').slice(-6)}`,
+          text: t('detail.footer', {
+            creatorId: poll.creatorId,
+            pollId: String(poll.id ?? '').slice(-6),
+          }),
         },
       ],
     }
@@ -303,12 +317,12 @@ export function buildPollDetailModalView(poll: any): ModalView {
     type: 'modal',
     title: {
       type: 'plain_text',
-      text: 'Poll Results Breakdown',
+      text: t('detail.title'),
       emoji: true,
     },
     close: {
       type: 'plain_text',
-      text: 'Close',
+      text: t('common.close'),
       emoji: true,
     },
     blocks: blocks.slice(0, 98),

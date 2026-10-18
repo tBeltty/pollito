@@ -397,25 +397,29 @@ export async function notifyMainChannelOnHuddleEnd(
     }`;
   }
 
+  const { getPollTranslator } = await import('./locale.js');
+  const translator = getPollTranslator(poll as any);
+  const { t } = translator;
+
   try {
     await client.chat.postMessage({
       ...(token ? { token } : {}),
       channel: poll.channelId,
       unfurl_links: true,
       unfurl_media: true,
-      text: `🗳️ *Remember to vote:* The Huddle has ended, and *${poll.question}* is still open! <${permalink}|View poll in Huddle thread>`,
+      text: t('huddle.reminder.fallback', { question: poll.question, permalink }),
       blocks: [
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `🗳️ *Remember to vote!*\nThe Huddle has ended, and *<${permalink}|${poll.question}>* is still open for voting in the Huddle thread.`,
+            text: t('huddle.reminder.body', { question: poll.question, permalink }),
           },
           accessory: {
             type: 'button',
             text: {
               type: 'plain_text',
-              text: 'Jump to Poll',
+              text: t('huddle.reminder.button'),
               emoji: true,
             },
             url: permalink,

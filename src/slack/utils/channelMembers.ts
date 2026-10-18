@@ -44,6 +44,8 @@ export async function getEligibleChannelMembers(
   }
 }
 
+import { defaultTranslator, type Translator } from '../../i18n/index.js';
+
 export interface PollClosureSummaryData {
   question: string;
   options: { text: string; voteCount: number }[];
@@ -51,41 +53,55 @@ export interface PollClosureSummaryData {
 }
 
 /**
- * Formats a clean English thread closure announcement without AI slop.
+ * Formats a clean thread closure announcement using the poll's locale translator.
  */
 export function formatPollClosureSummary(
   poll: PollClosureSummaryData,
-  reason: 'QUORUM_REACHED' | 'CLOSED' | 'TIME_EXPIRED'
+  reason: 'QUORUM_REACHED' | 'CLOSED' | 'TIME_EXPIRED',
+  options?: { translator?: Translator }
 ): string {
+  const translator = options?.translator ?? defaultTranslator;
+  const { t } = translator;
+
   const maxVotes = poll.options.reduce((max, opt) => Math.max(max, opt.voteCount), 0);
   const topOptions =
     maxVotes > 0 ? poll.options.filter((opt) => opt.voteCount === maxVotes) : [];
-
   const pCount = poll.participations.length;
-  const pWord = pCount === 1 ? 'participant' : 'participants';
-  const vWord = maxVotes === 1 ? 'vote' : 'votes';
 
-  const outcomeClause =
-    topOptions.length === 1
-      ? `Winner: *${topOptions[0].text}* (${maxVotes} ${vWord}).`
-      : topOptions.length > 1
-        ? `Result: Tie between ${topOptions.map((o) => `*${o.text}*`).join(', ')} (${maxVotes} ${vWord} each).`
-        : '';
+  let outcomeClause = '';
+  if (topOptions.length === 1) {
+    outcomeClause = t('closure.outcome.winner', {
+      option: topOptions[0].text,
+      votes: maxVotes,
+    });
+  } else if (topOptions.length > 1) {
+    const formattedList = topOptions.map((o) => `*${o.text}*`).join(', ');
+    outcomeClause = t('closure.outcome.tie', {
+      options: formattedList,
+      votes: maxVotes,
+    });
+  }
+
+  let title = '';
+  let body = '';
 
   if (reason === 'QUORUM_REACHED') {
-    return maxVotes > 0
-      ? `🎉 *Quorum Reached — Poll Closed*\n\n*${poll.question}* reached its target quorum with *${pCount}* ${pWord}. ${outcomeClause}`
-      : `🎉 *Quorum Reached — Poll Closed*\n\n*${poll.question}* reached its target quorum with *${pCount}* ${pWord}.`;
+    title = t('closure.title.quorum');
+    body = t('closure.body.quorum', { question: poll.question, count: pCount });
+  } else if (reason === 'CLOSED') {
+    title = t('closure.title.closed');
+    body =
+      maxVotes > 0
+        ? t('closure.body.closed', { question: poll.question, count: pCount })
+        : t('closure.body.closedEmpty', { question: poll.question });
+  } else {
+    // TIME_EXPIRED
+    title = t('closure.title.expired');
+    body =
+      maxVotes > 0
+        ? t('closure.body.expired', { question: poll.question, count: pCount })
+        : t('closure.body.expiredEmpty', { question: poll.question });
   }
 
-  if (reason === 'CLOSED') {
-    return maxVotes > 0
-      ? `🔒 *Poll Closed by Creator*\n\n*${poll.question}* is now closed with *${pCount}* total ${pWord}. ${outcomeClause}`
-      : `🔒 *Poll Closed by Creator*\n\n*${poll.question}* was closed with 0 votes cast.`;
-  }
-
-  // TIME_EXPIRED
-  return maxVotes > 0
-    ? `⏰ *Poll Closed — Time Expired*\n\n*${poll.question}* concluded with *${pCount}* total ${pWord}. ${outcomeClause}`
-    : `⏰ *Poll Closed — Time Expired*\n\n*${poll.question}* concluded with 0 votes cast.`;
+  return outcomeClause ? `${title}\n\n${body} ${outcomeClause}` : `${title}\n\n${body}`;
 }

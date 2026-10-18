@@ -13,10 +13,17 @@ import {
   findActiveHuddleThread,
   parseHuddleThreadInput,
 } from '../utils/huddleDiscovery.js';
+import { getPollTranslator, getRequestTranslator } from '../utils/locale.js';
 
 export function registerCommandHandlers(app: App) {
   app.command('/pollito', async ({ command, ack, client }) => {
     await ack();
+
+    const translator = await getRequestTranslator(client, {
+      userId: command.user_id,
+      workspaceId: command.team_id,
+    });
+    const { t } = translator;
 
     try {
       const text = command.text.trim();
@@ -26,7 +33,10 @@ export function registerCommandHandlers(app: App) {
       if (!text) {
         await client.views.open({
           trigger_id: command.trigger_id,
-          view: buildCreatePollModalView(command.channel_id),
+          view: buildCreatePollModalView({
+            channelId: command.channel_id,
+            translator,
+          }),
         });
         return;
       }
@@ -36,7 +46,7 @@ export function registerCommandHandlers(app: App) {
         await client.chat.postEphemeral({
           channel: command.channel_id,
           user: command.user_id,
-          text: '*Pollito Quick Help*\n\n• `/pollito` — Opens modal builder.\n• `/pollito "Question" "Option 1" "Option 2"` — Creates an instant poll.\n• `/pollito huddle` — Opens modal to launch a poll inside the active Huddle thread.\n• `/pollito huddle "Question" "Option 1" "Option 2"` — Launches an instant poll inside the active Huddle thread.\n• `/pollito close [poll-id]` — Closes an active poll created by you.\n• `/pollito nudge [poll-id]` — Sends private reminders to non-voters.\n• `/pollito report` — Opens the analytics report for your polls or workspace.\n• Visit App Home to view recent results and templates.',
+          text: t('command.help'),
         });
         return;
       }
@@ -49,7 +59,7 @@ export function registerCommandHandlers(app: App) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: err?.message || 'An active poll is already running in this channel.',
+            text: err?.message || t('error.activePollInChannel'),
           });
           return;
         }
@@ -75,7 +85,7 @@ export function registerCommandHandlers(app: App) {
             await client.chat.postEphemeral({
               channel: command.channel_id,
               user: command.user_id,
-              text: 'No active Huddle thread was found in this channel. Start a Huddle first, or run `/pollito huddle` to open the Huddle poll modal.',
+              text: t('command.noHuddle'),
             });
             return;
           }
@@ -97,14 +107,14 @@ export function registerCommandHandlers(app: App) {
             placeholder = await client.chat.postMessage({
               channel: command.channel_id,
               thread_ts: huddleThreadTs,
-              text: `Creating poll: ${question}...`,
+              text: t('poll.fallback.creating', { question }),
             });
           } catch (error: any) {
             if (error?.data?.error === 'not_in_channel') {
               await client.chat.postEphemeral({
                 channel: command.channel_id,
                 user: command.user_id,
-                text: 'Pollito needs to be invited to this channel first. Type `/invite @Pollito` and run `/pollito huddle` again.',
+                text: t('command.inviteBot', { command: '`/pollito huddle`' }),
               });
               return;
             }
@@ -129,8 +139,10 @@ export function registerCommandHandlers(app: App) {
             quorumTarget: settings.defaultQuorumPct,
             eligibleVoterCount: memberCount,
             forwardToChannelOnHuddleEnd: true,
+            locale: translator.locale,
           });
 
+          const pollTranslator = getPollTranslator(poll);
           const blocks = buildPollMessageBlocks(
             {
               ...poll,
@@ -139,13 +151,14 @@ export function registerCommandHandlers(app: App) {
             {
               maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
               allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+              translator: pollTranslator,
             }
           );
 
           await client.chat.update({
             channel: command.channel_id,
             ts: placeholder.ts,
-            text: `Poll: ${question}`,
+            text: pollTranslator.t('poll.fallback.active', { question }),
             blocks,
           });
           return;
@@ -157,6 +170,7 @@ export function registerCommandHandlers(app: App) {
             channelId: command.channel_id,
             threadTs: huddleThreadTs,
             huddleMode: true,
+            translator,
           }),
         });
         return;
@@ -175,7 +189,7 @@ export function registerCommandHandlers(app: App) {
           try {
             await client.views.open({
               trigger_id: command.trigger_id,
-              view: buildAnalyticsModalView(stats, 30),
+              view: buildAnalyticsModalView(stats, 30, translator),
             });
           } catch (modalErr) {
             console.error('Failed to open analytics modal from /pollito report:', modalErr);
@@ -185,7 +199,13 @@ export function registerCommandHandlers(app: App) {
         await client.chat.postEphemeral({
           channel: command.channel_id,
           user: command.user_id,
-          text: `*Pollito Analytics (${stats.scope === 'workspace' ? 'Workspace' : 'Your Polls'})* — *${stats.totalPolls}* polls (*${stats.totalActive}* active, *${stats.totalQuorumsReached}* reached quorum, *${stats.avgParticipationPct}%* avg participation).`,
+          text: t('command.report.summary', {
+            scope: stats.scope,
+            total: stats.totalPolls,
+            active: stats.totalActive,
+            quorums: stats.totalQuorumsReached,
+            avg: stats.avgParticipationPct,
+          }),
         });
         return;
       }
@@ -214,23 +234,25 @@ export function registerCommandHandlers(app: App) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: 'No active poll found in this channel that you created.',
+            text: t('nudge.noPoll'),
           });
           return;
         }
 
         const closedPoll = await PollService.closePoll(poll.id, command.user_id, 'CLOSED');
         await UpdateQueue.flushNow(closedPoll.id, closedPoll.channelId, closedPoll.messageTs, client);
+
+        const pollTranslator = getPollTranslator(closedPoll);
         await client.chat.postMessage({
           channel: closedPoll.channelId,
           thread_ts: closedPoll.threadTs || closedPoll.messageTs,
-          text: formatPollClosureSummary(closedPoll, 'CLOSED'),
+          text: formatPollClosureSummary(closedPoll, 'CLOSED', { translator: pollTranslator }),
         });
 
         await client.chat.postEphemeral({
           channel: command.channel_id,
           user: command.user_id,
-          text: `Poll closed successfully: *${closedPoll.question}*`,
+          text: t('command.pollClosed', { question: closedPoll.question }),
         });
         return;
       }
@@ -259,7 +281,7 @@ export function registerCommandHandlers(app: App) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: 'No active poll found in this channel that you created.',
+            text: t('nudge.noPoll'),
           });
           return;
         }
@@ -269,7 +291,7 @@ export function registerCommandHandlers(app: App) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: 'Smart Nudges are disabled in this workspace.',
+            text: t('nudge.disabled'),
           });
           return;
         }
@@ -281,7 +303,7 @@ export function registerCommandHandlers(app: App) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: `Smart Nudges are disabled for channels with more than ${settings.maxNudgeChannelMembers} members.`,
+            text: t('nudge.channelTooLarge', { max: settings.maxNudgeChannelMembers }),
           });
           return;
         }
@@ -297,7 +319,7 @@ export function registerCommandHandlers(app: App) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: 'A reminder was already sent within the last 4 hours.',
+            text: t('nudge.cooldown'),
           });
           return;
         }
@@ -308,9 +330,17 @@ export function registerCommandHandlers(app: App) {
         let sentCount = 0;
         for (const recipientId of recipients) {
           try {
+            const recipientTranslator = await getRequestTranslator(client, {
+              userId: recipientId,
+              workspaceId: command.team_id,
+            });
             await client.chat.postMessage({
               channel: recipientId,
-              text: `👋 Friendly reminder from <@${poll.creatorId}>: Your vote is still needed on *${poll.question}* in <#${poll.channelId}>.`,
+              text: recipientTranslator.t('nudge.dm', {
+                creatorId: poll.creatorId,
+                question: poll.question,
+                channelId: poll.channelId,
+              }),
             });
             await prisma.nudgeLog.create({
               data: {
@@ -326,8 +356,8 @@ export function registerCommandHandlers(app: App) {
 
         const confirmationText =
           sentCount === 0
-            ? 'No pending votes found. Everyone has already cast their ballot!'
-            : `📬 Sent private reminders to ${sentCount} ${sentCount === 1 ? 'teammate' : 'teammates'}.`;
+            ? t('nudge.nonePending')
+            : t('nudge.sent', { count: sentCount });
 
         await client.chat.postEphemeral({
           channel: command.channel_id,
@@ -347,7 +377,7 @@ export function registerCommandHandlers(app: App) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: err?.message || 'An active poll is already running in this channel.',
+            text: err?.message || t('error.activePollInChannel'),
           });
           return;
         }
@@ -371,14 +401,14 @@ export function registerCommandHandlers(app: App) {
         try {
           placeholder = await client.chat.postMessage({
             channel: command.channel_id,
-            text: `Creating poll: ${question}...`,
+            text: t('poll.fallback.creating', { question }),
           });
         } catch (error: any) {
           if (error?.data?.error === 'not_in_channel') {
             await client.chat.postEphemeral({
               channel: command.channel_id,
               user: command.user_id,
-              text: 'Pollito needs to be invited to this channel first. Type `/invite @Pollito` and run `/pollito` again.',
+              text: t('command.inviteBot', { command: '`/pollito`' }),
             });
             return;
           }
@@ -400,8 +430,10 @@ export function registerCommandHandlers(app: App) {
           quorumType: 'PERCENTAGE',
           quorumTarget: 70,
           eligibleVoterCount: memberCount,
+          locale: translator.locale,
         });
 
+        const pollTranslator = getPollTranslator(poll);
         const blocks = buildPollMessageBlocks(
           {
             ...poll,
@@ -410,13 +442,14 @@ export function registerCommandHandlers(app: App) {
           {
             maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
             allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+            translator: pollTranslator,
           }
         );
 
         await client.chat.update({
           channel: command.channel_id,
           ts: placeholder.ts,
-          text: `Poll: ${question}`,
+          text: pollTranslator.t('poll.fallback.active', { question }),
           blocks,
         });
         return;
@@ -425,11 +458,14 @@ export function registerCommandHandlers(app: App) {
       // Fallback for unrecognized syntax: open modal
       await client.views.open({
         trigger_id: command.trigger_id,
-        view: buildCreatePollModalView(command.channel_id),
+        view: buildCreatePollModalView({
+          channelId: command.channel_id,
+          translator,
+        }),
       });
     } catch (error) {
       console.error('Error handling /pollito command:', error);
-      const msg = error instanceof Error ? error.message : 'An error occurred processing the command.';
+      const msg = error instanceof Error ? error.message : t('error.generic.command');
       try {
         await client.chat.postEphemeral({
           channel: command.channel_id,

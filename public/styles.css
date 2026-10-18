@@ -992,3 +992,59 @@ body {
   margin: 0;
 }
 
+/* Language Switcher */
+.lang-switch-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.lang-switch:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.lang-switch.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: var(--brand-amber, #f59e0b);
+}
+
+/* Text expansion resilience (supports 20-45% string growth in Spanish) */
+.hero-title,
+.section-title,
+.feature-card h3,
+.legal-title,
+.diff-table th,
+.diff-table td {
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.btn-slack {
+  min-height: 44px;
+  flex-wrap: wrap;
+}
+
+.pricing-pill {
+  white-space: normal;
+}
+
+

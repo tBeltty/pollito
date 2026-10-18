@@ -1,4 +1,5 @@
 import type { Block, KnownBlock, ModalView, PlainTextOption } from '@slack/web-api';
+import { defaultTranslator, type Translator } from '../../../i18n/index.js';
 
 export interface PollTemplateData {
   id: string;
@@ -29,23 +30,25 @@ export interface TemplatesModalState {
 export function buildTemplatesModalView(
   templates: PollTemplateData[],
   viewerUserId: string,
-  state: TemplatesModalState = { tab: 'mine' }
+  state: TemplatesModalState = { tab: 'mine' },
+  translator: Translator = defaultTranslator
 ): ModalView {
-  const mine = templates.filter((t) => (t.creatorId ?? t.ownerUserId) === viewerUserId);
-  const workspaceShared = templates.filter((t) => t.isShared);
+  const { t } = translator;
+  const mine = templates.filter((tpl) => (tpl.creatorId ?? tpl.ownerUserId) === viewerUserId);
+  const workspaceShared = templates.filter((tpl) => tpl.isShared);
 
   const blocks: (Block | KnownBlock)[] = [
     {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: 'Save recurring team questions, quorum rules, and ballot settings as reusable poll templates.',
+        text: t('templates.intro'),
       },
       accessory: {
         type: 'button',
         text: {
           type: 'plain_text',
-          text: state.isManager ? '+ Create Workspace Template' : '+ New Template',
+          text: state.isManager ? t('templates.button.newWorkspace') : t('templates.button.new'),
           emoji: true,
         },
         style: 'primary',
@@ -61,7 +64,7 @@ export function buildTemplatesModalView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: `My Templates (${mine.length})`,
+            text: t('templates.tab.mine', { count: mine.length }),
             emoji: true,
           },
           action_id: 'templates_tab_mine',
@@ -71,7 +74,7 @@ export function buildTemplatesModalView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: `Workspace Templates (${workspaceShared.length})`,
+            text: t('templates.tab.workspace', { count: workspaceShared.length }),
             emoji: true,
           },
           action_id: 'templates_tab_workspace',
@@ -85,13 +88,15 @@ export function buildTemplatesModalView(
   ];
 
   if (state.confirmDeleteId) {
-    const target = templates.find((t) => t.id === state.confirmDeleteId);
+    const target = templates.find((tpl) => tpl.id === state.confirmDeleteId);
     blocks.push(
       {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*Delete template "${target?.name ?? 'Selected Template'}"?*\nThis action cannot be undone.`,
+          text: t('templates.delete.prompt', {
+            name: target?.name ?? t('templates.delete.fallbackName'),
+          }),
         },
       },
       {
@@ -102,7 +107,7 @@ export function buildTemplatesModalView(
             type: 'button',
             text: {
               type: 'plain_text',
-              text: 'Confirm Delete',
+              text: t('templates.delete.confirm'),
               emoji: true,
             },
             style: 'danger',
@@ -113,7 +118,7 @@ export function buildTemplatesModalView(
             type: 'button',
             text: {
               type: 'plain_text',
-              text: 'Cancel',
+              text: t('common.cancel'),
               emoji: true,
             },
             action_id: 'cancel_delete_template',
@@ -130,16 +135,18 @@ export function buildTemplatesModalView(
   const renderCustomTemplateRow = (tpl: PollTemplateData) => {
     const ownerId = tpl.creatorId ?? tpl.ownerUserId;
     const isOwn = ownerId === viewerUserId;
-    const privacyLabel = tpl.isAnonymous ? 'Anonymous' : 'Public';
+    const privacyLabel = tpl.isAnonymous ? t('common.anonymous') : t('common.public');
     const quorumLabel =
-      tpl.quorumType === 'NONE' ? 'No quorum' : `${tpl.quorumTarget}% quorum`;
-    const sharedBadge = tpl.isShared ? ' • *Shared*' : '';
+      tpl.quorumType === 'NONE'
+        ? t('templates.row.noQuorum')
+        : t('templates.row.quorum', { target: tpl.quorumTarget });
+    const sharedBadge = tpl.isShared ? t('templates.row.shared') : '';
 
     const menuOptions: PlainTextOption[] = [
       {
         text: {
           type: 'plain_text',
-          text: 'Launch Poll',
+          text: t('templates.menu.launch'),
           emoji: true,
         },
         value: `launch:${tpl.id}`,
@@ -150,7 +157,7 @@ export function buildTemplatesModalView(
       menuOptions.push({
         text: {
           type: 'plain_text',
-          text: 'Edit Template',
+          text: t('templates.menu.edit'),
           emoji: true,
         },
         value: `edit:${tpl.id}`,
@@ -158,7 +165,7 @@ export function buildTemplatesModalView(
       menuOptions.push({
         text: {
           type: 'plain_text',
-          text: tpl.isShared ? 'Stop sharing' : 'Share with workspace',
+          text: tpl.isShared ? t('templates.menu.unshare') : t('templates.menu.share'),
           emoji: true,
         },
         value: tpl.isShared ? `unshare:${tpl.id}` : `share:${tpl.id}`,
@@ -168,7 +175,7 @@ export function buildTemplatesModalView(
     menuOptions.push({
       text: {
         type: 'plain_text',
-        text: 'Duplicate to my templates',
+        text: t('templates.menu.duplicate'),
         emoji: true,
       },
       value: `duplicate:${tpl.id}`,
@@ -178,7 +185,7 @@ export function buildTemplatesModalView(
       menuOptions.push({
         text: {
           type: 'plain_text',
-          text: 'Delete',
+          text: t('templates.menu.delete'),
           emoji: true,
         },
         value: `delete:${tpl.id}`,
@@ -187,7 +194,7 @@ export function buildTemplatesModalView(
       menuOptions.push({
         text: {
           type: 'plain_text',
-          text: 'Unpublish (Admin)',
+          text: t('templates.menu.unpublish'),
           emoji: true,
         },
         value: `unpublish:${tpl.id}`,
@@ -198,7 +205,14 @@ export function buildTemplatesModalView(
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*${tpl.name}*${sharedBadge}\n_${tpl.question}_\n${tpl.options.length} options • ${privacyLabel} • ${quorumLabel}`,
+        text: t('templates.row.summary', {
+          name: tpl.name,
+          shared: sharedBadge,
+          question: tpl.question,
+          count: tpl.options.length,
+          privacy: privacyLabel,
+          quorum: quorumLabel,
+        }),
       },
       accessory: {
         type: 'overflow',
@@ -214,7 +228,7 @@ export function buildTemplatesModalView(
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: '_You have no saved templates yet. Check "Save as reusable template" when creating a poll or duplicate one from Workspace Templates._',
+          text: t('templates.empty.mine'),
         },
       });
     } else {
@@ -228,7 +242,7 @@ export function buildTemplatesModalView(
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: '_No workspace templates published yet. Workspace admins and teammates can create templates and share them with the entire team._',
+          text: t('templates.empty.workspace'),
         },
       });
     } else {
@@ -242,12 +256,12 @@ export function buildTemplatesModalView(
     type: 'modal',
     title: {
       type: 'plain_text',
-      text: 'Poll Templates',
+      text: t('templates.title'),
       emoji: true,
     },
     close: {
       type: 'plain_text',
-      text: 'Close',
+      text: t('common.close'),
       emoji: true,
     },
     blocks: blocks.slice(0, 98),

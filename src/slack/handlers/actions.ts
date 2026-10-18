@@ -24,6 +24,7 @@ import {
   formatPollClosureSummary,
   getEligibleChannelMembers,
 } from '../utils/channelMembers.js';
+import { getPollTranslator, getRequestTranslator } from '../utils/locale.js';
 
 export function registerActionHandlers(app: App) {
   // Handle option vote buttons (matches vote_option_*)
@@ -62,20 +63,27 @@ export function registerActionHandlers(app: App) {
       });
 
       if (result.quorumReached) {
+        const pollTranslator = getPollTranslator(result.poll);
         await UpdateQueue.flushNow(pollId, channelId, messageTs, client);
         await client.chat.postMessage({
           channel: channelId,
           thread_ts: result.poll.threadTs || messageTs,
-          text: formatPollClosureSummary(result.poll, 'QUORUM_REACHED'),
+          text: formatPollClosureSummary(result.poll, 'QUORUM_REACHED', {
+            translator: pollTranslator,
+          }),
         });
       } else {
         UpdateQueue.scheduleUpdate(pollId, channelId, messageTs, client);
       }
 
       // Ephemeral confirmation
+      const voterTranslator = await getRequestTranslator(client, {
+        userId: voterId,
+        workspaceId: blockAction.team?.id,
+      });
       const noticeText = result.poll.isAnonymous
-        ? 'Your anonymous vote has been recorded.'
-        : 'Your vote has been recorded.';
+        ? voterTranslator.t('vote.recordedAnonymous')
+        : voterTranslator.t('vote.recorded');
 
       await client.chat.postEphemeral({
         channel: channelId,
@@ -132,10 +140,11 @@ export function registerActionHandlers(app: App) {
         isManager
       );
       await UpdateQueue.flushNow(closedPoll.id, closedPoll.channelId, closedPoll.messageTs, client);
+      const pollTranslator = getPollTranslator(closedPoll);
       await client.chat.postMessage({
         channel: closedPoll.channelId,
         thread_ts: closedPoll.threadTs || closedPoll.messageTs,
-        text: formatPollClosureSummary(closedPoll, 'CLOSED'),
+        text: formatPollClosureSummary(closedPoll, 'CLOSED', { translator: pollTranslator }),
       });
 
       if ((blockAction as any).view?.type === 'home') {
@@ -340,12 +349,25 @@ export function registerActionHandlers(app: App) {
       const nonVoters = await PollService.getNonVoters(pollId, members);
       const recipients = nonVoters.slice(0, settings.maxNudgeChannelMembers);
 
+      const creatorTranslator = await getRequestTranslator(client, {
+        userId: blockAction.user.id,
+        workspaceId: poll.workspaceId,
+      });
+
       let sentCount = 0;
       for (const recipientId of recipients) {
         try {
+          const recipientTranslator = await getRequestTranslator(client, {
+            userId: recipientId,
+            workspaceId: poll.workspaceId,
+          });
           await client.chat.postMessage({
             channel: recipientId,
-            text: `👋 Friendly reminder from <@${poll.creatorId}>: Your vote is still needed on *${poll.question}* in <#${poll.channelId}>.`,
+            text: recipientTranslator.t('nudge.dm', {
+              creatorId: poll.creatorId,
+              question: poll.question,
+              channelId: poll.channelId,
+            }),
           });
           await prisma.nudgeLog.create({
             data: {
@@ -361,8 +383,8 @@ export function registerActionHandlers(app: App) {
 
       const confirmationText =
         sentCount === 0
-          ? 'No pending votes found. Everyone has already cast their ballot!'
-          : `📬 Sent private reminders to ${sentCount} ${sentCount === 1 ? 'teammate' : 'teammates'}.`;
+          ? creatorTranslator.t('nudge.nonePending')
+          : creatorTranslator.t('nudge.sent', { count: sentCount });
 
       if (blockAction.channel?.id) {
         try {
@@ -536,11 +558,14 @@ export function registerActionHandlers(app: App) {
     const userId = blockAction.user.id;
 
     try {
-      const viewer = await PollService.getReportViewer(client, userId, workspaceId);
+      const [viewer, translator] = await Promise.all([
+        PollService.getReportViewer(client, userId, workspaceId),
+        getRequestTranslator(client, { userId, workspaceId }),
+      ]);
       const stats = await PollService.getPollAnalyticsStats(workspaceId, viewer, 30);
       await client.views.open({
         trigger_id: blockAction.trigger_id,
-        view: buildAnalyticsModalView(stats, 30),
+        view: buildAnalyticsModalView(stats, 30, translator),
       });
     } catch (error) {
       console.error('Failed to open analytics modal:', error);
@@ -568,14 +593,17 @@ export function registerActionHandlers(app: App) {
     const workspaceId = blockAction.team?.id ?? '';
 
     try {
-      const poll = await prisma.poll.findUnique({
-        where: { id: pollId },
-        include: {
-          options: { orderBy: { index: 'asc' } },
-          participations: true,
-          publicVotes: true,
-        },
-      });
+      const [poll, translator] = await Promise.all([
+        prisma.poll.findUnique({
+          where: { id: pollId },
+          include: {
+            options: { orderBy: { index: 'asc' } },
+            participations: true,
+            publicVotes: true,
+          },
+        }),
+        getRequestTranslator(client, { userId, workspaceId }),
+      ]);
 
       if (!poll) {
         throw new Error('Poll not found.');
@@ -594,7 +622,7 @@ export function registerActionHandlers(app: App) {
 
       await client.views.open({
         trigger_id: blockAction.trigger_id,
-        view: buildPollDetailModalView(poll),
+        view: buildPollDetailModalView(poll, translator),
       });
     } catch (error) {
       const errorMessage =
@@ -904,9 +932,13 @@ export function registerActionHandlers(app: App) {
     const blockAction = body as BlockAction | undefined;
     if (!blockAction?.trigger_id) return;
     try {
+      const translator = await getRequestTranslator(client, {
+        userId: blockAction.user?.id,
+        workspaceId: blockAction.team?.id,
+      });
       await client.views.open({
         trigger_id: blockAction.trigger_id,
-        view: buildGuideModalView(),
+        view: buildGuideModalView(translator),
       });
     } catch (error) {
       console.error('Failed to open guide modal:', error);
@@ -924,9 +956,10 @@ export function registerActionHandlers(app: App) {
     const userId = blockAction.user.id;
 
     try {
-      const [settings, canEdit] = await Promise.all([
+      const [settings, canEdit, translator] = await Promise.all([
         PollService.getWorkspaceSettings(workspaceId),
         PollService.isUserWorkspaceManager(client, userId, workspaceId),
+        getRequestTranslator(client, { userId, workspaceId }),
       ]);
 
       await client.views.open({
@@ -940,6 +973,8 @@ export function registerActionHandlers(app: App) {
           allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
           maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
           managerUserIds: settings.managerUserIds,
+          locale: settings.locale,
+          translator,
         }),
       });
     } catch (error) {

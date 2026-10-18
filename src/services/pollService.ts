@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import { LocalizedError } from '../i18n/errors.js';
+import { normalizeLocale, type Locale } from '../i18n/index.js';
 import { prisma } from '../db/prisma.js';
 import { env } from '../config/env.js';
 import {
@@ -26,6 +28,8 @@ export interface CreatePollParams {
   closesAt?: Date | null;
   enforceChannelConcurrency?: boolean;
   forwardToChannelOnHuddleEnd?: boolean;
+  /** Language of the shared channel card; defaults to English. */
+  locale?: Locale;
 }
 
 export interface VoteParams {
@@ -43,6 +47,8 @@ export interface WorkspaceSettingsData {
   maxNudgeChannelMembers: number;
   allowMultipleActivePolls: boolean;
   managerUserIds: string[];
+  /** Optional workspace language override; null/undefined means follow each user's Slack language. */
+  locale?: Locale | null;
 }
 
 export interface ReportViewer {
@@ -220,9 +226,7 @@ export class PollService {
         channelId
       );
       if (existingActive) {
-        throw new Error(
-          'An active poll is already running in this channel. Close it first or select another channel.'
-        );
+        throw new LocalizedError('error.activePollInChannel');
       }
     }
   }
@@ -269,7 +273,20 @@ export class PollService {
           : DEFAULT_MAX_NUDGE_MEMBERS,
       allowMultipleActivePolls: record?.allowMultipleActivePolls ?? false,
       managerUserIds,
+      ...(normalizeLocale(record?.locale) ? { locale: normalizeLocale(record?.locale)! } : {}),
     };
+  }
+
+  /**
+   * Workspace language override configured by an admin, or null to follow each user's Slack language.
+   */
+  static async getWorkspaceLocale(workspaceId: string): Promise<Locale | null> {
+    if (!workspaceId) return null;
+    const record = await prisma.workspaceSettings.findUnique({
+      where: { workspaceId },
+      select: { locale: true },
+    });
+    return normalizeLocale(record?.locale);
   }
 
   /**
@@ -280,7 +297,7 @@ export class PollService {
     input: Partial<WorkspaceSettingsData>
   ): Promise<WorkspaceSettingsData> {
     if (!workspaceId) {
-      throw new Error('Workspace ID is missing.');
+      throw new LocalizedError('error.workspaceIdMissing');
     }
 
     await prisma.workspace.upsert({
@@ -320,6 +337,9 @@ export class PollService {
     }
     if (typeof input.allowMultipleActivePolls === 'boolean') {
       updateData.allowMultipleActivePolls = input.allowMultipleActivePolls;
+    }
+    if ('locale' in input) {
+      updateData.locale = normalizeLocale(input.locale) ?? null;
     }
     if (Array.isArray(input.managerUserIds)) {
       const cleaned = Array.from(
@@ -421,10 +441,11 @@ export class PollService {
       closesAt = null,
       enforceChannelConcurrency = false,
       forwardToChannelOnHuddleEnd = false,
+      locale,
     } = params;
 
     if (!workspaceId) {
-      throw new Error('Workspace ID is missing.');
+      throw new LocalizedError('error.workspaceIdMissing');
     }
 
     if (enforceChannelConcurrency) {
@@ -467,6 +488,7 @@ export class PollService {
         eligibleVoterCount,
         closesAt,
         forwardToChannelOnHuddleEnd: Boolean(forwardToChannelOnHuddleEnd),
+        ...(locale ? { locale } : {}),
         status: 'ACTIVE',
         options: {
           create: options.map((text, index) => ({
@@ -501,18 +523,18 @@ export class PollService {
           });
 
           if (!poll) {
-            throw new Error('Poll not found');
+            throw new LocalizedError('error.pollNotFound');
           }
 
           if (
             poll.status !== 'ACTIVE' ||
             (poll.closesAt && poll.closesAt <= new Date())
           ) {
-            throw new Error('This poll is closed and no longer accepting votes');
+            throw new LocalizedError('error.pollClosed');
           }
 
           if (!poll.options.some((o) => o.id === optionId)) {
-            throw new Error('Invalid poll option');
+            throw new LocalizedError('error.invalidOption');
           }
 
           // 2. Check existing participation
@@ -526,7 +548,7 @@ export class PollService {
           });
 
           if (!poll.allowMultipleVotes && existingParticipation) {
-            throw new Error('You have already voted in this poll');
+            throw new LocalizedError('error.alreadyVoted');
           }
 
           // 3. Record ballot (checking duplicate option vote in multi-choice mode)
@@ -548,7 +570,7 @@ export class PollService {
                 },
               });
               if (existingOptionBallot) {
-                throw new Error('You have already voted for this option');
+                throw new LocalizedError('error.alreadyVotedOption');
               }
             }
 
@@ -571,7 +593,7 @@ export class PollService {
                 },
               });
               if (existingPublicVote) {
-                throw new Error('You have already voted for this option');
+                throw new LocalizedError('error.alreadyVotedOption');
               }
             }
 
@@ -662,7 +684,7 @@ export class PollService {
       }
     }
 
-    throw new Error('Failed to cast vote after maximum retry attempts');
+    throw new LocalizedError('error.voteRetriesExhausted');
   }
 
   /**
@@ -679,7 +701,7 @@ export class PollService {
     });
 
     if (!poll) {
-      throw new Error('Poll not found');
+      throw new LocalizedError('error.pollNotFound');
     }
 
     if (
@@ -688,7 +710,7 @@ export class PollService {
       poll.creatorId !== actorUserId &&
       !isManager
     ) {
-      throw new Error('Only the poll creator can manually close this poll');
+      throw new LocalizedError('error.closeCreatorOnly');
     }
 
     return prisma.poll.update({
@@ -902,7 +924,7 @@ export class PollService {
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      throw new Error('Template name is required.');
+      throw new LocalizedError('error.templateNameRequired');
     }
 
     const normalizedQuorumType = quorumType === 'NONE' ? 'NONE' : 'PERCENTAGE';
@@ -966,11 +988,11 @@ export class PollService {
     });
 
     if (!existing) {
-      throw new Error('Template not found.');
+      throw new LocalizedError('error.templateNotFound');
     }
 
     if (existing.ownerUserId !== ownerUserId && !isManager) {
-      throw new Error('Only the template owner or a workspace admin can edit this template.');
+      throw new LocalizedError('error.templateEditForbidden');
     }
 
     const nextQuorumType =
@@ -1079,11 +1101,11 @@ export class PollService {
     });
 
     if (!record) {
-      throw new Error('Template not found.');
+      throw new LocalizedError('error.templateNotFound');
     }
 
     if (record.ownerUserId !== ownerUserId && !isManager) {
-      throw new Error('Only the template owner can delete this template.');
+      throw new LocalizedError('error.templateDeleteForbidden');
     }
 
     await prisma.pollTemplate.delete({
@@ -1105,13 +1127,11 @@ export class PollService {
     });
 
     if (!record) {
-      throw new Error('Template not found.');
+      throw new LocalizedError('error.templateNotFound');
     }
 
     if (record.ownerUserId !== ownerUserId) {
-      throw new Error(
-        'Only the template owner can change sharing permissions.'
-      );
+      throw new LocalizedError('error.templateShareForbidden');
     }
 
     const updated = await prisma.pollTemplate.update({
@@ -1132,7 +1152,7 @@ export class PollService {
   ): Promise<PollTemplateData> {
     const source = await this.getTemplate(id, workspaceId, userId);
     if (!source) {
-      throw new Error('Template not found or not accessible.');
+      throw new LocalizedError('error.templateNotAccessible');
     }
 
     const baseName = `${source.name} (Copy)`;
@@ -1182,7 +1202,7 @@ export class PollService {
     });
 
     if (!record) {
-      throw new Error('Template not found.');
+      throw new LocalizedError('error.templateNotFound');
     }
 
     const updated = await prisma.pollTemplate.update({
@@ -1213,13 +1233,11 @@ export class PollService {
     });
 
     if (!poll) {
-      throw new Error('Poll not found.');
+      throw new LocalizedError('error.pollNotFound');
     }
 
     if (poll.creatorId !== userId && !isManager) {
-      throw new Error(
-        'Only the poll creator or a workspace admin can delete this poll.'
-      );
+      throw new LocalizedError('error.pollDeleteForbidden');
     }
 
     await prisma.poll.delete({ where: { id: pollId } });

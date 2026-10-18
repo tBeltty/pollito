@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pollito — Consenso rápido de equipo dentro de Slack</title>
+  <meta name="description" content="Votaciones públicas y secretas en Slack con cierre automático por quórum o tiempo. Base freemium y plan Pro de tarifa plana proyectado en $15/mes por espacio.">
+  <link rel="canonical" href="https://pollito.tbelt.online/es/">
+  <link rel="alternate" hreflang="x-default" href="https://pollito.tbelt.online/">
+  <link rel="alternate" hreflang="en" href="https://pollito.tbelt.online/">
+  <link rel="alternate" hreflang="es" href="https://pollito.tbelt.online/es/">
+  <meta property="og:title" content="Pollito — Consenso rápido de equipo dentro de Slack">
+  <meta property="og:description" content="Votaciones de equipo públicas y anónimas en Slack con cierre automático por quórum o tiempo.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://pollito.tbelt.online/es/">
+  <meta property="og:locale" content="es_LA">
+  <meta property="og:locale:alternate" content="en_US">
+  <link rel="stylesheet" href="../styles.css?v=3">
+  <link rel="icon" type="image/png" href="../assets/plates/pollito-nav-logo.png?v=4">
+</head>
+<body>
+
+  <!-- Main Hero Card Frame -->
+  <div class="hero-frame-wrap">
+    <div class="hero-frame">
+      <!-- Navigation Bar -->
+      <header class="navbar">
+        <nav class="nav-shell">
+          <a href="/es/" class="brand-link">
+            <span class="brand-icon">
+              <img src="../assets/plates/pollito-nav-logo.png?v=4" alt="Mascota Pollito" width="32" height="32">
+            </span>
+            <span>Pollito</span>
+          </a>
+
+          <ul class="nav-links">
+            <li><a href="#features" class="nav-link">Funciones</a></li>
+            <li><a href="#pricing" class="nav-link">Precios</a></li>
+            <li><a href="#integrations" class="nav-link">Integración</a></li>
+            <li><a href="support.html" class="nav-link">Soporte</a></li>
+          </ul>
+
+          <div class="lang-switch-wrap">
+            <a href="/" class="lang-switch" title="Switch to English" aria-label="Change language to English">🇺🇸 EN</a>
+          </div>
+
+          <a href="https://slack.com/oauth/v2/authorize?client_id=12145588418240.12338463584437&scope=commands,chat:write,chat:write.public,channels:join,channels:read,groups:read,im:read,im:write,mpim:read,users:read" class="btn btn-slack">
+            <img src="../assets/icons/slack.svg" alt="Slack" width="18" height="18" class="slack-logo-icon">
+            <span>Añadir a Slack</span>
+          </a>
+        </nav>
+      </header>
+
+      <!-- Hero Content -->
+      <section class="hero-section">
+        <div class="hero-grid">
+          <div class="hero-content">
+            <h1 class="hero-title">Consenso de equipo<br>directo en Slack.</h1>
+            <p class="hero-subtitle">
+              Votaciones públicas y secretas con cierre automático por participación o tiempo, sin comisiones por usuario ni interfaces externas.
+            </p>
+            <div class="hero-actions">
+              <a href="https://slack.com/oauth/v2/authorize?client_id=12145588418240.12338463584437&scope=commands,chat:write,chat:write.public,channels:join,channels:read,groups:read,im:read,im:write,mpim:read,users:read" class="btn btn-slack">
+                <img src="../assets/icons/slack.svg" alt="Slack" width="18" height="18" class="slack-logo-icon">
+                <span>Añadir a Slack · 100% Gratis</span>
+              </a>
+              <span class="pricing-pill">
+                <strong>Base freemium</strong> • 100% gratis en el lanzamiento
+              </span>
+            </div>
+          </div>
+
+          <div class="hero-visual-stage">
+            <img src="../assets/plates/mascot-pollito-stage.png?v=5" alt="Mascota Pollito junto a una tarjeta de votación en Slack" width="1400" height="980">
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <main>
+    <!-- Simulador Interactivo de Votación -->
+    <section id="simulator" class="simulator-section container">
+      <div class="section-header">
+        <h2 class="section-title">Prueba la experiencia en el canal</h2>
+        <p class="section-desc">Vota por una opción abajo para ver el conteo en tiempo real, las barras de progreso y el cierre automático en acción.</p>
+      </div>
+
+      <div class="slack-mockup-card">
+        <div class="mockup-header">
+          <div class="mockup-channel">
+            <span class="channel-hash">#</span>
+            <span class="channel-name">retrospectivas</span>
+            <span class="channel-sep">·</span>
+            <span class="channel-topic">Hilo de votación en vivo</span>
+          </div>
+          <div class="mockup-badge" id="sim-badge">⏱️ Quórum activo (75% objetivo)</div>
+        </div>
+
+        <div class="slack-message">
+          <div class="bot-avatar">
+            <img src="../assets/plates/pollito-nav-logo.png?v=4" alt="Avatar de Pollito" width="40" height="40">
+          </div>
+          <div class="message-content">
+            <div class="message-author">
+              <span class="author-name">Pollito</span>
+              <span class="bot-pill">APP</span>
+              <span class="message-time" id="sim-clock">10:42 AM</span>
+            </div>
+
+            <!-- Cabecera de la pregunta -->
+            <div class="slack-poll-header">
+              <span id="poll-mascot-emoji">🧐</span>
+              <span id="poll-question-text">¿Dónde organizamos la retrospectiva del Q4?</span>
+            </div>
+
+            <!-- Estado de contexto -->
+            <div class="slack-context-meta">
+              <span>Estado: <strong id="sim-status-label">Votación activa</strong></span>
+              <span>·</span>
+              <span>Tipo: Voto secreto anónimo</span>
+              <span>·</span>
+              <span>Opción única</span>
+            </div>
+
+            <!-- Filas de opciones de votación -->
+            <div class="slack-options-list">
+              <div class="slack-option-row voted" data-index="0">
+                <div class="slack-option-body">
+                  <div class="slack-option-title">1. Terraza Azul en la Azotea</div>
+                  <div class="slack-option-telemetry">
+                    <span class="slack-ascii-bar" data-bar="0">█████░░░░░ 50%</span>
+                    <span class="slack-vote-count" data-count="0">• <strong>5</strong> votos</span>
+                    <span class="slack-user-check" data-check="0">✓ Tu voto</span>
+                  </div>
+                </div>
+                <div class="slack-option-action">
+                  <button type="button" class="mockup-btn mockup-btn-voted" data-vote-btn="0">
+                    <span class="btn-text">✓ Votado</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="slack-option-row" data-index="1">
+                <div class="slack-option-body">
+                  <div class="slack-option-title">2. Espacio de Trabajo en el Centro</div>
+                  <div class="slack-option-telemetry">
+                    <span class="slack-ascii-bar" data-bar="1">███░░░░░░░ 30%</span>
+                    <span class="slack-vote-count" data-count="1">• <strong>3</strong> votos</span>
+                    <span class="slack-user-check" data-check="1" style="display: none;">✓ Tu voto</span>
+                  </div>
+                </div>
+                <div class="slack-option-action">
+                  <button type="button" class="mockup-btn" data-vote-btn="1">
+                    <span class="btn-text">Votar 2</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="slack-option-row" data-index="2">
+                <div class="slack-option-body">
+                  <div class="slack-option-title">3. Remoto (Junta de Slack + Miro)</div>
+                  <div class="slack-option-telemetry">
+                    <span class="slack-ascii-bar" data-bar="2">██░░░░░░░░ 20%</span>
+                    <span class="slack-vote-count" data-count="2">• <strong>2</strong> votos</span>
+                    <span class="slack-user-check" data-check="2" style="display: none;">✓ Tu voto</span>
+                  </div>
+                </div>
+                <div class="slack-option-action">
+                  <button type="button" class="mockup-btn" data-vote-btn="2">
+                    <span class="btn-text">Votar 3</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pie de telemetría y quórum -->
+            <div class="slack-poll-footer">
+              <span id="sim-telemetry-text">Quórum objetivo: <strong>75%</strong> (10/12 miembros • <strong>83%</strong> alcanzado)</span>
+              <span>·</span>
+              <span>Creada por @jhonatan</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Características Principales -->
+    <section id="features" class="features-section container">
+      <div class="section-header">
+        <h2 class="section-title">Diseñado para decisiones técnicas claras</h2>
+        <p class="section-desc">Sin paneles web externos, sin cuentas separadas y con total respeto a la privacidad del equipo.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon-wrapper" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+          </div>
+          <h3>Voto secreto con doble urna</h3>
+          <p>En las votaciones anónimas, el registro de participación se separa matemáticamente de las opciones elegidas. Nadie puede vincular a una persona con su voto en la base de datos.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <h3>Cierre automático por quórum</h3>
+          <p>Configura umbrales de participación (51%, 66%, 70%, 75% o 100%). La votación concluye sola en cuanto se alcanza el consenso necesario, sin esperar horas de más.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </div>
+          <h3>Recordatorios a pendientes</h3>
+          <p>Envía avisos privados por mensaje directo únicamente a quienes aún no han votado, sin exponer la identidad de quienes ya participaron.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v18h18"/>
+              <path d="m19 9-5 5-4-4-3 3"/>
+            </svg>
+          </div>
+          <h3>Gestión completa en App Home</h3>
+          <p>Revisa estadísticas de participación, resultados históricos y plantillas reutilizables directamente desde la pestaña de inicio de Slack, sin salir al navegador.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <h3>Actualizaciones en tiempo real</h3>
+          <p>Los votos se reflejan de inmediato durante standups y juntas generales. Las colas internas absorben picos repentinos de participación sin demoras ni pérdida de votos.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrapper" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <h3>Permisos mínimos y seguros</h3>
+          <p>Pollito solicita exclusivamente los permisos indispensables para publicar votaciones y registrar clics. No accede a historiales ajenos, canales privados no invitados ni calendarios.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Comparativa de Precios -->
+    <section id="pricing" class="comparison-section container">
+      <div class="section-header">
+        <h2 class="section-title">Precios transparentes de tarifa plana</h2>
+        <p class="section-desc">Pollito funciona bajo un modelo freemium 100% gratuito durante el lanzamiento, con un plan Pro proyectado en $15/mes por espacio de trabajo completo.</p>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="diff-table">
+          <thead>
+            <tr>
+              <th>Característica</th>
+              <th class="highlight">🐣 Pollito</th>
+              <th>Simple Poll</th>
+              <th>Polly</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Modelo de precio</strong></td>
+              <td class="highlight"><strong>Base freemium (100% gratis en lanzamiento)</strong><br><span style="font-size: 0.85em; opacity: 0.85; font-weight: normal;">Plan Pro proyectado: $15/mes plano por espacio</span></td>
+              <td>$49 a $99+ / mes (por usuario)</td>
+              <td>$79 a $199+ / mes (por tramos)</td>
+            </tr>
+            <tr>
+              <td><strong>Panel de control</strong></td>
+              <td class="highlight">100% integrado en Slack (App Home)</td>
+              <td>Navegador web externo</td>
+              <td>Navegador web externo</td>
+            </tr>
+            <tr>
+              <td><strong>Privacidad del voto</strong></td>
+              <td class="highlight">Pública o 100% anónima con doble urna</td>
+              <td>Pública u ocultación básica</td>
+              <td>Pública u ocultación básica</td>
+            </tr>
+            <tr>
+              <td><strong>Cierre por quórum</strong></td>
+              <td class="highlight">Sí (% automático del canal)</td>
+              <td>Solo manual</td>
+              <td>Solo en planes Enterprise</td>
+            </tr>
+            <tr>
+              <td><strong>Recordatorios a pendientes</strong></td>
+              <td class="highlight">Sí (preserva el anonimato)</td>
+              <td>No</td>
+              <td>Limitado</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="container footer-shell">
+      <div class="footer-brand">
+        <a href="/es/" class="brand-link">
+          <span class="brand-icon">
+            <img src="../assets/plates/pollito-nav-logo.png?v=4" alt="Pollito" width="28" height="28">
+          </span>
+          <span>Pollito</span>
+        </a>
+        <p class="footer-tagline">Decisiones de equipo claras, directo en Slack.</p>
+      </div>
+
+      <ul class="footer-links">
+        <li><a href="privacy.html" class="footer-link">Política de privacidad</a></li>
+        <li><a href="terms.html" class="footer-link">Términos de servicio</a></li>
+        <li><a href="support.html" class="footer-link">Soporte y preguntas frecuentes</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="../app.js?v=3"></script>
+</body>
+</html>

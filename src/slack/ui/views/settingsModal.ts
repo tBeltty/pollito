@@ -1,4 +1,11 @@
 import type { ModalView, MrkdwnOption, PlainTextOption } from '@slack/web-api';
+import {
+  SUPPORTED_LOCALES,
+  defaultTranslator,
+  type Locale,
+  type MessageKey,
+  type Translator,
+} from '../../../i18n/index.js';
 
 export interface WorkspaceSettingsData {
   allowMultipleActivePolls: boolean;
@@ -7,49 +14,61 @@ export interface WorkspaceSettingsData {
   maxNudgeChannelMembers: number;
   allowVoterChoiceNudges: boolean;
   managerUserIds: string[];
+  /** Workspace language override. Undefined follows each user's Slack language. */
+  locale?: Locale | null;
 }
 
 export interface SettingsModalViewOptions extends WorkspaceSettingsData {
   workspaceId?: string;
   canEdit?: boolean;
+  translator?: Translator;
 }
 
+const QUORUM_THRESHOLDS = ['51', '66', '70', '75', '80', '100'] as const;
+const AUTO_LOCALE_VALUE = 'auto';
+
 export function buildSettingsModalView(
-  options: SettingsModalViewOptions
+  options: SettingsModalViewOptions,
+  translator?: Translator
 ): ModalView {
+  const activeTranslator = translator ?? options.translator ?? defaultTranslator;
+  const { t } = activeTranslator;
   const canEdit = options.canEdit !== false;
   const maxNudgeMembers = options.maxNudgeChannelMembers || 50;
 
   if (!canEdit) {
     const concurrencyLabel = options.allowMultipleActivePolls
-      ? 'Multiple active polls allowed'
-      : 'Only 1 active poll per channel';
+      ? t('settings.value.concurrencyMultiple')
+      : t('settings.value.concurrencySingle');
     const privacyLabel = options.defaultAnonymous
-      ? 'Anonymous Double-Urn'
-      : 'Public';
+      ? t('settings.value.privacyAnonymous')
+      : t('settings.value.privacyPublic');
     const quorumLabel =
       options.defaultQuorumPct <= 0
-        ? 'No quorum'
+        ? t('settings.value.quorumNone')
         : `${options.defaultQuorumPct}%`;
     const nudgesLabel = options.allowVoterChoiceNudges
-      ? `Enabled (up to ${maxNudgeMembers} channel members)`
-      : 'Disabled';
+      ? t('settings.value.nudgesEnabled', { max: maxNudgeMembers })
+      : t('settings.value.nudgesDisabled');
     const managersLabel =
       options.managerUserIds && options.managerUserIds.length > 0
-        ? options.managerUserIds.map((id) => `<@${id}>`).join(', ')
-        : 'None configured';
+        ? activeTranslator.formatList(options.managerUserIds.map((id) => `<@${id}>`))
+        : t('settings.value.managersNone');
+    const localeLabel = options.locale
+      ? t(`settings.locale.${options.locale}`)
+      : t('settings.value.localeAuto');
 
     return {
       type: 'modal',
       callback_id: 'view_settings_modal_readonly',
       title: {
         type: 'plain_text',
-        text: 'Workspace Settings',
+        text: t('settings.title'),
         emoji: true,
       },
       close: {
         type: 'plain_text',
-        text: 'Close',
+        text: t('common.close'),
         emoji: true,
       },
       blocks: [
@@ -57,7 +76,7 @@ export function buildSettingsModalView(
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: '*Read-Only View*\nWorkspace settings can only be modified by Slack Admins and designated Bot Managers.',
+            text: t('settings.readOnly.body'),
           },
         },
         {
@@ -66,29 +85,24 @@ export function buildSettingsModalView(
         {
           type: 'section',
           fields: [
-            {
-              type: 'mrkdwn',
-              text: `*Channel Concurrency*\n${concurrencyLabel}`,
-            },
-            {
-              type: 'mrkdwn',
-              text: `*Default Privacy*\n${privacyLabel}`,
-            },
-            {
-              type: 'mrkdwn',
-              text: `*Default Quorum*\n${quorumLabel}`,
-            },
-            {
-              type: 'mrkdwn',
-              text: `*Smart Nudges*\n${nudgesLabel}`,
-            },
+            { type: 'mrkdwn', text: t('settings.field.concurrency', { value: concurrencyLabel }) },
+            { type: 'mrkdwn', text: t('settings.field.privacy', { value: privacyLabel }) },
+            { type: 'mrkdwn', text: t('settings.field.quorum', { value: quorumLabel }) },
+            { type: 'mrkdwn', text: t('settings.field.nudges', { value: nudgesLabel }) },
           ],
         },
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*Delegated Bot Managers*\n${managersLabel}`,
+            text: t('settings.field.managers', { value: managersLabel }),
+          },
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: t('settings.field.locale', { value: localeLabel }),
           },
         },
       ],
@@ -98,7 +112,11 @@ export function buildSettingsModalView(
   const concurrencyOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*Allow multiple active polls in the same channel*\nWhen unchecked (default), only one active poll can run per channel at a time.',
+      text: t('settings.option.concurrency'),
+    },
+    description: {
+      type: 'plain_text',
+      text: t('settings.option.concurrencyHint'),
     },
     value: 'allow_multiple_active_polls',
   };
@@ -106,7 +124,7 @@ export function buildSettingsModalView(
   const defaultAnonymousOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*Default to Anonymous Voting (Double-Urn Secret Ballot)*',
+      text: t('settings.option.anonymous'),
     },
     value: 'default_anonymous',
   };
@@ -114,7 +132,7 @@ export function buildSettingsModalView(
   const allowNudgesOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*Enable Smart Nudges for Poll Creators*',
+      text: t('settings.option.nudges'),
     },
     value: 'allow_nudges',
   };
@@ -131,59 +149,21 @@ export function buildSettingsModalView(
     {
       text: {
         type: 'plain_text',
-        text: 'No quorum required',
+        text: t('settings.quorum.none'),
         emoji: true,
       },
       value: 'NONE',
     },
-    {
-      text: {
-        type: 'plain_text',
-        text: '51% — Simple Majority (Half + 1)',
-        emoji: true,
-      },
-      value: '51',
-    },
-    {
-      text: {
-        type: 'plain_text',
-        text: '66% — Two-Thirds Supermajority',
-        emoji: true,
-      },
-      value: '66',
-    },
-    {
-      text: {
-        type: 'plain_text',
-        text: '70% — Standard Team Consensus',
-        emoji: true,
-      },
-      value: '70',
-    },
-    {
-      text: {
-        type: 'plain_text',
-        text: '75% — High Consensus',
-        emoji: true,
-      },
-      value: '75',
-    },
-    {
-      text: {
-        type: 'plain_text',
-        text: '80% — Strong Supermajority',
-        emoji: true,
-      },
-      value: '80',
-    },
-    {
-      text: {
-        type: 'plain_text',
-        text: '100% — Unanimous',
-        emoji: true,
-      },
-      value: '100',
-    },
+    ...QUORUM_THRESHOLDS.map(
+      (threshold): PlainTextOption => ({
+        text: {
+          type: 'plain_text',
+          text: t(`settings.quorum.${threshold}` as MessageKey),
+          emoji: true,
+        },
+        value: threshold,
+      })
+    ),
   ];
 
   const targetQuorumValue =
@@ -192,22 +172,38 @@ export function buildSettingsModalView(
     quorumOptions.find((opt) => opt.value === targetQuorumValue) ??
     quorumOptions.find((opt) => opt.value === '70')!;
 
+  const localeOptions: PlainTextOption[] = [
+    {
+      text: { type: 'plain_text', text: t('settings.locale.auto'), emoji: true },
+      value: AUTO_LOCALE_VALUE,
+    },
+    ...SUPPORTED_LOCALES.map(
+      (code): PlainTextOption => ({
+        text: { type: 'plain_text', text: t(`settings.locale.${code}`), emoji: true },
+        value: code,
+      })
+    ),
+  ];
+  const selectedLocaleOption =
+    localeOptions.find((opt) => opt.value === (options.locale ?? AUTO_LOCALE_VALUE)) ??
+    localeOptions[0]!;
+
   return {
     type: 'modal',
     callback_id: 'submit_settings_modal',
     title: {
       type: 'plain_text',
-      text: 'Workspace Settings',
+      text: t('settings.title'),
       emoji: true,
     },
     submit: {
       type: 'plain_text',
-      text: 'Save Settings',
+      text: t('settings.submit'),
       emoji: true,
     },
     close: {
       type: 'plain_text',
-      text: 'Cancel',
+      text: t('common.cancel'),
       emoji: true,
     },
     blocks: [
@@ -225,7 +221,7 @@ export function buildSettingsModalView(
         },
         label: {
           type: 'plain_text',
-          text: 'Channel Concurrency',
+          text: t('settings.label.concurrency'),
         },
       },
       {
@@ -242,7 +238,7 @@ export function buildSettingsModalView(
         },
         label: {
           type: 'plain_text',
-          text: 'Default Privacy & Nudges',
+          text: t('settings.label.privacy'),
         },
       },
       {
@@ -256,7 +252,7 @@ export function buildSettingsModalView(
         },
         label: {
           type: 'plain_text',
-          text: 'Default Quorum Threshold',
+          text: t('settings.label.quorum'),
         },
       },
       {
@@ -272,11 +268,11 @@ export function buildSettingsModalView(
         },
         label: {
           type: 'plain_text',
-          text: 'Max Channel Size for Smart Nudges',
+          text: t('settings.label.maxNudge'),
         },
         hint: {
           type: 'plain_text',
-          text: 'Channels larger than this member limit will not show the Nudge Non-Voters button.',
+          text: t('settings.hint.maxNudge'),
         },
       },
       {
@@ -288,7 +284,7 @@ export function buildSettingsModalView(
           action_id: 'manager_users_select',
           placeholder: {
             type: 'plain_text',
-            text: 'Select teammates who can manage workspace settings',
+            text: t('settings.placeholder.managers'),
           },
           ...(options.managerUserIds && options.managerUserIds.length > 0
             ? { initial_users: options.managerUserIds }
@@ -296,7 +292,25 @@ export function buildSettingsModalView(
         },
         label: {
           type: 'plain_text',
-          text: 'Designated Bot Managers',
+          text: t('settings.label.managers'),
+        },
+      },
+      {
+        type: 'input',
+        block_id: 'workspace_locale_block',
+        element: {
+          type: 'static_select',
+          action_id: 'workspace_locale_select',
+          options: localeOptions,
+          initial_option: selectedLocaleOption,
+        },
+        label: {
+          type: 'plain_text',
+          text: t('settings.label.locale'),
+        },
+        hint: {
+          type: 'plain_text',
+          text: t('settings.hint.locale'),
         },
       },
     ],
