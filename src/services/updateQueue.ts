@@ -1,6 +1,7 @@
 import type { WebClient } from '@slack/web-api';
 import { prisma } from '../db/prisma.js';
 import { buildPollMessageBlocks } from '../slack/ui/views/pollMessage.js';
+import { PollService } from './pollService.js';
 
 interface QueuedUpdate {
   pollId: string;
@@ -103,7 +104,11 @@ export class UpdateQueue {
 
       if (!poll) return;
 
-      const blocks = buildPollMessageBlocks(poll);
+      const settings = await PollService.getWorkspaceSettings(poll.workspaceId);
+      const blocks = buildPollMessageBlocks(poll, {
+        maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
+        allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+      });
 
       await client.chat.update({
         channel: channelId,

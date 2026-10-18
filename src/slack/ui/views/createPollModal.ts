@@ -1,14 +1,89 @@
-import type { ModalView,MrkdwnOption, PlainTextOption } from '@slack/web-api';
+import type { ModalView, MrkdwnOption, PlainTextOption } from '@slack/web-api';
 
 export interface CreatePollModalPreset {
   channelId?: string;
+  threadTs?: string | null;
+  huddleMode?: boolean;
   question?: string;
   options?: string[];
   isAnonymous?: boolean;
   allowMultipleVotes?: boolean;
+  quorumType?: 'PERCENTAGE' | 'NONE';
   quorumTarget?: number;
   duration?: string;
+  saveAsTemplate?: boolean;
+  templateName?: string;
+  editTemplateId?: string;
+  availableTemplates?: Array<{ id: string; name: string; isShared?: boolean }>;
 }
+
+export interface BuiltInPollTemplate {
+  name: string;
+  question: string;
+  options: string[];
+  isAnonymous: boolean;
+  allowMultipleVotes: boolean;
+  quorumType: 'PERCENTAGE' | 'NONE';
+  quorumTarget: number;
+  duration: string;
+}
+
+export const BUILT_IN_POLL_TEMPLATES: Record<string, BuiltInPollTemplate> = {
+  standup: {
+    name: 'Standup Check',
+    question: 'Do we have any blockers for today’s standup?',
+    options: [
+      'All clear — on track',
+      'Minor blocker — need sync',
+      'Blocked — need review',
+    ],
+    isAnonymous: false,
+    allowMultipleVotes: false,
+    quorumType: 'PERCENTAGE',
+    quorumTarget: 80,
+    duration: '15m',
+  },
+  retro: {
+    name: 'Retro Date',
+    question: 'Which sprint retrospective slot works best?',
+    options: [
+      'Thursday 14:00 UTC',
+      'Thursday 16:00 UTC',
+      'Friday 14:00 UTC',
+      'Friday 16:00 UTC',
+    ],
+    isAnonymous: false,
+    allowMultipleVotes: true,
+    quorumType: 'PERCENTAGE',
+    quorumTarget: 75,
+    duration: '24h',
+  },
+  rfc: {
+    name: 'Architecture RFC',
+    question: 'How should we proceed with the proposed Architecture RFC?',
+    options: [
+      'Approve as proposed',
+      'Approve with minor revisions',
+      'Needs deeper architecture review',
+      'Abstain',
+    ],
+    isAnonymous: true,
+    allowMultipleVotes: false,
+    quorumType: 'PERCENTAGE',
+    quorumTarget: 70,
+    duration: '72h',
+  },
+  lunch: {
+    name: 'Team Lunch',
+    question: 'Where should the team go for lunch this Friday?',
+    options: ['Tacos', 'Ramen', 'Wood-fired Pizza', 'Mediterranean'],
+    isAnonymous: true,
+    allowMultipleVotes: true,
+    quorumType: 'NONE',
+    quorumTarget: 51,
+    duration: '4h',
+  },
+};
 
 export function buildCreatePollModalView(
   channelIdOrPreset: string | CreatePollModalPreset = ''
@@ -19,6 +94,7 @@ export function buildCreatePollModalView(
       : channelIdOrPreset;
 
   const channelId = preset.channelId ?? '';
+  const isEditingTemplate = Boolean(preset.editTemplateId);
 
   const anonymousOption: MrkdwnOption = {
     text: {
@@ -36,12 +112,36 @@ export function buildCreatePollModalView(
     value: 'allow_multiple_votes',
   };
 
+  const noQuorumOption: MrkdwnOption = {
+    text: {
+      type: 'mrkdwn',
+      text: '*No Quorum Required*\nRun without a participation threshold (closes manually or on deadline).',
+    },
+    value: 'no_quorum',
+  };
+
   const initialSettingsOptions: MrkdwnOption[] = [];
   if (preset.isAnonymous) {
     initialSettingsOptions.push(anonymousOption);
   }
   if (preset.allowMultipleVotes) {
     initialSettingsOptions.push(multipleChoiceOption);
+  }
+  if (preset.quorumType === 'NONE') {
+    initialSettingsOptions.push(noQuorumOption);
+  }
+
+  const saveAsTemplateOption: MrkdwnOption = {
+    text: {
+      type: 'mrkdwn',
+      text: '*Save as reusable template*\nStore this question, options, and quorum setup in your Templates menu.',
+    },
+    value: 'save_as_template',
+  };
+
+  const initialSaveTemplateOptions: MrkdwnOption[] = [];
+  if (preset.saveAsTemplate) {
+    initialSaveTemplateOptions.push(saveAsTemplateOption);
   }
 
   const durationOptions: PlainTextOption[] = [
@@ -80,7 +180,7 @@ export function buildCreatePollModalView(
     {
       text: {
         type: 'plain_text',
-        text: '24 hours (Asynchronous / Next day)',
+        text: '24 hours (1 day)',
         emoji: true,
       },
       value: '24h',
@@ -93,23 +193,45 @@ export function buildCreatePollModalView(
       },
       value: '72h',
     },
+    {
+      text: {
+        type: 'plain_text',
+        text: '1 week (7 days)',
+        emoji: true,
+      },
+      value: '7d',
+    },
   ];
 
   const selectedDurationOption =
     durationOptions.find((opt) => opt.value === preset.duration) ?? durationOptions[0];
 
+  const clampedQuorumTarget = Math.max(51, preset?.quorumTarget ?? 70);
+  const isHuddleMode = Boolean(preset.huddleMode || preset.threadTs);
+
   return {
     type: 'modal',
-    callback_id: 'create_poll_modal_submit',
-    private_metadata: JSON.stringify({ channelId }),
+    callback_id: isEditingTemplate
+      ? 'edit_template_modal_submit'
+      : 'create_poll_modal_submit',
+    private_metadata: JSON.stringify({
+      channelId,
+      ...(preset.threadTs ? { threadTs: preset.threadTs } : {}),
+      ...(preset.huddleMode ? { huddleMode: true } : {}),
+      ...(preset.editTemplateId ? { editTemplateId: preset.editTemplateId } : {}),
+    }),
     title: {
       type: 'plain_text',
-      text: 'Create a Poll',
+      text: isEditingTemplate
+        ? 'Edit Poll Template'
+        : isHuddleMode
+          ? 'Create a Huddle Poll'
+          : 'Create a Poll',
       emoji: true,
     },
     submit: {
       type: 'plain_text',
-      text: 'Launch Poll',
+      text: isEditingTemplate ? 'Save Template' : 'Launch Poll',
       emoji: true,
     },
     close: {
@@ -118,9 +240,22 @@ export function buildCreatePollModalView(
       emoji: true,
     },
     blocks: [
+      ...(isHuddleMode && channelId
+        ? [
+            {
+              type: 'section' as const,
+              block_id: 'huddle_target_banner',
+              text: {
+                type: 'mrkdwn' as const,
+                text: `🎧 *Target: Active Huddle Thread* in <#${channelId}>\nThis poll will be posted directly inside the live Huddle thread.`,
+              },
+            },
+          ]
+        : []),
       {
         type: 'input',
         block_id: 'channel_block',
+        optional: isEditingTemplate || isHuddleMode,
         element: {
           type: 'conversations_select',
           action_id: 'channel_select',
@@ -243,7 +378,7 @@ export function buildCreatePollModalView(
         element: {
           type: 'checkboxes',
           action_id: 'anonymous_checkbox',
-          options: [anonymousOption, multipleChoiceOption],
+          options: [anonymousOption, multipleChoiceOption, noQuorumOption],
           ...(initialSettingsOptions.length > 0
             ? { initial_options: initialSettingsOptions }
             : {}),
@@ -256,13 +391,14 @@ export function buildCreatePollModalView(
       {
         type: 'input',
         block_id: 'quorum_block',
+        optional: true,
         element: {
           type: 'number_input',
           action_id: 'quorum_input',
           is_decimal_allowed: false,
-          min_value: '10',
+          min_value: '51',
           max_value: '100',
-          initial_value: String(preset?.quorumTarget ?? 70),
+          initial_value: String(clampedQuorumTarget),
           placeholder: {
             type: 'plain_text',
             text: '70',
@@ -274,7 +410,7 @@ export function buildCreatePollModalView(
         },
         hint: {
           type: 'plain_text',
-          text: 'The poll auto-closes once this share of channel members casts a ballot.',
+          text: 'Minimum 51% (simple majority: half + 1). Leave blank or check "No Quorum Required" above for casual polls.',
         },
       },
       {
@@ -300,6 +436,47 @@ export function buildCreatePollModalView(
         hint: {
           type: 'plain_text',
           text: 'Automatically closes the vote when this time expires, even if quorum has not been reached.',
+        },
+      },
+      {
+        type: 'divider',
+      },
+      {
+        type: 'input',
+        block_id: 'save_template_block',
+        optional: true,
+        element: {
+          type: 'checkboxes',
+          action_id: 'save_template_checkbox',
+          options: [saveAsTemplateOption],
+          ...(initialSaveTemplateOptions.length > 0
+            ? { initial_options: initialSaveTemplateOptions }
+            : {}),
+        },
+        label: {
+          type: 'plain_text',
+          text: 'Reusable Template',
+        },
+      },
+      {
+        type: 'input',
+        block_id: 'template_name_block',
+        optional: true,
+        element: {
+          type: 'plain_text_input',
+          action_id: 'template_name_input',
+          max_length: 75,
+          ...(preset.templateName
+            ? { initial_value: preset.templateName.slice(0, 75) }
+            : {}),
+          placeholder: {
+            type: 'plain_text',
+            text: 'Optional template name (defaults to question)',
+          },
+        },
+        label: {
+          type: 'plain_text',
+          text: 'Template Name',
         },
       },
     ],

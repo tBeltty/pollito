@@ -132,8 +132,8 @@ describe('Poll Message Block Kit Builder (pollMessage.ts)', () => {
     expect(headerBlock.text.text).toBe('Q'.repeat(150));
   });
 
-  it('renders poll_nudge_click and poll_close_click buttons on active polls and removes them on closed polls', () => {
-    const activePoll = createMockPoll({ status: 'ACTIVE' });
+  it('renders poll_nudge_click and poll_close_click buttons with confirm dialogs on active polls (<= 50 members) and removes them on closed polls', () => {
+    const activePoll = createMockPoll({ status: 'ACTIVE', eligibleVoterCount: 25 });
     const activeBlocks = buildPollMessageBlocks(activePoll);
     const activeActions = activeBlocks.find((b: any) => b.type === 'actions') as any;
 
@@ -141,12 +141,50 @@ describe('Poll Message Block Kit Builder (pollMessage.ts)', () => {
     const actionIds = activeActions.elements.map((e: any) => e.action_id);
     expect(actionIds).toContain('poll_nudge_click');
     expect(actionIds).toContain('poll_close_click');
+
+    const nudgeBtn = activeActions.elements.find((e: any) => e.action_id === 'poll_nudge_click');
+    const closeBtn = activeActions.elements.find((e: any) => e.action_id === 'poll_close_click');
+    expect(nudgeBtn.confirm).toBeDefined();
+    expect(nudgeBtn.confirm.title.text).toBe('Send reminder to non-voters?');
+    expect(closeBtn.confirm).toBeDefined();
+    expect(closeBtn.confirm.title.text).toBe('Close this poll now?');
+
     expect(JSON.stringify(activeBlocks)).toContain('ID: 987654');
 
     const closedPoll = createMockPoll({ status: 'CLOSED' });
     const closedBlocks = buildPollMessageBlocks(closedPoll);
     const closedActions = closedBlocks.find((b: any) => b.type === 'actions');
     expect(closedActions).toBeUndefined();
+  });
+
+  it('omits poll_nudge_click when eligibleVoterCount exceeds maxNudgeChannelMembers (default 50)', () => {
+    const largeChannelPoll = createMockPoll({
+      status: 'ACTIVE',
+      eligibleVoterCount: 1000,
+    });
+    const blocks = buildPollMessageBlocks(largeChannelPoll);
+    const activeActions = blocks.find((b: any) => b.type === 'actions') as any;
+
+    expect(activeActions).toBeDefined();
+    const actionIds = activeActions.elements.map((e: any) => e.action_id);
+    expect(actionIds).not.toContain('poll_nudge_click');
+    expect(actionIds).toContain('poll_close_click');
+  });
+
+  it('renders No quorum required when quorumType is NONE and never shows Approaching quorum target', () => {
+    const casualPoll = createMockPoll({
+      status: 'ACTIVE',
+      quorumType: 'NONE',
+      quorumTarget: 51,
+      eligibleVoterCount: 10,
+      participations: Array.from({ length: 6 }, (_, i) => ({ voterId: `U_${i}` })),
+    });
+    const blocks = buildPollMessageBlocks(casualPoll);
+    const serialized = JSON.stringify(blocks);
+
+    expect(serialized).toContain('Total participants: 6 • No quorum required');
+    expect(serialized).not.toContain('Approaching quorum target');
+    expect(serialized).toContain('Poll active');
   });
 
   it('renders progress bar deterministically within 0% to 100%', () => {

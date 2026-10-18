@@ -57,32 +57,35 @@ export function formatPollClosureSummary(
   poll: PollClosureSummaryData,
   reason: 'QUORUM_REACHED' | 'CLOSED' | 'TIME_EXPIRED'
 ): string {
-  let maxVotes = 0;
-  let winnerText = poll.options[0]?.text ?? 'None';
-
-  for (const opt of poll.options) {
-    if (opt.voteCount > maxVotes) {
-      maxVotes = opt.voteCount;
-      winnerText = opt.text;
-    }
-  }
+  const maxVotes = poll.options.reduce((max, opt) => Math.max(max, opt.voteCount), 0);
+  const topOptions =
+    maxVotes > 0 ? poll.options.filter((opt) => opt.voteCount === maxVotes) : [];
 
   const pCount = poll.participations.length;
   const pWord = pCount === 1 ? 'participant' : 'participants';
   const vWord = maxVotes === 1 ? 'vote' : 'votes';
 
+  const outcomeClause =
+    topOptions.length === 1
+      ? `Winner: *${topOptions[0].text}* (${maxVotes} ${vWord}).`
+      : topOptions.length > 1
+        ? `Result: Tie between ${topOptions.map((o) => `*${o.text}*`).join(', ')} (${maxVotes} ${vWord} each).`
+        : '';
+
   if (reason === 'QUORUM_REACHED') {
-    return `🎉 *Quorum Reached — Poll Closed*\n\n*${poll.question}* reached its target quorum with *${pCount}* ${pWord}. Leading choice: *${winnerText}* (${maxVotes} ${vWord}).`;
+    return maxVotes > 0
+      ? `🎉 *Quorum Reached — Poll Closed*\n\n*${poll.question}* reached its target quorum with *${pCount}* ${pWord}. ${outcomeClause}`
+      : `🎉 *Quorum Reached — Poll Closed*\n\n*${poll.question}* reached its target quorum with *${pCount}* ${pWord}.`;
   }
 
   if (reason === 'CLOSED') {
     return maxVotes > 0
-      ? `🔒 *Poll Closed by Creator*\n\n*${poll.question}* is now closed with *${pCount}* total ${pWord}. Leading choice: *${winnerText}* (${maxVotes} ${vWord}).`
+      ? `🔒 *Poll Closed by Creator*\n\n*${poll.question}* is now closed with *${pCount}* total ${pWord}. ${outcomeClause}`
       : `🔒 *Poll Closed by Creator*\n\n*${poll.question}* was closed with 0 votes cast.`;
   }
 
   // TIME_EXPIRED
   return maxVotes > 0
-    ? `⏰ *Poll Closed — Time Expired*\n\n*${poll.question}* concluded with *${pCount}* total ${pWord}. Leading choice: *${winnerText}* (${maxVotes} ${vWord}).`
+    ? `⏰ *Poll Closed — Time Expired*\n\n*${poll.question}* concluded with *${pCount}* total ${pWord}. ${outcomeClause}`
     : `⏰ *Poll Closed — Time Expired*\n\n*${poll.question}* concluded with 0 votes cast.`;
 }

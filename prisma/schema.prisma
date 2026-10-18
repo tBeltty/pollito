@@ -8,25 +8,30 @@ generator client {
 }
 
 model Workspace {
-  id          String             @id // Slack Team ID (e.g. T01234567)
-  teamName    String
-  botToken    String             // AES-256 encrypted bot access token
-  installedAt DateTime           @default(now())
-  isActive    Boolean            @default(true)
-  settings    WorkspaceSettings?
-  polls       Poll[]
+  id                String             @id // Slack Team ID (e.g. T01234567)
+  teamName          String
+  botToken          String             // AES-256 encrypted bot access token
+  installedByUserId String?
+  installedAt       DateTime           @default(now())
+  isActive          Boolean            @default(true)
+  settings          WorkspaceSettings?
+  polls             Poll[]
 
   @@map("workspaces")
 }
 
 model WorkspaceSettings {
-  id                     String    @id @default(cuid())
-  workspaceId            String    @unique
-  workspace              Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  defaultAnonymous       Boolean   @default(false)
-  defaultQuorumPct       Int       @default(70)
-  allowVoterChoiceNudges Boolean   @default(true)
-  anonymousSalt          String    // Cryptographic salt for voter pseudonymization
+  id                       String    @id @default(cuid())
+  workspaceId              String    @unique
+  workspace                Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  defaultAnonymous         Boolean   @default(false)
+  defaultQuorumType        String    @default("PERCENTAGE") // PERCENTAGE | NONE
+  defaultQuorumPct         Int       @default(70)
+  allowVoterChoiceNudges   Boolean   @default(true)
+  maxNudgeChannelMembers   Int       @default(50)
+  allowMultipleActivePolls Boolean   @default(false)
+  managerUserIds           String?   // Comma-separated Slack user IDs for delegated Bot Managers
+  anonymousSalt            String    // Cryptographic salt for voter pseudonymization
 
   @@map("workspace_settings")
 }
@@ -37,6 +42,7 @@ model Poll {
   workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   channelId          String
   messageTs          String
+  threadTs           String?
   creatorId          String              // Slack User ID who launched the poll
   question           String
   isAnonymous        Boolean             @default(false)
@@ -113,4 +119,26 @@ model NudgeLog {
   sentAt      DateTime @default(now())
 
   @@map("nudge_logs")
+}
+
+model PollTemplate {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  ownerUserId        String
+  name               String
+  channelId          String   @default("")
+  question           String
+  optionsJson        String
+  isAnonymous        Boolean  @default(false)
+  allowMultipleVotes Boolean  @default(false)
+  quorumType         String   @default("PERCENTAGE")
+  quorumTarget       Int      @default(70)
+  duration           String   @default("none")
+  isShared           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([workspaceId, ownerUserId, name])
+  @@index([workspaceId, ownerUserId])
+  @@map("poll_templates")
 }

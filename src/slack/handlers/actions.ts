@@ -6,10 +6,17 @@ import {
   type CreatePollModalPreset,
 } from '../ui/views/createPollModal.js';
 import {
-  buildAppHomeView,
   buildCsvExportModalView,
   buildPollsCsvReport,
 } from '../ui/views/appHome.js';
+import {
+  buildAnalyticsModalView,
+  buildPollDetailModalView,
+} from '../ui/views/analyticsModal.js';
+import { buildTemplatesModalView } from '../ui/views/templatesModal.js';
+import { buildGuideModalView } from '../ui/views/guideModal.js';
+import { buildSettingsModalView } from '../ui/views/settingsModal.js';
+import { publishHomeTab } from './events.js';
 import { prisma } from '../../db/prisma.js';
 import { env } from '../../config/env.js';
 import {
@@ -23,6 +30,7 @@ const APP_HOME_TEMPLATES: Record<string, CreatePollModalPreset> = {
     options: ['All clear — on track', 'Minor blocker — need sync', 'Blocked — need review'],
     isAnonymous: false,
     allowMultipleVotes: false,
+    quorumType: 'PERCENTAGE',
     quorumTarget: 80,
     duration: '15m',
   },
@@ -31,6 +39,7 @@ const APP_HOME_TEMPLATES: Record<string, CreatePollModalPreset> = {
     options: ['Thursday 14:00 UTC', 'Thursday 16:00 UTC', 'Friday 14:00 UTC', 'Friday 16:00 UTC'],
     isAnonymous: false,
     allowMultipleVotes: true,
+    quorumType: 'PERCENTAGE',
     quorumTarget: 75,
     duration: '24h',
   },
@@ -44,6 +53,7 @@ const APP_HOME_TEMPLATES: Record<string, CreatePollModalPreset> = {
     ],
     isAnonymous: true,
     allowMultipleVotes: false,
+    quorumType: 'PERCENTAGE',
     quorumTarget: 70,
     duration: '72h',
   },
@@ -52,7 +62,8 @@ const APP_HOME_TEMPLATES: Record<string, CreatePollModalPreset> = {
     options: ['Tacos', 'Ramen', 'Wood-fired Pizza', 'Mediterranean'],
     isAnonymous: true,
     allowMultipleVotes: true,
-    quorumTarget: 50,
+    quorumType: 'NONE',
+    quorumTarget: 51,
     duration: '4h',
   },
 };
@@ -97,7 +108,7 @@ export function registerActionHandlers(app: App) {
         await UpdateQueue.flushNow(pollId, channelId, messageTs, client);
         await client.chat.postMessage({
           channel: channelId,
-          thread_ts: messageTs,
+          thread_ts: result.poll.threadTs || messageTs,
           text: formatPollClosureSummary(result.poll, 'QUORUM_REACHED'),
         });
       } else {
@@ -151,31 +162,28 @@ export function registerActionHandlers(app: App) {
     }
 
     try {
-      const closedPoll = await PollService.closePoll(pollId, blockAction.user.id, 'CLOSED');
+      const workspaceId = blockAction.team?.id ?? '';
+      const isManager = await PollService.isUserWorkspaceManager(
+        client,
+        blockAction.user.id,
+        workspaceId
+      );
+      const closedPoll = await PollService.closePoll(
+        pollId,
+        blockAction.user.id,
+        'CLOSED',
+        isManager
+      );
       await UpdateQueue.flushNow(closedPoll.id, closedPoll.channelId, closedPoll.messageTs, client);
       await client.chat.postMessage({
         channel: closedPoll.channelId,
-        thread_ts: closedPoll.messageTs,
+        thread_ts: closedPoll.threadTs || closedPoll.messageTs,
         text: formatPollClosureSummary(closedPoll, 'CLOSED'),
       });
 
       if ((blockAction as any).view?.type === 'home') {
         try {
-          const workspaceId = blockAction.team?.id ?? '';
-          const polls = await prisma.poll.findMany({
-            where: { workspaceId },
-            include: {
-              options: { orderBy: { index: 'asc' } },
-              participations: { select: { voterId: true } },
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 10,
-          });
-          const homeView = buildAppHomeView(polls);
-          await client.views.publish({
-            user_id: blockAction.user.id,
-            view: homeView,
-          });
+          await publishHomeTab(client, blockAction.user.id, workspaceId);
         } catch (publishErr) {
           console.error('Failed to update App Home after poll closure:', publishErr);
         }
@@ -242,6 +250,19 @@ export function registerActionHandlers(app: App) {
         throw new Error('Only the poll creator can send nudges for this poll');
       }
 
+      const settings = await PollService.getWorkspaceSettings(poll.workspaceId);
+      if (!settings.allowVoterChoiceNudges) {
+        throw new Error('Smart Nudges are disabled in this workspace.');
+      }
+
+      const members = await getEligibleChannelMembers(client, poll.channelId);
+      const channelMemberCount = members.length > 0 ? members.length : poll.eligibleVoterCount;
+      if (channelMemberCount > settings.maxNudgeChannelMembers) {
+        throw new Error(
+          `Smart Nudges are disabled for channels with more than ${settings.maxNudgeChannelMembers} members.`
+        );
+      }
+
       const recentNudge = await prisma.nudgeLog.findFirst({
         where: {
           pollId,
@@ -253,9 +274,8 @@ export function registerActionHandlers(app: App) {
         throw new Error('A reminder was already sent within the last 4 hours');
       }
 
-      const members = await getEligibleChannelMembers(client, poll.channelId);
       const nonVoters = await PollService.getNonVoters(pollId, members);
-      const recipients = nonVoters.slice(0, 50);
+      const recipients = nonVoters.slice(0, settings.maxNudgeChannelMembers);
 
       let sentCount = 0;
       for (const recipientId of recipients) {
@@ -332,18 +352,35 @@ export function registerActionHandlers(app: App) {
   app.action('app_home_launch_poll_click', async ({ ack, body, client }) => {
     await ack();
     const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
 
     try {
+      const [settings, templates] = await Promise.all([
+        PollService.getWorkspaceSettings(workspaceId),
+        PollService.listTemplates(workspaceId, userId),
+      ]);
+
       await client.views.open({
         trigger_id: blockAction.trigger_id,
-        view: buildCreatePollModalView(''),
+        view: buildCreatePollModalView({
+          channelId: '',
+          isAnonymous: settings.defaultAnonymous,
+          quorumType: (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'PERCENTAGE',
+          quorumTarget: settings.defaultQuorumPct,
+          availableTemplates: templates.map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            isShared: t.isShared,
+          })),
+        }),
       });
     } catch (error) {
       console.error('Failed to open create poll modal from App Home:', error);
     }
   });
 
-  // Handle Quick Template buttons from App Home (matches app_home_template_*)
+  // Handle Quick Template buttons from App Home or Templates Modal (matches app_home_template_*)
   app.action(/^app_home_template_/, async ({ action, ack, body, client }) => {
     await ack();
     const blockAction = body as BlockAction;
@@ -355,44 +392,432 @@ export function registerActionHandlers(app: App) {
     const preset = APP_HOME_TEMPLATES[templateKey] ?? APP_HOME_TEMPLATES.standup;
 
     try {
-      await client.views.open({
-        trigger_id: blockAction.trigger_id,
-        view: buildCreatePollModalView(preset),
-      });
+      const viewObj = (blockAction as any).view;
+      if (viewObj?.type === 'modal' && viewObj?.id) {
+        await client.views.update({
+          view_id: viewObj.id,
+          view: buildCreatePollModalView(preset),
+        });
+      } else {
+        await client.views.open({
+          trigger_id: blockAction.trigger_id,
+          view: buildCreatePollModalView(preset),
+        });
+      }
     } catch (error) {
       console.error('Failed to open template modal from App Home:', error);
     }
   });
 
-  // Handle "Export CSV" button from App Home
+  // Handle Analytics Modal button from App Home
+  app.action('open_analytics_modal', async ({ ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+
+    try {
+      const viewer = await PollService.getReportViewer(client, userId, workspaceId);
+      const stats = await PollService.getPollAnalyticsStats(workspaceId, viewer, 30);
+      await client.views.open({
+        trigger_id: blockAction.trigger_id,
+        view: buildAnalyticsModalView(stats, 30),
+      });
+    } catch (error) {
+      console.error('Failed to open analytics modal:', error);
+    }
+  });
+
+  // Handle Poll Detailed Results button (matches poll_view_results_click)
+  app.action(/^poll_view_results_click/, async ({ action, ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const rawVal = (action as { value?: string }).value;
+    if (!rawVal) return;
+
+    let pollId = rawVal;
+    try {
+      const parsed = JSON.parse(rawVal);
+      if (typeof parsed === 'object' && parsed !== null && parsed.pollId) {
+        pollId = parsed.pollId;
+      }
+    } catch {
+      // plain string ID
+    }
+
+    const userId = blockAction.user.id;
+    const workspaceId = blockAction.team?.id ?? '';
+
+    try {
+      const poll = await prisma.poll.findUnique({
+        where: { id: pollId },
+        include: {
+          options: { orderBy: { index: 'asc' } },
+          participations: true,
+          publicVotes: true,
+        },
+      });
+
+      if (!poll) {
+        throw new Error('Poll not found.');
+      }
+
+      const viewer = await PollService.getReportViewer(
+        client,
+        userId,
+        workspaceId || poll.workspaceId
+      );
+      if (poll.creatorId !== userId && !viewer.isManager) {
+        throw new Error(
+          'Only the poll creator or a workspace admin can view detailed results for this poll.'
+        );
+      }
+
+      await client.views.open({
+        trigger_id: blockAction.trigger_id,
+        view: buildPollDetailModalView(poll),
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Could not open poll details.';
+      if (blockAction.channel?.id) {
+        try {
+          await client.chat.postEphemeral({
+            channel: blockAction.channel.id,
+            user: userId,
+            text: errorMessage,
+          });
+        } catch {
+          // ignore
+        }
+      } else {
+        try {
+          await client.chat.postMessage({
+            channel: userId,
+            text: errorMessage,
+          });
+        } catch {
+          // ignore
+        }
+      }
+    }
+  });
+
+  // Handle "Export CSV" button from App Home or Analytics Modal
   app.action('app_home_export_csv_click', async ({ ack, body, client }) => {
     await ack();
     const blockAction = body as BlockAction;
     const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
 
     try {
-      const polls = await prisma.poll.findMany({
-        where: { workspaceId },
-        include: {
-          options: { orderBy: { index: 'asc' } },
-          participations: { select: { voterId: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      });
-
+      const viewer = await PollService.getReportViewer(client, userId, workspaceId);
+      const polls = await PollService.getAuthorizedPolls(workspaceId, viewer, 50);
       const csvContent = buildPollsCsvReport(polls);
+      const view = buildCsvExportModalView({ csvContent, polls });
+
+      if (
+        (blockAction as any).view?.type === 'modal' &&
+        typeof (client.views as any).push === 'function'
+      ) {
+        try {
+          await client.views.push({
+            trigger_id: blockAction.trigger_id,
+            view,
+          });
+          return;
+        } catch {
+          // fallback to views.open
+        }
+      }
+
       await client.views.open({
         trigger_id: blockAction.trigger_id,
-        view: buildCsvExportModalView(csvContent),
+        view,
       });
     } catch (error) {
       console.error('Failed to open CSV export modal from App Home:', error);
     }
   });
 
-  // Handle documentation button click
-  app.action('app_home_docs_click', async ({ ack }) => {
+  // Handle "Apply Filters" in CSV Export Modal
+  app.action('csv_apply_filters_click', async ({ ack, body, client }) => {
     await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+    const viewObj = (blockAction as any).view;
+    if (!viewObj?.id) return;
+
+    try {
+      const values = viewObj.state?.values ?? {};
+      const startDate =
+        values.csv_start_date_block?.csv_start_date_select?.selected_date ?? undefined;
+      const endDate =
+        values.csv_end_date_block?.csv_end_date_select?.selected_date ?? undefined;
+      const statusFilter =
+        values.csv_status_filter_block?.csv_status_filter_select?.selected_option?.value ??
+        'ALL';
+      const selectedPollIds = (
+        values.csv_polls_select_block?.csv_polls_multi_select?.selected_options ?? []
+      ).map((o: any) => o.value);
+
+      const viewer = await PollService.getReportViewer(client, userId, workspaceId);
+      const allPolls = await PollService.getAuthorizedPolls(workspaceId, viewer, 50);
+      const filtered = PollService.filterPollsForCsv(allPolls, {
+        startDate,
+        endDate,
+        statusFilter,
+        selectedPollIds,
+      });
+
+      const csvContent = buildPollsCsvReport(filtered);
+      await client.views.update({
+        view_id: viewObj.id,
+        view: buildCsvExportModalView({
+          csvContent,
+          polls: allPolls,
+          filters: {
+            startDate,
+            endDate,
+            status: statusFilter as any,
+            selectedPollIds,
+          },
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to apply CSV filters:', error);
+    }
+  });
+
+  // Handle Templates Modal actions
+  app.action('open_templates_modal', async ({ ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+
+    try {
+      const [templates, isManager] = await Promise.all([
+        PollService.listTemplates(workspaceId, userId),
+        PollService.isUserWorkspaceManager(client, userId, workspaceId),
+      ]);
+
+      await client.views.open({
+        trigger_id: blockAction.trigger_id,
+        view: buildTemplatesModalView(templates as any, userId, { tab: 'mine', isManager }),
+      });
+    } catch (error) {
+      console.error('Failed to open templates modal:', error);
+    }
+  });
+
+  app.action('templates_tab_mine', async ({ ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+    const viewId = (blockAction as any).view?.id;
+    if (!viewId) return;
+
+    try {
+      const [templates, isManager] = await Promise.all([
+        PollService.listTemplates(workspaceId, userId),
+        PollService.isUserWorkspaceManager(client, userId, workspaceId),
+      ]);
+      await client.views.update({
+        view_id: viewId,
+        view: buildTemplatesModalView(templates as any, userId, { tab: 'mine', isManager }),
+      });
+    } catch (error) {
+      console.error('Failed to switch templates tab to mine:', error);
+    }
+  });
+
+  app.action('templates_tab_workspace', async ({ ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+    const viewId = (blockAction as any).view?.id;
+    if (!viewId) return;
+
+    try {
+      const [templates, isManager] = await Promise.all([
+        PollService.listTemplates(workspaceId, userId),
+        PollService.isUserWorkspaceManager(client, userId, workspaceId),
+      ]);
+      await client.views.update({
+        view_id: viewId,
+        view: buildTemplatesModalView(templates as any, userId, {
+          tab: 'workspace',
+          isManager,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to switch templates tab to workspace:', error);
+    }
+  });
+
+  app.action('template_row_menu', async ({ action, ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+    const viewId = (blockAction as any).view?.id;
+    const selectedValue = (action as any).selected_option?.value as string | undefined;
+    if (!selectedValue) return;
+
+    const [verb, templateId] = selectedValue.split(':');
+    if (!verb || !templateId) return;
+
+    try {
+      if (verb === 'launch' || verb === 'edit') {
+        const tpl = await PollService.getTemplate(templateId, workspaceId, userId);
+        if (!tpl) return;
+        const modalView = buildCreatePollModalView({
+          channelId: tpl.channelId ?? undefined,
+          question: tpl.question,
+          options: tpl.options,
+          isAnonymous: tpl.isAnonymous,
+          allowMultipleVotes: tpl.allowMultipleVotes,
+          quorumType: (tpl.quorumType as 'PERCENTAGE' | 'NONE') || 'PERCENTAGE',
+          quorumTarget: tpl.quorumTarget,
+          duration: tpl.duration as any,
+          ...(verb === 'edit'
+            ? { templateName: tpl.name, editTemplateId: tpl.id }
+            : {}),
+        });
+        if (viewId) {
+          await client.views.update({ view_id: viewId, view: modalView });
+        } else if (blockAction.trigger_id) {
+          await client.views.open({ trigger_id: blockAction.trigger_id, view: modalView });
+        }
+        return;
+      }
+
+      const isManager = await PollService.isUserWorkspaceManager(client, userId, workspaceId);
+      let nextTab: 'mine' | 'workspace' = 'mine';
+      let confirmDeleteId: string | undefined;
+
+      if (verb === 'share' || verb === 'unshare') {
+        await PollService.setTemplateShared(templateId, workspaceId, userId, verb === 'share');
+      } else if (verb === 'duplicate') {
+        await PollService.duplicateTemplate(templateId, workspaceId, userId);
+        nextTab = 'mine';
+      } else if (verb === 'delete') {
+        confirmDeleteId = templateId;
+      } else if (verb === 'unpublish' && isManager) {
+        await PollService.unpublishTemplate(templateId, workspaceId);
+        nextTab = 'workspace';
+      }
+
+      if (viewId) {
+        const templates = await PollService.listTemplates(workspaceId, userId);
+        await client.views.update({
+          view_id: viewId,
+          view: buildTemplatesModalView(templates as any, userId, {
+            tab: nextTab,
+            isManager,
+            confirmDeleteId,
+          }),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to process template_row_menu action:', error);
+    }
+  });
+
+  app.action('confirm_delete_template', async ({ action, ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+    const viewId = (blockAction as any).view?.id;
+    const templateId = (action as { value?: string }).value;
+    if (!templateId || !viewId) return;
+
+    try {
+      const isManager = await PollService.isUserWorkspaceManager(client, userId, workspaceId);
+      await PollService.deleteTemplate(templateId, workspaceId, userId, isManager);
+      const templates = await PollService.listTemplates(workspaceId, userId);
+      await client.views.update({
+        view_id: viewId,
+        view: buildTemplatesModalView(templates as any, userId, { tab: 'mine', isManager }),
+      });
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+    }
+  });
+
+  app.action('cancel_delete_template', async ({ ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+    const viewId = (blockAction as any).view?.id;
+    if (!viewId) return;
+
+    try {
+      const [templates, isManager] = await Promise.all([
+        PollService.listTemplates(workspaceId, userId),
+        PollService.isUserWorkspaceManager(client, userId, workspaceId),
+      ]);
+      await client.views.update({
+        view_id: viewId,
+        view: buildTemplatesModalView(templates as any, userId, { tab: 'mine', isManager }),
+      });
+    } catch (error) {
+      console.error('Failed to cancel template deletion:', error);
+    }
+  });
+
+  // Handle Guide & Documentation Modal
+  const handleOpenGuide = async ({ ack, body, client }: any) => {
+    await ack();
+    const blockAction = body as BlockAction | undefined;
+    if (!blockAction?.trigger_id) return;
+    try {
+      await client.views.open({
+        trigger_id: blockAction.trigger_id,
+        view: buildGuideModalView(),
+      });
+    } catch (error) {
+      console.error('Failed to open guide modal:', error);
+    }
+  };
+
+  app.action('open_guide_modal', handleOpenGuide);
+  app.action('app_home_docs_click', handleOpenGuide);
+
+  // Handle Settings Modal
+  app.action('open_settings_modal', async ({ ack, body, client }) => {
+    await ack();
+    const blockAction = body as BlockAction;
+    const workspaceId = blockAction.team?.id ?? '';
+    const userId = blockAction.user.id;
+
+    try {
+      const [settings, canEdit] = await Promise.all([
+        PollService.getWorkspaceSettings(workspaceId),
+        PollService.isUserWorkspaceManager(client, userId, workspaceId),
+      ]);
+
+      await client.views.open({
+        trigger_id: blockAction.trigger_id,
+        view: buildSettingsModalView({
+          workspaceId,
+          canEdit,
+          allowMultipleActivePolls: settings.allowMultipleActivePolls,
+          defaultAnonymous: settings.defaultAnonymous,
+          defaultQuorumPct: settings.defaultQuorumPct,
+          allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+          maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
+          managerUserIds: settings.managerUserIds,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to open settings modal:', error);
+    }
   });
 }

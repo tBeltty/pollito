@@ -1,5 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { PollService } from '../../src/services/pollService.js';
+import {
+  PollService,
+  MIN_QUORUM_PERCENTAGE,
+  DEFAULT_MAX_NUDGE_MEMBERS,
+} from '../../src/services/pollService.js';
+import {
+  isHuddleMessage,
+  isHuddleEnded,
+  findChannelHuddles,
+  findActiveHuddleThread,
+} from '../../src/slack/utils/huddleDiscovery.js';
 import { PollTimerWorker } from '../../src/workers/pollTimerWorker.js';
 import { prisma } from '../../src/db/prisma.js';
 import { env } from '../../src/config/env.js';
@@ -15,6 +25,7 @@ describe('PollService', () => {
 
   beforeEach(async () => {
     // Clean test database tables
+    await prisma.pollTemplate.deleteMany();
     await prisma.publicVote.deleteMany();
     await prisma.anonymousBallot.deleteMany();
     await prisma.pollParticipation.deleteMany();
@@ -29,6 +40,7 @@ describe('PollService', () => {
         id: workspaceId,
         teamName: 'Acme Test Team',
         botToken: ['xoxb', 'mock', 'token'].join('-'),
+        installedByUserId: 'U_INSTALLER',
         settings: {
           create: {
             anonymousSalt: workspaceSalt,
@@ -100,30 +112,78 @@ describe('PollService', () => {
     });
   });
 
-  describe('createPoll', () => {
-    it('creates an active poll with indexed options', async () => {
+  describe('createPoll & Single Active Poll Per Channel Policy', () => {
+    it('creates an active poll with indexed options and clamps PERCENTAGE quorumTarget to >= 51', async () => {
       const poll = await PollService.createPoll({
         workspaceId,
         channelId: 'C_DEV_CHANNEL',
         messageTs: '1700000000.000100',
+        threadTs: '1700000000.000050',
         creatorId: 'U_CREATOR',
         question: 'Which framework should we use?',
         options: ['React', 'Vue', 'Svelte'],
-        quorumTarget: 60,
+        quorumTarget: 50, // Clamped to MIN_QUORUM_PERCENTAGE (51)
         eligibleVoterCount: 10,
       });
 
       expect(poll.id).toBeDefined();
       expect(poll.status).toBe('ACTIVE');
+      expect(poll.threadTs).toBe('1700000000.000050');
+      expect(poll.quorumTarget).toBe(MIN_QUORUM_PERCENTAGE);
       expect(poll.allowMultipleVotes).toBe(false);
       expect(poll.options).toHaveLength(3);
       expect(poll.options[0].text).toBe('React');
       expect(poll.options[0].index).toBe(0);
       expect(poll.options[0].voteCount).toBe(0);
     });
+
+    it('enforces single active poll per channel unless allowMultipleActivePolls is enabled in WorkspaceSettings', async () => {
+      const firstPoll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_SINGLE_POLL',
+        messageTs: '1700000000.000110',
+        creatorId: 'U_CREATOR',
+        question: 'First active poll',
+        options: ['Yes', 'No'],
+        enforceChannelConcurrency: true,
+      });
+
+      expect(firstPoll.status).toBe('ACTIVE');
+
+      // Second active poll in the same channel is blocked by default
+      await expect(
+        PollService.createPoll({
+          workspaceId,
+          channelId: 'C_SINGLE_POLL',
+          messageTs: '1700000000.000120',
+          creatorId: 'U_CREATOR',
+          question: 'Second active poll',
+          options: ['Yes', 'No'],
+          enforceChannelConcurrency: true,
+        })
+      ).rejects.toThrow(
+        'An active poll is already running in this channel. Close it first or select another channel.'
+      );
+
+      // Enable allowMultipleActivePolls in WorkspaceSettings
+      await PollService.updateWorkspaceSettings(workspaceId, {
+        allowMultipleActivePolls: true,
+      });
+
+      const secondPoll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_SINGLE_POLL',
+        messageTs: '1700000000.000130',
+        creatorId: 'U_CREATOR',
+        question: 'Second active poll allowed',
+        options: ['Yes', 'No'],
+        enforceChannelConcurrency: true,
+      });
+      expect(secondPoll.status).toBe('ACTIVE');
+    });
   });
 
-  describe('castVote & getNonVoters', () => {
+  describe('castVote, Strict >50% Quorum, Optional Quorum (NONE), & getNonVoters', () => {
     it('records anonymous votes in AnonymousBallot without createdAt and records voter in PollParticipation without linking choice', async () => {
       const poll = await PollService.createPoll({
         workspaceId,
@@ -133,7 +193,7 @@ describe('PollService', () => {
         question: 'Secret Ballot: Should we switch to 4-day workweek?',
         options: ['Yes', 'No'],
         isAnonymous: true,
-        quorumTarget: 50,
+        quorumTarget: 60,
         eligibleVoterCount: 4,
       });
 
@@ -303,44 +363,434 @@ describe('PollService', () => {
       expect(nonVoters).toEqual(['U_PENDING_1', 'U_PENDING_2']);
     });
 
-    it('automatically transitions status to QUORUM_REACHED when target is achieved', async () => {
-      const poll = await PollService.createPoll({
+    it('enforces strict >50% quorum: 50% (1 of 2 voters) NEVER reaches quorum, while >50% (2 of 2 or 2 of 3 at 66%) reaches QUORUM_REACHED', async () => {
+      const pollTwoVoters = await PollService.createPoll({
         workspaceId,
         channelId: 'C_DEV_CHANNEL',
         messageTs: '1700000000.000400',
         creatorId: 'U_CREATOR',
-        question: 'Quorum test',
+        question: 'Strict majority test (2 eligible)',
         options: ['Agree', 'Disagree'],
         quorumType: 'PERCENTAGE',
-        quorumTarget: 50,
-        eligibleVoterCount: 2, // 1 vote = 50%, reaching quorum!
+        quorumTarget: 51,
+        eligibleVoterCount: 2,
       });
 
-      const result = await PollService.castVote({
-        pollId: poll.id,
+      // 1 of 2 voters = 50% -> MUST NOT reach quorum
+      const firstVote = await PollService.castVote({
+        pollId: pollTwoVoters.id,
         voterId: 'U_CHARLIE',
-        optionId: poll.options[0].id,
+        optionId: pollTwoVoters.options[0].id,
         workspaceSalt,
       });
+      expect(firstVote.quorumReached).toBe(false);
+      expect(firstVote.poll.status).toBe('ACTIVE');
 
-      expect(result.quorumReached).toBe(true);
-      expect(result.poll.status).toBe('QUORUM_REACHED');
-      expect(result.poll.closedAt).not.toBeNull();
+      // 2 of 2 voters = 100% (>50%) -> reaches quorum
+      const secondVote = await PollService.castVote({
+        pollId: pollTwoVoters.id,
+        voterId: 'U_DAVE',
+        optionId: pollTwoVoters.options[0].id,
+        workspaceSalt,
+      });
+      expect(secondVote.quorumReached).toBe(true);
+      expect(secondVote.poll.status).toBe('QUORUM_REACHED');
+      expect(secondVote.poll.closedAt).not.toBeNull();
 
-      // Subsequent votes are rejected
+      // Subsequent votes are rejected once closed
       await expect(
         PollService.castVote({
-          pollId: poll.id,
-          voterId: 'U_DAVE',
-          optionId: poll.options[1].id,
+          pollId: pollTwoVoters.id,
+          voterId: 'U_EVE',
+          optionId: pollTwoVoters.options[1].id,
           workspaceSalt,
         })
       ).rejects.toThrow('This poll is closed and no longer accepting votes');
+
+      // Also verify 3 voters at 66% quorumTarget: 1 vote (33%) does not reach quorum, 2 votes (66.7%) reaches quorum
+      const pollThreeVoters = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_DEV_CHANNEL',
+        messageTs: '1700000000.000410',
+        creatorId: 'U_CREATOR',
+        question: 'Two-thirds test (3 eligible)',
+        options: ['Ship', 'Hold'],
+        quorumType: 'PERCENTAGE',
+        quorumTarget: 66,
+        eligibleVoterCount: 3,
+      });
+
+      const v1 = await PollService.castVote({
+        pollId: pollThreeVoters.id,
+        voterId: 'U_1',
+        optionId: pollThreeVoters.options[0].id,
+        workspaceSalt,
+      });
+      expect(v1.quorumReached).toBe(false);
+
+      const v2 = await PollService.castVote({
+        pollId: pollThreeVoters.id,
+        voterId: 'U_2',
+        optionId: pollThreeVoters.options[0].id,
+        workspaceSalt,
+      });
+      expect(v2.quorumReached).toBe(true);
+      expect(v2.poll.status).toBe('QUORUM_REACHED');
+    });
+
+    it('never auto-closes on votes when quorumType is NONE (Optional Quorum)', async () => {
+      const pollNoQuorum = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_DEV_CHANNEL',
+        messageTs: '1700000000.000420',
+        creatorId: 'U_CREATOR',
+        question: 'Open pulse check without quorum',
+        options: ['Great', 'Okay'],
+        quorumType: 'NONE',
+        quorumTarget: 0,
+        eligibleVoterCount: 2,
+      });
+
+      const vote1 = await PollService.castVote({
+        pollId: pollNoQuorum.id,
+        voterId: 'U_1',
+        optionId: pollNoQuorum.options[0].id,
+        workspaceSalt,
+      });
+      expect(vote1.quorumReached).toBe(false);
+      expect(vote1.poll.status).toBe('ACTIVE');
+
+      const vote2 = await PollService.castVote({
+        pollId: pollNoQuorum.id,
+        voterId: 'U_2',
+        optionId: pollNoQuorum.options[1].id,
+        workspaceSalt,
+      });
+      expect(vote2.quorumReached).toBe(false);
+      expect(vote2.poll.status).toBe('ACTIVE');
+    });
+  });
+
+  describe('Workspace Governance, Analytics Scoping, & Customizable CSV Filtering', () => {
+    it('identifies Workspace Managers via installer ID, delegated managerUserIds, or Slack admin flags', async () => {
+      const nonAdminClient = {
+        users: {
+          info: vi.fn().mockResolvedValue({
+            user: { is_admin: false, is_owner: false, is_primary_owner: false },
+          }),
+        },
+      };
+      const adminClient = {
+        users: {
+          info: vi.fn().mockResolvedValue({
+            user: { is_admin: true, is_owner: false, is_primary_owner: false },
+          }),
+        },
+      };
+
+      // 1. Installer is automatically a manager
+      expect(
+        await PollService.isUserWorkspaceManager(
+          nonAdminClient,
+          'U_INSTALLER',
+          workspaceId
+        )
+      ).toBe(true);
+
+      // 2. Standard member is not a manager
+      expect(
+        await PollService.isUserWorkspaceManager(
+          nonAdminClient,
+          'U_REGULAR',
+          workspaceId
+        )
+      ).toBe(false);
+
+      // 3. Delegated Bot Manager in WorkspaceSettings is a manager
+      const updatedSettings = await PollService.updateWorkspaceSettings(
+        workspaceId,
+        {
+          managerUserIds: ['U_DELEGATED_MGR'],
+          maxNudgeChannelMembers: 75,
+        }
+      );
+      expect(updatedSettings.maxNudgeChannelMembers).toBe(75);
+      expect(updatedSettings.managerUserIds).toEqual(['U_DELEGATED_MGR']);
+      expect(
+        await PollService.isUserWorkspaceManager(
+          nonAdminClient,
+          'U_DELEGATED_MGR',
+          workspaceId
+        )
+      ).toBe(true);
+
+      // 4. Slack Admin is a manager
+      expect(
+        await PollService.isUserWorkspaceManager(
+          adminClient,
+          'U_SLACK_ADMIN',
+          workspaceId
+        )
+      ).toBe(true);
+    });
+
+    it('scopes getPollAnalyticsStats to personal polls for standard members and all workspace polls for managers', async () => {
+      const p1 = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_1',
+        messageTs: '1700000000.001001',
+        creatorId: 'U_ALICE',
+        question: 'Alice Poll',
+        options: ['Yes', 'No'],
+        eligibleVoterCount: 3,
+      });
+      await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_2',
+        messageTs: '1700000000.001002',
+        creatorId: 'U_BOB',
+        question: 'Bob Poll',
+        options: ['Option 1', 'Option 2'],
+        isAnonymous: true,
+        eligibleVoterCount: 4,
+      });
+
+      await PollService.castVote({
+        pollId: p1.id,
+        voterId: 'U_V1',
+        optionId: p1.options[0].id,
+        workspaceSalt,
+      });
+
+      const aliceViewer = { userId: 'U_ALICE', isManager: false };
+      const managerViewer = { userId: 'U_INSTALLER', isManager: true };
+
+      const aliceStats = await PollService.getPollAnalyticsStats(
+        workspaceId,
+        aliceViewer,
+        30
+      );
+      expect(aliceStats.scope).toBe('personal');
+      expect(aliceStats.totalPolls).toBe(1);
+      expect(aliceStats.polls[0].creatorId).toBe('U_ALICE');
+      expect(aliceStats.totalBallotsCast).toBe(1);
+
+      const managerStats = await PollService.getPollAnalyticsStats(
+        workspaceId,
+        managerViewer,
+        30
+      );
+      expect(managerStats.scope).toBe('workspace');
+      expect(managerStats.totalPolls).toBe(2);
+      expect(managerStats.publicPollsCount).toBe(1);
+      expect(managerStats.anonymousPollsCount).toBe(1);
+    });
+
+    it('filters polls deterministically for CSV export by date range, status, and selectedPollIds', () => {
+      const samplePolls = [
+        {
+          id: 'P_JAN',
+          status: 'QUORUM_REACHED',
+          createdAt: new Date('2026-01-15T12:00:00.000Z'),
+        },
+        {
+          id: 'P_FEB',
+          status: 'CLOSED',
+          createdAt: new Date('2026-02-10T12:00:00.000Z'),
+        },
+        {
+          id: 'P_MAR',
+          status: 'ACTIVE',
+          createdAt: new Date('2026-03-20T12:00:00.000Z'),
+        },
+      ];
+
+      // Filter by date range
+      const febAndMar = PollService.filterPollsForCsv(samplePolls, {
+        startDate: '2026-02-01',
+        endDate: '2026-03-31',
+      });
+      expect(febAndMar.map((p) => p.id)).toEqual(['P_FEB', 'P_MAR']);
+
+      // Filter by QUORUM_REACHED status
+      const quorumOnly = PollService.filterPollsForCsv(samplePolls, {
+        statusFilter: 'QUORUM_REACHED',
+      });
+      expect(quorumOnly.map((p) => p.id)).toEqual(['P_JAN']);
+
+      // Filter by CLOSED status (includes CLOSED, TIME_EXPIRED, QUORUM_REACHED)
+      const closedPolls = PollService.filterPollsForCsv(samplePolls, {
+        statusFilter: 'CLOSED',
+      });
+      expect(closedPolls.map((p) => p.id)).toEqual(['P_JAN', 'P_FEB']);
+
+      // Filter by specific poll IDs
+      const specificPolls = PollService.filterPollsForCsv(samplePolls, {
+        selectedPollIds: ['P_MAR'],
+      });
+      expect(specificPolls.map((p) => p.id)).toEqual(['P_MAR']);
+    });
+  });
+
+  describe('PollTemplate CRUD & Workspace Sharing', () => {
+    it('supports saving, listing (personal + shared), duplicating, sharing/unsharing, unpublishing, and deleting templates', async () => {
+      // Alice saves a private template
+      const aliceTpl = await PollService.saveTemplate({
+        workspaceId,
+        ownerUserId: 'U_ALICE',
+        name: 'Sprint Retro Vote',
+        channelId: 'C_ENG',
+        question: 'How did the sprint go?',
+        options: ['Smooth', 'Challenging', 'Blocked'],
+        isAnonymous: true,
+        allowMultipleVotes: false,
+        quorumType: 'PERCENTAGE',
+        quorumTarget: 75,
+        duration: '24h',
+        isShared: false,
+      });
+
+      expect(aliceTpl.id).toBeDefined();
+      expect(aliceTpl.options).toEqual(['Smooth', 'Challenging', 'Blocked']);
+      expect(aliceTpl.isShared).toBe(false);
+
+      // Bob cannot see Alice's private template
+      const bobListBefore = await PollService.listTemplates(
+        workspaceId,
+        'U_BOB'
+      );
+      expect(bobListBefore).toHaveLength(0);
+
+      // Alice shares her template with the workspace
+      const sharedTpl = await PollService.setTemplateShared(
+        aliceTpl.id,
+        workspaceId,
+        'U_ALICE',
+        true
+      );
+      expect(sharedTpl.isShared).toBe(true);
+
+      // Bob can now see and duplicate the shared template
+      const bobListAfter = await PollService.listTemplates(
+        workspaceId,
+        'U_BOB'
+      );
+      expect(bobListAfter).toHaveLength(1);
+      expect(bobListAfter[0].id).toBe(aliceTpl.id);
+
+      const bobCopy = await PollService.duplicateTemplate(
+        aliceTpl.id,
+        workspaceId,
+        'U_BOB'
+      );
+      expect(bobCopy.ownerUserId).toBe('U_BOB');
+      expect(bobCopy.name).toBe('Sprint Retro Vote (Copy)');
+      expect(bobCopy.isShared).toBe(false);
+
+      // Workspace Manager can unpublish Alice's shared template
+      const unpublished = await PollService.unpublishTemplate(
+        aliceTpl.id,
+        workspaceId
+      );
+      expect(unpublished.isShared).toBe(false);
+
+      // Alice deletes her template
+      await PollService.deleteTemplate(aliceTpl.id, workspaceId, 'U_ALICE');
+      const deletedCheck = await PollService.getTemplate(
+        aliceTpl.id,
+        workspaceId,
+        'U_ALICE'
+      );
+      expect(deletedCheck).toBeNull();
+    });
+  });
+
+  describe('Huddle Discovery Utility', () => {
+    it('accurately detects active and ended Slack Huddle threads while ignoring bot messages', async () => {
+      expect(
+        isHuddleMessage({
+          bot_id: 'B123',
+          text: 'Someone started a huddle',
+        })
+      ).toBe(false);
+
+      expect(
+        isHuddleMessage({
+          ts: '1700000100.000100',
+          subtype: 'huddle_thread',
+          user: 'U_HOST',
+          room: {
+            id: 'R_1',
+            name: 'Architecture Sync',
+            created_by: 'U_HOST',
+            date_start: 1700000100,
+            has_ended: false,
+            participants: ['U_HOST'],
+          },
+        })
+      ).toBe(true);
+
+      expect(
+        isHuddleEnded({
+          ts: '1700000050.000100',
+          subtype: 'huddle_thread',
+          room: {
+            id: 'R_0',
+            has_ended: true,
+            date_end: 1700000090,
+          },
+        })
+      ).toBe(true);
+
+      const mockClient = {
+        conversations: {
+          join: vi.fn().mockResolvedValue({ ok: true }),
+          history: vi.fn().mockResolvedValue({
+            ok: true,
+            messages: [
+              {
+                ts: '1700000200.000100',
+                subtype: 'huddle_thread',
+                user: 'U_ACTIVE_HOST',
+                room: {
+                  id: 'R_ACTIVE',
+                  name: 'Incident Huddle',
+                  created_by: 'U_ACTIVE_HOST',
+                  date_start: 1700000200,
+                  has_ended: false,
+                  participants: ['U_ACTIVE_HOST'],
+                },
+              },
+              {
+                ts: '1700000100.000100',
+                subtype: 'huddle_thread',
+                user: 'U_PAST_HOST',
+                room: {
+                  id: 'R_ENDED',
+                  created_by: 'U_PAST_HOST',
+                  date_start: 1700000100,
+                  has_ended: true,
+                },
+              },
+            ],
+          }),
+        },
+      };
+
+      const huddles = await findChannelHuddles(mockClient, 'C_HUDDLE_CH');
+      expect(huddles).toHaveLength(2);
+      expect(huddles[0].ts).toBe('1700000200.000100');
+      expect(huddles[0].isActive).toBe(true);
+      expect(huddles[0].roomName).toBe('Incident Huddle');
+      expect(huddles[1].isActive).toBe(false);
+
+      const activeTs = await findActiveHuddleThread(mockClient, 'C_HUDDLE_CH');
+      expect(activeTs).toBe('1700000200.000100');
     });
   });
 
   describe('closePoll & PollTimerWorker', () => {
-    it('allows poll creator to manually close active poll', async () => {
+    it('allows poll creator or Workspace Manager to manually close active poll', async () => {
       const poll = await PollService.createPoll({
         workspaceId,
         channelId: 'C_DEV_CHANNEL',
@@ -350,7 +800,18 @@ describe('PollService', () => {
         options: ['A', 'B'],
       });
 
-      const closed = await PollService.closePoll(poll.id, 'U_LEAD');
+      // Non-creator without manager flag cannot close
+      await expect(
+        PollService.closePoll(poll.id, 'U_OTHER', 'CLOSED', false)
+      ).rejects.toThrow('Only the poll creator can manually close this poll');
+
+      // Manager can close even if not creator
+      const closed = await PollService.closePoll(
+        poll.id,
+        'U_MANAGER',
+        'CLOSED',
+        true
+      );
       expect(closed.status).toBe('CLOSED');
       expect(closed.closedAt).not.toBeNull();
     });

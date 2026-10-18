@@ -23,15 +23,29 @@ export function renderProgressBar(percentage: number, totalSlots = 10): string {
   return `${filledChar.repeat(filledSlots)}${emptyChar.repeat(emptySlots)} ${safePct}%`;
 }
 
+export interface PollMessageRenderOptions {
+  maxNudgeChannelMembers?: number;
+  allowVoterChoiceNudges?: boolean;
+}
+
 /**
  * Pure Block Kit message builder for Pollito in-channel and in-thread cards.
  */
-export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlock)[] {
+export function buildPollMessageBlocks(
+  poll: PollWithDetails,
+  options?: PollMessageRenderOptions
+): (Block | KnownBlock)[] {
   const totalVotes = poll.participations.length;
   const isClosed =
     poll.status === 'QUORUM_REACHED' ||
     poll.status === 'CLOSED' ||
     poll.status === 'TIME_EXPIRED';
+
+  const maxNudgeMembers = options?.maxNudgeChannelMembers ?? 50;
+  const allowNudges = options?.allowVoterChoiceNudges ?? true;
+  const canOfferNudge =
+    allowNudges &&
+    (poll.eligibleVoterCount <= 0 || poll.eligibleVoterCount <= maxNudgeMembers);
 
   // Determine Pollito mascot micro-expression
   let mascot = '🐣';
@@ -52,7 +66,7 @@ export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlo
     statusText = 'Time limit reached • Closed';
   } else if (poll.status === 'CLOSED') {
     statusText = 'Poll closed';
-  } else if (poll.eligibleVoterCount > 0) {
+  } else if (poll.quorumType !== 'NONE' && poll.eligibleVoterCount > 0) {
     const currentPct = (totalVotes / poll.eligibleVoterCount) * 100;
     if (currentPct >= poll.quorumTarget * 0.7) {
       statusText = 'Approaching quorum target';
@@ -138,38 +152,81 @@ export function buildPollMessageBlocks(poll: PollWithDetails): (Block | KnownBlo
   });
 
   if (!isClosed) {
+    const actionElements: any[] = [];
+
+    if (canOfferNudge) {
+      actionElements.push({
+        type: 'button',
+        text: {
+          type: 'plain_text',
+          text: 'Nudge Non-Voters',
+          emoji: true,
+        },
+        action_id: 'poll_nudge_click',
+        value: JSON.stringify({ pollId: poll.id }),
+        confirm: {
+          title: {
+            type: 'plain_text',
+            text: 'Send reminder to non-voters?',
+          },
+          text: {
+            type: 'mrkdwn',
+            text: 'Pollito will send a private DM reminder to eligible members in this channel who have not voted yet. Only the poll creator can trigger reminders (4-hour cooldown applies).',
+          },
+          confirm: {
+            type: 'plain_text',
+            text: 'Send Reminders',
+          },
+          deny: {
+            type: 'plain_text',
+            text: 'Cancel',
+          },
+        },
+      });
+    }
+
+    actionElements.push({
+      type: 'button',
+      text: {
+        type: 'plain_text',
+        text: 'Close Poll',
+        emoji: true,
+      },
+      action_id: 'poll_close_click',
+      value: JSON.stringify({ pollId: poll.id }),
+      style: 'danger',
+      confirm: {
+        title: {
+          type: 'plain_text',
+          text: 'Close this poll now?',
+        },
+        text: {
+          type: 'mrkdwn',
+          text: 'Voting will end immediately and final results will be posted to the thread.',
+        },
+        confirm: {
+          type: 'plain_text',
+          text: 'Close Poll',
+        },
+        deny: {
+          type: 'plain_text',
+          text: 'Keep Open',
+        },
+      },
+    });
+
     blocks.push({
       type: 'actions',
       block_id: 'poll_creator_actions',
-      elements: [
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: 'Nudge Non-Voters',
-            emoji: true,
-          },
-          action_id: 'poll_nudge_click',
-          value: JSON.stringify({ pollId: poll.id }),
-        },
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: 'Close Poll',
-            emoji: true,
-          },
-          action_id: 'poll_close_click',
-          value: JSON.stringify({ pollId: poll.id }),
-          style: 'danger',
-        },
-      ],
+      elements: actionElements,
     });
   }
 
   // Footer telemetry block
   let quorumReadout = '';
-  if (poll.quorumType === 'PERCENTAGE' && poll.eligibleVoterCount > 0) {
+  if (poll.quorumType === 'NONE') {
+    quorumReadout = `Total participants: ${totalVotes} • No quorum required`;
+  } else if (poll.quorumType === 'PERCENTAGE' && poll.eligibleVoterCount > 0) {
     const currentPct = Math.round((totalVotes / poll.eligibleVoterCount) * 100);
     quorumReadout = `Quorum target: ${poll.quorumTarget}% (${totalVotes}/${poll.eligibleVoterCount} members • ${currentPct}% reached)`;
   } else if (poll.quorumType === 'COUNT') {
