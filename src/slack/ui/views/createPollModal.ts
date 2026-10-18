@@ -240,14 +240,16 @@ export function buildCreatePollModalView(
       emoji: true,
     },
     blocks: [
-      ...(isHuddleMode && channelId
+      ...(isHuddleMode
         ? [
             {
               type: 'section' as const,
               block_id: 'huddle_target_banner',
               text: {
                 type: 'mrkdwn' as const,
-                text: `🎧 *Target: Active Huddle Thread* in <#${channelId}>\nThis poll will be posted directly inside the live Huddle thread.`,
+                text: preset.threadTs
+                  ? `🎧 *Target: Active Huddle Thread*${channelId ? ` in <#${channelId}>` : ''}\nThis poll will be posted directly inside the live Huddle thread.`
+                  : `🎧 *Target: Huddle Thread*${channelId ? ` in <#${channelId}>` : ''}\nPollito will auto-detect the active Huddle on launch, or you can paste the Huddle message link below.`,
               },
             },
           ]
@@ -276,6 +278,28 @@ export function buildCreatePollModalView(
           emoji: true,
         },
       },
+      ...(isHuddleMode
+        ? [
+            {
+              type: 'input' as const,
+              block_id: 'huddle_thread_block',
+              optional: true,
+              element: {
+                type: 'plain_text_input' as const,
+                action_id: 'huddle_thread_input',
+                placeholder: {
+                  type: 'plain_text' as const,
+                  text: 'Leave blank to auto-detect, or paste Huddle message link / thread ts',
+                },
+                ...(preset.threadTs ? { initial_value: preset.threadTs } : {}),
+              },
+              label: {
+                type: 'plain_text' as const,
+                text: 'Huddle Thread Link or Timestamp (Optional)',
+              },
+            },
+          ]
+        : []),
       {
         type: 'input',
         block_id: 'question_block',

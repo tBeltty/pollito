@@ -179,6 +179,28 @@ function formatHuddleTime(ts: string, dateStart?: number): {
 }
 
 /**
+ * Parses a Slack message link (e.g. `.../archives/C123/p1700000000123456`) or raw `thread_ts` (`1700000000.123456`)
+ * into a standard Slack timestamp (`1700000000.123456`), or returns `null` if invalid.
+ */
+export function parseHuddleThreadInput(raw: string): string | null {
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const linkMatch = trimmed.match(/p(\d{10})(\d{6})/);
+  if (linkMatch) {
+    return `${linkMatch[1]}.${linkMatch[2]}`;
+  }
+
+  if (/^\d{10}\.\d{6}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return null;
+}
+
+/**
  * Scans recent channel history to discover active and recently ended Slack Huddles.
  */
 export async function findChannelHuddles(
@@ -200,6 +222,7 @@ export async function findChannelHuddles(
   }
 
   let messages: any[] = [];
+  let historyLoaded = false;
   try {
     const response = await client.conversations?.history?.({
       channel: channelId,
@@ -207,18 +230,39 @@ export async function findChannelHuddles(
       ...(token ? { token } : {}),
     });
     messages = Array.isArray(response?.messages) ? response.messages : [];
-  } catch (err: any) {
-    const slackErr = err?.data?.error || err?.message || '';
-    if (slackErr === 'missing_scope' || String(slackErr).includes('missing_scope')) {
-      const cachedTs = getCachedActiveHuddleThread(channelId);
-      if (cachedTs) {
-        const { startedAt, timeFormatted } = formatHuddleTime(cachedTs);
-        return [{ ts: cachedTs, isActive: true, startedAt, timeFormatted }];
+    historyLoaded = true;
+  } catch {
+    const fallbackToken = process.env.SLACK_HUDDLE_DISCOVERY_TOKEN?.trim();
+    if (fallbackToken && fallbackToken !== token) {
+      try {
+        await client.conversations?.join?.({
+          channel: channelId,
+          token: fallbackToken,
+        });
+      } catch {
+        // Ignore join errors on fallback token
       }
-      const needed = err?.data?.needed || 'channels:history, groups:history';
-      throw new Error(
-        `Pollito needs the \`${needed}\` permission to detect active Huddle threads in this channel. Please update the Slack App permissions and reinstall Pollito at https://pollito.tbelt.online/slack/install.`
-      );
+      try {
+        const fallbackResponse = await client.conversations?.history?.({
+          channel: channelId,
+          limit: 50,
+          token: fallbackToken,
+        });
+        messages = Array.isArray(fallbackResponse?.messages)
+          ? fallbackResponse.messages
+          : [];
+        historyLoaded = true;
+      } catch {
+        historyLoaded = false;
+      }
+    }
+  }
+
+  if (!historyLoaded) {
+    const cachedTs = getCachedActiveHuddleThread(channelId);
+    if (cachedTs) {
+      const { startedAt, timeFormatted } = formatHuddleTime(cachedTs);
+      return [{ ts: cachedTs, isActive: true, startedAt, timeFormatted }];
     }
     return [];
   }
@@ -311,5 +355,5 @@ export async function findActiveHuddleThread(
 ): Promise<string | null> {
   const huddles = await findChannelHuddles(client, channelId, token);
   const active = huddles.find((h) => h.isActive);
-  return active ? active.ts : getCachedActiveHuddleThread(channelId);
+  return active ? active.ts : null;
 }

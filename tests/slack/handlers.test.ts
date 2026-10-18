@@ -757,7 +757,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
       expect(updateSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('handles /pollito huddle when no active Huddle thread exists, opens modal when found, and posts inline when quoted options are given', async () => {
+    it('handles /pollito huddle by opening the Huddle modal even when no active Huddle is detected, and posts inline when quoted options are given', async () => {
       const commandHandlers: Map<string, Function> = new Map();
       const mockApp = {
         command: (cmd: string, handler: Function) => commandHandlers.set(cmd, handler),
@@ -789,7 +789,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
         },
       } as any;
 
-      // 1. No active Huddle thread in channel
+      // 1. No active Huddle thread in channel -> plain `/pollito huddle` still opens modal with huddleMode: true
       historySpy.mockResolvedValueOnce({
         messages: [{ ts: '1700000000.000100', text: 'Regular chat message' }],
       });
@@ -806,16 +806,15 @@ describe('Slack Handlers & Channel Member Governance', () => {
         client: mockClient,
       });
 
-      expect(postEphemeralSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          channel: 'C_HUDDLE_CH',
-          user: 'U_HUDDLE_USER',
-          text: expect.stringContaining('No active Huddle thread was found'),
-        })
-      );
-      expect(viewsOpenSpy).not.toHaveBeenCalled();
+      expect(viewsOpenSpy).toHaveBeenCalledTimes(1);
+      const modalNoThread = viewsOpenSpy.mock.calls[0][0].view;
+      expect(JSON.parse(modalNoThread.private_metadata)).toEqual({
+        channelId: 'C_HUDDLE_CH',
+        huddleMode: true,
+      });
 
       // 2. Active Huddle thread exists -> plain `/pollito huddle` opens modal with threadTs in private_metadata
+      viewsOpenSpy.mockClear();
       historySpy.mockResolvedValueOnce({
         messages: [
           {

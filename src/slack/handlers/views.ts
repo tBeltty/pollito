@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { PollService } from '../../services/pollService.js';
 import { buildPollMessageBlocks } from '../ui/views/pollMessage.js';
 import { getEligibleChannelMembers } from '../utils/channelMembers.js';
-import { findActiveHuddleThread } from '../utils/huddleDiscovery.js';
+import {
+  findActiveHuddleThread,
+  parseHuddleThreadInput,
+} from '../utils/huddleDiscovery.js';
 import { publishHomeTab } from './events.js';
 
 export const createPollSubmissionSchema = z.object({
@@ -143,35 +146,36 @@ export function registerViewHandlers(app: App) {
       }
     }
 
-    // If modal was launched in Huddle mode and user switched channels (or threadTs needs verification), resolve active Huddle thread
-    if (
-      huddleModeFromMeta &&
-      (!threadTsFromMeta ||
-        (channelIdFromMeta && validated.selectedChannel !== channelIdFromMeta))
-    ) {
-      try {
-        threadTsFromMeta = await findActiveHuddleThread(
-          client,
-          validated.selectedChannel
-        );
-      } catch (huddleErr: any) {
+    const customThreadRaw =
+      values.huddle_thread_block?.huddle_thread_input?.value?.trim() ?? '';
+    if (customThreadRaw) {
+      const parsedCustomTs = parseHuddleThreadInput(customThreadRaw);
+      if (!parsedCustomTs) {
         await ack({
           response_action: 'errors',
           errors: {
-            channel_block:
-              huddleErr?.message ||
-              'Unable to inspect Huddle threads in the selected channel.',
+            huddle_thread_block:
+              'Invalid Slack thread link or timestamp. Paste a Slack message URL (.../archives/C.../p1234567890123456) or thread_ts (1234567890.123456).',
           },
         });
         return;
       }
-
+      threadTsFromMeta = parsedCustomTs;
+    } else if (
+      huddleModeFromMeta &&
+      (!threadTsFromMeta ||
+        (channelIdFromMeta && validated.selectedChannel !== channelIdFromMeta))
+    ) {
+      threadTsFromMeta = await findActiveHuddleThread(
+        client,
+        validated.selectedChannel
+      );
       if (!threadTsFromMeta) {
         await ack({
           response_action: 'errors',
           errors: {
-            channel_block:
-              'No active Huddle thread was found in the selected channel.',
+            huddle_thread_block:
+              'No active Huddle was detected in this channel. Start a Huddle first, or paste the Huddle message link here.',
           },
         });
         return;

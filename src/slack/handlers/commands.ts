@@ -9,7 +9,10 @@ import {
   formatPollClosureSummary,
   getEligibleChannelMembers,
 } from '../utils/channelMembers.js';
-import { findActiveHuddleThread } from '../utils/huddleDiscovery.js';
+import {
+  findActiveHuddleThread,
+  parseHuddleThreadInput,
+} from '../utils/huddleDiscovery.js';
 
 export function registerCommandHandlers(app: App) {
   app.command('/pollito', async ({ command, ack, client }) => {
@@ -51,24 +54,32 @@ export function registerCommandHandlers(app: App) {
           return;
         }
 
+        const huddleRest = text.slice(6).trim();
+        const leadingPart = huddleRest.split('"')[0]?.trim() || '';
+        const firstToken = leadingPart.split(/\s+/)[0] || '';
+        const parsedLinkTs = firstToken
+          ? parseHuddleThreadInput(firstToken)
+          : null;
+
         const explicitThreadTs =
           (command as any).thread_ts || (command as any).threadTs || null;
         const huddleThreadTs =
           explicitThreadTs ||
+          parsedLinkTs ||
           (await findActiveHuddleThread(client, command.channel_id));
-        if (!huddleThreadTs) {
-          await client.chat.postEphemeral({
-            channel: command.channel_id,
-            user: command.user_id,
-            text: 'No active Huddle thread was found in this channel. Start a Huddle in this channel first, then run `/pollito huddle`.',
-          });
-          return;
-        }
 
-        const huddleRest = text.slice(6).trim();
         const huddleMatches = [...huddleRest.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 
         if (huddleMatches.length >= 3) {
+          if (!huddleThreadTs) {
+            await client.chat.postEphemeral({
+              channel: command.channel_id,
+              user: command.user_id,
+              text: 'No active Huddle thread was found in this channel. Start a Huddle first, or run `/pollito huddle` to open the Huddle poll modal.',
+            });
+            return;
+          }
+
           const question = huddleMatches[0];
           const options = huddleMatches.slice(1, 7);
 

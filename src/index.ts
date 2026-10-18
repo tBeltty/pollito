@@ -288,7 +288,7 @@ export const app = new App(
 const processedEvents = new Map<string, number>();
 const EVENT_DEDUP_TTL_MS = 5 * 60 * 1000;
 
-app.use(async ({ context, body, next }) => {
+app.use(async ({ context, body, client, next }) => {
   const now = Date.now();
   for (const [id, timestamp] of processedEvents.entries()) {
     if (now - timestamp > EVENT_DEDUP_TTL_MS) {
@@ -315,7 +315,11 @@ app.use(async ({ context, body, next }) => {
   const teamId: string | undefined = payload?.team_id ?? payload?.team?.id;
   if (teamId) {
     try {
-      context.botToken = await PollService.resolveWorkspaceBotToken(teamId);
+      const resolvedToken = await PollService.resolveWorkspaceBotToken(teamId);
+      context.botToken = resolvedToken;
+      if (client) {
+        (client as any).token = resolvedToken;
+      }
     } catch {
       // Fallback to default token
     }
