@@ -96,9 +96,15 @@ export function registerViewHandlers(app: App) {
         throw new Error('Failed to reserve message timestamp in channel.');
       }
 
+      const workspaceId =
+        body.team?.id ||
+        (body as any).view?.team_id ||
+        (body as any).user?.team_id ||
+        '';
+
       // 4. Persist in database
       const poll = await PollService.createPoll({
-        workspaceId: body.team?.id ?? '',
+        workspaceId,
         channelId: selectedChannel,
         messageTs: placeholder.ts,
         creatorId: body.user.id,
