@@ -84,6 +84,21 @@ describe('Modal & App Home Views', () => {
     ) as any;
     expect(saveTemplateBlock).toBeDefined();
     expect(saveTemplateBlock.element.action_id).toBe('save_template_checkbox');
+    const saveOptionValues = saveTemplateBlock.element.options.map((o: any) => o.value);
+    expect(saveOptionValues).toContain('save_as_template');
+    expect(saveOptionValues).toContain('is_shared');
+    expect(saveTemplateBlock.element.initial_options).toBeUndefined();
+
+    const preSharedModal = buildCreatePollModalView({
+      isShared: true,
+      saveAsTemplate: true,
+    });
+    const preSharedSaveBlock = preSharedModal.blocks.find(
+      (b: any) => b.block_id === 'save_template_block'
+    ) as any;
+    const preSharedValues = preSharedSaveBlock.element.initial_options.map((o: any) => o.value);
+    expect(preSharedValues).toContain('save_as_template');
+    expect(preSharedValues).toContain('is_shared');
 
     const templateNameBlock = modal.blocks.find(
       (b: any) => b.block_id === 'template_name_block'

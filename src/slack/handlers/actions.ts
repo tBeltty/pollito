@@ -497,7 +497,7 @@ export function registerActionHandlers(app: App) {
 
     try {
       const isManager = await PollService.isUserWorkspaceManager(client, userId, workspaceId);
-      const isShared = targetType === 'workspace' || isManager;
+      const isShared = targetType === 'workspace';
 
       const view = buildCreatePollModalView({
         createTemplateMode: true,
@@ -826,6 +826,7 @@ export function registerActionHandlers(app: App) {
 
       if (verb === 'share' || verb === 'unshare') {
         await PollService.setTemplateShared(templateId, workspaceId, userId, verb === 'share');
+        publishHomeTab(client, userId, workspaceId).catch(() => {});
       } else if (verb === 'duplicate') {
         await PollService.duplicateTemplate(templateId, workspaceId, userId);
         nextTab = 'mine';
@@ -834,6 +835,7 @@ export function registerActionHandlers(app: App) {
       } else if (verb === 'unpublish' && isManager) {
         await PollService.unpublishTemplate(templateId, workspaceId);
         nextTab = 'workspace';
+        publishHomeTab(client, userId, workspaceId).catch(() => {});
       }
 
       if (viewId) {
