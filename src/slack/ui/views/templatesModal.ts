@@ -1,5 +1,4 @@
 import type { Block, KnownBlock, ModalView, PlainTextOption } from '@slack/web-api';
-import { BUILT_IN_POLL_TEMPLATES } from './createPollModal.js';
 
 export interface PollTemplateData {
   id: string;
@@ -15,6 +14,7 @@ export interface PollTemplateData {
   quorumType: 'PERCENTAGE' | 'NONE' | string;
   quorumTarget: number;
   duration: string;
+  forwardToChannelOnHuddleEnd?: boolean;
   isShared: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -33,7 +33,6 @@ export function buildTemplatesModalView(
 ): ModalView {
   const mine = templates.filter((t) => (t.creatorId ?? t.ownerUserId) === viewerUserId);
   const workspaceShared = templates.filter((t) => t.isShared);
-  const builtInEntries = Object.entries(BUILT_IN_POLL_TEMPLATES);
 
   const blocks: (Block | KnownBlock)[] = [
     {
@@ -41,6 +40,17 @@ export function buildTemplatesModalView(
       text: {
         type: 'mrkdwn',
         text: 'Save recurring team questions, quorum rules, and ballot settings as reusable poll templates.',
+      },
+      accessory: {
+        type: 'button',
+        text: {
+          type: 'plain_text',
+          text: state.isManager ? '+ Create Workspace Template' : '+ New Template',
+          emoji: true,
+        },
+        style: 'primary',
+        action_id: 'open_create_template_modal',
+        value: state.isManager ? 'workspace' : 'mine',
       },
     },
     {
@@ -61,7 +71,7 @@ export function buildTemplatesModalView(
           type: 'button',
           text: {
             type: 'plain_text',
-            text: `Workspace Templates (${workspaceShared.length + builtInEntries.length})`,
+            text: `Workspace Templates (${workspaceShared.length})`,
             emoji: true,
           },
           action_id: 'templates_tab_workspace',
@@ -213,52 +223,16 @@ export function buildTemplatesModalView(
       }
     }
   } else {
-    blocks.push({
-      type: 'header',
-      text: {
-        type: 'plain_text',
-        text: 'Built-In Engineering Templates',
-      },
-    });
-
-    for (const [key, tpl] of builtInEntries) {
-      const privacyLabel = tpl.isAnonymous ? 'Anonymous' : 'Public';
-      const quorumLabel =
-        tpl.quorumType === 'NONE' ? 'No quorum' : `${tpl.quorumTarget}% quorum`;
+    if (workspaceShared.length === 0) {
       blocks.push({
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*${tpl.name}* • _Built-in_\n_${tpl.question}_\n${tpl.options.length} options • ${privacyLabel} • ${quorumLabel}`,
-        },
-        accessory: {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: 'Launch Poll',
-            emoji: true,
-          },
-          action_id: `app_home_template_${key}`,
-          value: key,
+          text: '_No workspace templates published yet. Workspace admins and teammates can create templates and share them with the entire team._',
         },
       });
-    }
-
-    if (workspaceShared.length > 0) {
-      blocks.push(
-        {
-          type: 'divider',
-        },
-        {
-          type: 'header',
-          text: {
-            type: 'plain_text',
-            text: 'Shared by Teammates',
-          },
-        }
-      );
-
-      for (const tpl of workspaceShared.slice(0, 20)) {
+    } else {
+      for (const tpl of workspaceShared.slice(0, 25)) {
         renderCustomTemplateRow(tpl);
       }
     }

@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  buildCreatePollModalView,
-  BUILT_IN_POLL_TEMPLATES,
-} from '../../src/slack/ui/views/createPollModal.js';
+import { buildCreatePollModalView } from '../../src/slack/ui/views/createPollModal.js';
 import {
   buildAppHomeView,
   buildPollsCsvReport,
@@ -92,8 +89,19 @@ describe('Modal & App Home Views', () => {
       (b: any) => b.block_id === 'template_name_block'
     ) as any;
     expect(templateNameBlock).toBeDefined();
-    expect(templateNameBlock.element.action_id).toBe('template_name_input');
-    expect( BUILT_IN_POLL_TEMPLATES.lunch.quorumType).toBe('NONE');
+    const templateCreateModal = buildCreatePollModalView({
+      createTemplateMode: true,
+      isShared: true,
+      templateName: 'Admin Standup',
+      question: 'Standup Blockers?',
+      options: ['Clear', 'Blocked'],
+    });
+    expect(templateCreateModal.callback_id).toBe('create_template_modal_submit');
+    expect(templateCreateModal.title.text).toBe('New Workspace Template');
+    expect(templateCreateModal.submit?.text).toBe('Create Template');
+    expect(
+      templateCreateModal.blocks.some((b: any) => b.block_id === 'template_share_block')
+    ).toBe(true);
   });
 
   it('buildCreatePollModalView supports preset templates, threadTs metadata, and editTemplateId mode', () => {
@@ -398,7 +406,7 @@ describe('Modal & App Home Views', () => {
     );
     const tplJson = JSON.stringify(templatesModal);
     expect(tplJson).toContain('My Templates (1)');
-    expect(tplJson).toContain('Workspace Templates (5)');
+    expect(tplJson).toContain('Workspace Templates (1)');
     expect(tplJson).toContain('confirm_delete_template');
 
     const readOnlySettings = buildSettingsModalView({
