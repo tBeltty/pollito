@@ -209,7 +209,10 @@ export function registerViewHandlers(app: App) {
     // Optional template save
     const saveTemplateOptions =
       values.save_template_block?.save_template_checkbox?.selected_options ?? [];
-    const saveAsTemplate = saveTemplateOptions.some((o: any) => o.value === 'save_as_template');
+    const saveAsTemplate = saveTemplateOptions.some(
+      (o: any) => o.value === 'save_as_template' || o.value === 'is_shared'
+    );
+    const isShared = saveTemplateOptions.some((o: any) => o.value === 'is_shared');
     if (saveAsTemplate && workspaceId) {
       const templateName =
         values.template_name_block?.template_name_input?.value?.trim() ||
@@ -228,7 +231,9 @@ export function registerViewHandlers(app: App) {
           quorumTarget: validated.quorumTarget ?? 70,
           duration: durationValue,
           forwardToChannelOnHuddleEnd,
+          isShared,
         });
+        publishHomeTab(client, body.user.id, workspaceId).catch(() => {});
       } catch (tplErr) {
         console.error('Failed to save template during poll creation:', tplErr);
       }

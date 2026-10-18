@@ -82,7 +82,7 @@ export function buildCreatePollModalView(
   const saveAsTemplateOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*Save as reusable template*\nStore this question, options, and quorum setup in your Templates menu.',
+      text: '*Save as reusable template (Private to you)*\nStore this question, options, and quorum setup in your personal Templates.',
     },
     value: 'save_as_template',
   };
@@ -90,7 +90,7 @@ export function buildCreatePollModalView(
   const shareTemplateOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: '*Share with workspace as Quick Template*\nMake this template visible on App Home and accessible for all teammates to launch in one click.',
+      text: '*Make public to workspace*\nAllow all teammates to see and launch this template from App Home and the Templates directory.',
     },
     value: 'is_shared',
   };
@@ -98,6 +98,9 @@ export function buildCreatePollModalView(
   const initialSaveTemplateOptions: MrkdwnOption[] = [];
   if (preset.saveAsTemplate) {
     initialSaveTemplateOptions.push(saveAsTemplateOption);
+  }
+  if (preset.isShared) {
+    initialSaveTemplateOptions.push(shareTemplateOption);
   }
 
   const durationOptions: PlainTextOption[] = [
@@ -483,7 +486,7 @@ export function buildCreatePollModalView(
               element: {
                 type: 'checkboxes' as const,
                 action_id: 'save_template_checkbox',
-                options: [saveAsTemplateOption],
+                options: [saveAsTemplateOption, shareTemplateOption],
                 ...(initialSaveTemplateOptions.length > 0
                   ? { initial_options: initialSaveTemplateOptions }
                   : {}),
