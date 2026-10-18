@@ -117,7 +117,7 @@ export function buildCreatePollModalView(channelId: string): ModalView {
             {
               text: {
                 type: 'mrkdwn',
-                text: '*Anonymous Ballot*\nKeep votes private so nobody can see who chose what.',
+                text: '*Anonymous Ballot*\nHide voter names. Leave unchecked for a public poll where votes are visible to the team.',
               },
               value: 'is_anonymous',
             },

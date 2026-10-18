@@ -112,7 +112,7 @@ export function buildAppHomeView(polls: PollSummary[]): HomeView {
         elements: [
           {
             type: 'mrkdwn',
-            text: '🔒 Anonymous voting enabled • 100% Free for your workspace',
+            text: 'Public and anonymous polls • 100% Free for your workspace',
           },
         ],
       },
