@@ -324,7 +324,16 @@ body {
   max-height: 100%;
 }
 
+.hero-visual-stage::before {
+  content: "";
+  position: absolute;
+  inset: -10% -6%;
+  background: radial-gradient(ellipse 60% 55% at 55% 50%, rgba(124, 58, 237, 0.38) 0%, rgba(124, 58, 237, 0.14) 45%, transparent 75%);
+  pointer-events: none;
+}
+
 .hero-visual-stage img {
+  position: relative;
   width: auto;
   max-width: 100%;
   max-height: min(480px, calc(100dvh - 180px));
