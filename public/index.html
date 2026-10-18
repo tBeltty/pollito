@@ -202,8 +202,8 @@
               <rect width="7" height="5" x="3" y="16" rx="1"/>
             </svg>
           </div>
-          <h3>App Home Dashboard</h3>
-          <p>Review team participation rates, active ballots, and consensus history directly inside Slack. Export CSV logs for audit trails without an external web portal.</p>
+          <h3>Workspace Decision Hub</h3>
+          <p>Review active polls, consensus history, and participation rates directly in Slack. Export CSV summaries anytime without opening an external dashboard.</p>
         </div>
 
         <div class="feature-card">
@@ -214,8 +214,8 @@
               <path d="M12 12.5V15"/>
             </svg>
           </div>
-          <h3>Double-Urn Secret Ballots</h3>
-          <p>Salted HMAC-SHA256 tokens isolate voter IDs from submitted options. Database tallies record votes without storing any link back to the voter.</p>
+          <h3>Secret Ballots</h3>
+          <p>Teammates vote without fear of judgment or office politics. Ballots are decoupled from Slack accounts, so nobody can see who chose what, including channel managers and poll creators.</p>
         </div>
 
         <div class="feature-card">
@@ -226,8 +226,8 @@
               <circle cx="12" cy="12" r="2"/>
             </svg>
           </div>
-          <h3>Automated Quorum Closing</h3>
-          <p>Define a participation threshold per channel. Pollito tallies incoming votes dynamically, locks the ballot once quorum is reached, and posts the final resolution.</p>
+          <h3>Automatic Quorum Closing</h3>
+          <p>Set a participation target like 75% of channel members. Pollito locks the vote the second that threshold is reached and announces the winning choice in-thread.</p>
         </div>
 
         <div class="feature-card">
@@ -237,8 +237,8 @@
               <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
             </svg>
           </div>
-          <h3>Targeted Follow-Up DMs</h3>
-          <p>Automated reminders route exclusively to teammates who have not cast a ballot. Reminders fire without exposing who already participated.</p>
+          <h3>Targeted DM Reminders</h3>
+          <p>Ping only teammates who have not voted yet. Private reminders close participation gaps without public thread callouts or tagging the whole channel.</p>
         </div>
 
         <div class="feature-card">
@@ -247,8 +247,8 @@
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
             </svg>
           </div>
-          <h3>Rate-Limited Event Queue</h3>
-          <p>An in-memory queue paces concurrent votes across Slack Web API endpoints, preventing HTTP 429 rate limits during large standups or all-hands meetings.</p>
+          <h3>Sub-Second Live Tallies</h3>
+          <p>Cast votes update in real time during live standups and all-hands. Built with message queues that absorb sudden voting spikes without lag or dropped responses.</p>
         </div>
 
         <div class="feature-card">
@@ -258,8 +258,8 @@
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
           </div>
-          <h3>Least-Privilege Scopes</h3>
-          <p>Operates without message history reading, calendar access, or third-party AI processing. Clears enterprise InfoSec review on day one.</p>
+          <h3>Minimal Bot Scopes</h3>
+          <p>Pollito requires only the permissions needed to post polls and record clicks. It never requests message history, private channels, or calendar access, speeding up workspace IT approval.</p>
         </div>
       </div>
     </section>
