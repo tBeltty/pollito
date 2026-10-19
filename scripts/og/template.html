@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <style>
+  /* Slack and some feeds show this image as a square thumbnail cropped from the centre, so the
+     message and the mascot live inside the central 630x630 square (x 285 to 915). The chips on
+     the bars on the sides are decoration for the wide card. */
   @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@500;800&display=swap');
   * { box-sizing: border-box; margin: 0; }
   html, body { width: 1200px; height: 630px; overflow: hidden; }
@@ -10,34 +13,35 @@
     font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background-color: #0f172a;
     background-image:
+      radial-gradient(ellipse 38% 62% at 50% 62%, rgba(124,58,237,0.42), transparent 70%),
       linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-    background-size: 64px 64px;
+    background-size: 100% 100%, 64px 64px, 64px 64px;
     color: #fff;
     position: relative;
   }
-  .frame {
-    position: absolute; inset: 32px;
-    border-radius: 36px;
-    border: 2px solid rgba(139,92,246,0.55);
-    box-shadow: 0 0 90px 8px rgba(139,92,246,0.35), inset 0 0 70px rgba(139,92,246,0.12);
-  }
-  .copy { position: absolute; left: 96px; top: 0; bottom: 0; width: 560px; display: flex; flex-direction: column; justify-content: center; gap: 28px; }
-  .brand { display: flex; align-items: center; gap: 16px; font-weight: 800; font-size: 34px; letter-spacing: -0.02em; }
-  .brand img { width: 56px; height: 56px; }
-  h1 { font-size: 70px; line-height: 1.04; font-weight: 800; letter-spacing: -0.03em; text-wrap: balance; }
-  p { font-size: 30px; font-weight: 500; color: #94a3b8; }
-  .art { position: absolute; right: 64px; top: 50%; transform: translateY(-50%); width: 500px; }
-  .art img { width: 100%; display: block; }
+  .frame { position: absolute; inset: 24px; border-radius: 36px; border: 2px solid rgba(139,92,246,0.5); box-shadow: inset 0 0 70px rgba(139,92,246,0.12); }
+  .brand { position: absolute; top: 44px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 14px; font-weight: 800; font-size: 30px; letter-spacing: -0.02em; color: #cbd5e1; }
+  .brand img { width: 46px; height: 46px; }
+  h1 { position: absolute; top: 104px; left: 0; right: 0; text-align: center; font-size: {{SIZE}}px; line-height: 1.1; font-weight: 800; letter-spacing: -0.03em; }
+  .mascot { position: absolute; left: 50%; bottom: 34px; width: 360px; transform: translateX(-50%); filter: drop-shadow(0 18px 24px rgba(0,0,0,0.45)); }
+  .bars { position: absolute; display: grid; gap: 22px; width: 330px; opacity: 0.9; }
+  .bars.left { left: 70px; top: 300px; }
+  .bars.right { right: 70px; top: 240px; justify-items: end; }
+  .bar { height: 26px; border-radius: 13px; }
+  .bar.p { background: linear-gradient(90deg,#7c3aed,#8b5cf6); }
+  .bar.a { background: linear-gradient(90deg,#f59e0b,#f5b73b); }
+  .bar.g { background: #2b2e34; }
+  .bars.right .bar.p { background: linear-gradient(270deg,#7c3aed,#8b5cf6); }
+  .bars.right .bar.a { background: linear-gradient(270deg,#f59e0b,#f5b73b); }
 </style>
 </head>
 <body>
   <div class="frame"></div>
-  <div class="copy">
-    <div class="brand"><img src="file://{{ROOT}}/public/assets/plates/pollito-nav-logo.png" alt="">Pollito</div>
-    <h1>{{H1}}</h1>
-    <p>{{SUB}}</p>
-  </div>
-  <div class="art"><img src="file://{{ROOT}}/public/assets/plates/mascot-pollito-stage.png" alt=""></div>
+  <div class="brand"><img src="file://{{ROOT}}/public/assets/plates/pollito-nav-logo.png" alt="">Pollito</div>
+  <h1>{{H1}}</h1>
+  <img class="mascot" src="file://{{ROOT}}/public/assets/plates/mascot-pollito.png" alt="">
+  <div class="bars left" aria-hidden="true"><div class="bar p" style="width:92%"></div><div class="bar g" style="width:100%"></div><div class="bar a" style="width:46%"></div></div>
+  <div class="bars right" aria-hidden="true"><div class="bar a" style="width:40%"></div><div class="bar g" style="width:100%"></div><div class="bar p" style="width:84%"></div></div>
 </body>
 </html>
