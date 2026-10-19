@@ -37,7 +37,7 @@ Unlike market leaders (Simple Poll, Polly) that enforce punitive per-seat pricin
 - **Transport**: Dual mode (Socket Mode for development, HTTPReceiver for production).
 - **Web Frontend**: Native HTML5, modern CSS (Custom Properties, Container Queries, `:has()`, Fluid Typography), vanilla JavaScript.
 - **Voting Mechanics**: Single-choice, multiple-choice, secret ballot (double-urn architecture with HKDF-SHA256 salted tokens), quorum thresholds (50%, 66%, 75%, 80%, 100%), time-based closing (15m, 1h, 4h, 24h, 72h) with automated background timer worker, manual creator closing, and smart nudges.
-- **Editorial Standard**: Strict Anti-AI Slop prose protocol, zero binary contrasts, zero colon reveals, zero em-dashes in Block Kit, 100% tuteo in Spanish, native direct English for Slack Directory.
+- **Editorial Standard**: Strict plain-prose protocol, zero binary contrasts, zero colon reveals, zero em-dashes in Block Kit, 100% tuteo in Spanish, native direct English for Slack Directory.
 
 ## Brand Commitments
 

@@ -4,7 +4,7 @@ This guideline governs all text, Slack Block Kit copy, bot notifications, modals
 
 ---
 
-## 1. Writing Hygiene Directive & Anti-AI Slop
+## 1. Writing Hygiene Directive
 
 All copy must adhere to direct, natural human cadence and eliminate predictable rhetorical tropes that inflate word count, dilute clarity, or trigger AI-generation fingerprints.
 

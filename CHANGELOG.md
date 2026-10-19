@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multilingual XML sitemap (`public/sitemap.xml`) with alternate `hreflang` definitions.
 - Localized interactive Slack poll simulator (`public/app.js`) detecting `<html lang="es">` or `/es/` pathname and displaying Spanish poll states and tallies.
 - Comprehensive automated test suites in `tests/i18n/catalogParity.test.ts` (enforcing key parity, parameter matching, and locale resolution) and `tests/i18n/messageFormat.test.ts` (ICU plurals, selects, and Intl formatters).
-- Engineering guideline `docs/guidelines/I18N.md` detailing catalog conventions, ICU syntax, Slack Block Kit text expansion resilience, and Spanish editorial standards (100% tuteo, RAE punctuation, zero AI slop).
+- Engineering guideline `docs/guidelines/I18N.md` detailing catalog conventions, ICU syntax, Slack Block Kit text expansion resilience, and Spanish editorial standards (100% tuteo, RAE punctuation, plain prose).
 
 ### Changed
 - App Home layout: values lead each stat, poll details sit on a single context line, and export and documentation links moved to the bottom. Delete and Clear closed polls no longer use red styling and keep their confirmation dialogs.
