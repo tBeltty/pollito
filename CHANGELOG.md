@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Messages and error texts were rewritten to be clearer and shorter, in both languages.
 - The website has a new headline, "Polls that close at quorum.", a new mascot, a layout that works from small phones to large screens, and a preview image that Slack shows without cutting the text.
 - Pollito has a new profile picture and site icons.
+- The website footer links to the auditable source code repository on GitHub.
 
 ## [0.2.0] - 2026-10-18
 
