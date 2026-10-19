@@ -66,7 +66,7 @@ pnpm build
 
 - [OPERATIONS.md](OPERATIONS.md): architecture, credentials, deployment, and server operations
 - [PRODUCT.md](PRODUCT.md): positioning, personas, and brand
-- [docs/KNOWLEDGE_INDEX.md](docs/KNOWLEDGE_INDEX.md): engineering guidelines index
+- [docs/guidelines](docs/guidelines/): coding, security, UI, i18n, and editorial standards
 - [CHANGELOG.md](CHANGELOG.md): release history
 
 ## License and security

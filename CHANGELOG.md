@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Subcommand aliases `/pollito-huddle`, `/pollito-report`, `/pollito-close` and `/pollito-nudge`, so Slack suggests every action when you type `/pollito`. The updated `manifest.json` registers them with usage hints.
 - Public status page (`public/status/`, served at `pollito.tbelt.online/status/`): current state, 30-day uptime, time since the last restart, response time, a 90-day availability chart, and recent restarts and outages, in English and Spanish. A one-minute probe (`src/status/probe.ts`) writes a sanitized `status.json` with no hostnames, process ids, or resource figures; the pure history logic in `src/status/history.ts` is covered by tests. An nginx `location` snippet lives in `deploy/nginx/`.
 - Comprehensive bilingual internationalization (i18n) and localization (l10n) architecture for English (`en`, default) and Spanish (`es`) across Slack and web surfaces.
 - Typed message catalogs (`src/i18n/catalogs/en.ts` and `src/i18n/catalogs/es.ts`) with 317 compile-time verified message keys and 100% key and parameter parity.
@@ -21,9 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Engineering guideline `docs/guidelines/I18N.md` detailing catalog conventions, ICU syntax, Slack Block Kit text expansion resilience, and Spanish editorial standards (100% tuteo, RAE punctuation, zero AI slop).
 
 ### Changed
+- App Home layout: values lead each stat, poll details sit on a single context line, and export and documentation links moved to the bottom. Delete and Clear closed polls no longer use red styling and keep their confirmation dialogs.
+- Landing page: new headline ("Polls that close at quorum."), a hero built from the new mascot and an HTML poll card, a rem-based mobile-first stylesheet, and an Open Graph image designed for Slack's square crop.
 - Refactored all Slack UI Block Kit view builders (`src/slack/ui/views/`) to accept pure `Translator` instances, maintaining deterministic, clock-free rendering without side effects.
 - Updated `public/styles.css` with responsive `.lang-switch-wrap` and `.lang-switch` pills and flexbox resilience for 20-45% text expansion in Spanish.
-- Updated `AGENTS.md` and `docs/KNOWLEDGE_INDEX.md` to reference the bilingual i18n architecture and guideline.
 
 ## [0.2.0] - 2026-10-18
 
