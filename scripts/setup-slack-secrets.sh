@@ -3,7 +3,6 @@ set -euo pipefail
 
 # ==============================================================================
 # Blind-Secret Ingestion Script for Pollito Slack App
-# Complies with ~/.gemini/config/rules/blind-secrets.md
 # ==============================================================================
 
 echo "🔒 Pollito Blind-Secret Setup"

@@ -158,7 +158,7 @@ describe('Modal & App Home Views', () => {
     expect(durationBlock.element.initial_option.value).toBe('7d');
   });
 
-  it('buildAppHomeView renders HuddlePace-style top bar, role badges, and creator-only Nudge button on small channels', () => {
+  it('buildAppHomeView renders the top bar, role badges, and creator-only Nudge button on small channels', () => {
     const samplePolls: PollSummary[] = [
       {
         id: 'poll_creator_small',
