@@ -7,25 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Subcommand aliases `/pollito-huddle`, `/pollito-report`, `/pollito-close` and `/pollito-nudge`, so Slack suggests every action when you type `/pollito`. The updated `manifest.json` registers them with usage hints.
-- Public status page (`public/status/`, served at `pollito.tbelt.online/status/`): current state, 30-day uptime, time since the last restart, response time, a 90-day availability chart, and recent restarts and outages, in English and Spanish. A one-minute probe (`src/status/probe.ts`) writes a sanitized `status.json` with no hostnames, process ids, or resource figures; the pure history logic in `src/status/history.ts` is covered by tests. An nginx `location` snippet lives in `deploy/nginx/`.
-- Comprehensive bilingual internationalization (i18n) and localization (l10n) architecture for English (`en`, default) and Spanish (`es`) across Slack and web surfaces.
-- Typed message catalogs (`src/i18n/catalogs/en.ts` and `src/i18n/catalogs/es.ts`) with 317 compile-time verified message keys and 100% key and parameter parity.
-- Lightweight, zero-dependency ICU MessageFormat parser supporting parameter interpolation, plurals (`Intl.PluralRules`), select branches, and ECMAScript `Intl` formatters (number, date, relative time, and list).
-- Dynamic Slack locale resolution hierarchy (`src/slack/utils/locale.ts`) checking user Slack language (`users.info` with 1-hour TTL cache), workspace settings default, and global fallback to English.
-- Workspace default language configuration dropdown in the Settings modal (`WorkspaceSettings.locale`) and creator locale persistence on `Poll.locale` for background announcements.
-- Full Spanish localized routes for marketing and legal pages (`public/es/index.html`, `public/es/privacy.html`, `public/es/terms.html`, `public/es/support.html`) and mirrored `/en/` paths with bidirectional `hreflang` tags (`en`, `es`, `x-default`) and localized OpenGraph metadata.
-- Multilingual XML sitemap (`public/sitemap.xml`) with alternate `hreflang` definitions.
-- Localized interactive Slack poll simulator (`public/app.js`) detecting `<html lang="es">` or `/es/` pathname and displaying Spanish poll states and tallies.
-- Comprehensive automated test suites in `tests/i18n/catalogParity.test.ts` (enforcing key parity, parameter matching, and locale resolution) and `tests/i18n/messageFormat.test.ts` (ICU plurals, selects, and Intl formatters).
-- Engineering guideline `docs/guidelines/I18N.md` detailing catalog conventions, ICU syntax, Slack Block Kit text expansion resilience, and Spanish editorial standards (100% tuteo, RAE punctuation, plain prose).
+### New
+- Pollito speaks English and Spanish. It uses each person's Slack language, and admins can set a workspace default in Settings. The website, legal pages, and the poll demo are available in both languages too.
+- Type `/pollito` and Slack now suggests every action: `/pollito-huddle`, `/pollito-report`, `/pollito-close`, and `/pollito-nudge` also work as commands on their own.
+- A public status page at pollito.tbelt.online/status/ shows whether Pollito is running, uptime over 30 and 90 days, response time, and any recent restarts or outages.
+- After installing, the confirmation page sends you to the help and support page.
 
-### Changed
-- App Home layout: values lead each stat, poll details sit on a single context line, and export and documentation links moved to the bottom. Delete and Clear closed polls no longer use red styling and keep their confirmation dialogs.
-- Landing page: new headline ("Polls that close at quorum."), a hero built from the new mascot and an HTML poll card, a rem-based mobile-first stylesheet, and an Open Graph image designed for Slack's square crop.
-- Refactored all Slack UI Block Kit view builders (`src/slack/ui/views/`) to accept pure `Translator` instances, maintaining deterministic, clock-free rendering without side effects.
-- Updated `public/styles.css` with responsive `.lang-switch-wrap` and `.lang-switch` pills and flexbox resilience for 20-45% text expansion in Spanish.
+### Improved
+- App Home is easier to read: the numbers come first, each poll shows its channel, votes and status on one quiet line, and the export and documentation links sit at the bottom. Delete and Clear closed polls are no longer red, and still ask before removing anything.
+- Messages and error texts were rewritten to be clearer and shorter, in both languages.
+- The website has a new headline, "Polls that close at quorum.", a new mascot, a layout that works from small phones to large screens, and a preview image that Slack shows without cutting the text.
+- Pollito has a new profile picture and site icons.
 
 ## [0.2.0] - 2026-10-18
 
