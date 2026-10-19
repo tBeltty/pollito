@@ -390,7 +390,8 @@ export class PollService {
     }
 
     try {
-      const res = await client?.users?.info?.({ user: userId });
+      const botToken = await this.resolveWorkspaceBotToken(workspaceId);
+      const res = await client?.users?.info?.({ token: botToken, user: userId });
       if (
         res?.user?.is_admin ||
         res?.user?.is_owner ||

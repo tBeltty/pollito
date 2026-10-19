@@ -12,6 +12,7 @@ import {
   registerViewHandlers,
   createPollSubmissionSchema,
 } from '../../src/slack/handlers/views.js';
+import { publishHomeTab } from '../../src/slack/handlers/events.js';
 
 describe('Slack Handlers & Channel Member Governance', () => {
   const workspaceId = 'T_SLACK_HANDLERS_TEST';
@@ -1140,5 +1141,248 @@ describe('Slack Handlers & Channel Member Governance', () => {
         })
       );
     });
+
+    it('deletes selected polls from database without deleting Slack channel message cards', async () => {
+      const poll1 = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_BULK_DEL_1',
+        messageTs: '1700000000.000910',
+        creatorId: 'U_CREATOR_BULK',
+        question: 'Bulk Delete Poll 1',
+        options: ['Yes', 'No'],
+      });
+      const poll2 = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_BULK_DEL_2',
+        messageTs: '1700000000.000911',
+        creatorId: 'U_CREATOR_BULK',
+        question: 'Bulk Delete Poll 2',
+        options: ['A', 'B'],
+      });
+
+      const viewHandlers: Map<string, Function> = new Map();
+      const mockApp = {
+        view: (id: string, handler: Function) => viewHandlers.set(id, handler),
+      } as any;
+
+      registerViewHandlers(mockApp);
+      const handler =
+        viewHandlers.get('delete_polls_modal') ??
+        viewHandlers.get('manage_history_modal_submit');
+      expect(handler).toBeDefined();
+
+      const deleteSpy = vi.fn().mockResolvedValue({ ok: true });
+      const publishSpy = vi.fn().mockResolvedValue({ ok: true });
+      const mockClient = {
+        chat: {
+          delete: deleteSpy,
+          postEphemeral: vi.fn(),
+          postMessage: vi.fn(),
+        },
+        views: {
+          publish: publishSpy,
+        },
+        users: {
+          info: vi.fn().mockResolvedValue({ user: { locale: 'en-US' } }),
+        },
+      } as any;
+
+      const ackSpy = vi.fn().mockResolvedValue(undefined);
+
+      await handler!({
+        ack: ackSpy,
+        view: {
+          state: {
+            values: {
+              delete_polls_select_block: {
+                delete_polls_multi_select: {
+                  selected_options: [{ value: poll1.id }, { value: poll2.id }],
+                },
+              },
+            },
+          },
+        },
+        body: {
+          user: { id: 'U_CREATOR_BULK' },
+          team: { id: workspaceId },
+        },
+        client: mockClient,
+      });
+
+      expect(ackSpy).toHaveBeenCalled();
+      const foundP1 = await prisma.poll.findUnique({ where: { id: poll1.id } });
+      const foundP2 = await prisma.poll.findUnique({ where: { id: poll2.id } });
+      expect(foundP1).toBeNull();
+      expect(foundP2).toBeNull();
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(publishSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ user_id: 'U_CREATOR_BULK' })
+      );
+    });
+  });
+
+  describe('App Home Poll Deletion & Cleanup (Channel Card Preservation)', () => {
+    it('deletes poll from database upon poll_delete_click without deleting Slack channel message card', async () => {
+      const poll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_HOME_DEL',
+        messageTs: '1700000000.000920',
+        creatorId: 'U_CREATOR_DEL',
+        question: 'Preserve Channel Card On Delete Test',
+        options: ['Option A', 'Option B'],
+      });
+
+      const actionHandlers: Map<string | RegExp, Function> = new Map();
+      const mockApp = {
+        action: (pattern: any, handler: any) => actionHandlers.set(pattern, handler),
+      } as any;
+
+      registerActionHandlers(mockApp);
+
+      let deleteHandler: Function | undefined;
+      for (const [pattern, handler] of actionHandlers.entries()) {
+        if (pattern instanceof RegExp && pattern.test('poll_delete_click')) {
+          deleteHandler = handler;
+          break;
+        }
+      }
+      expect(deleteHandler).toBeDefined();
+
+      const deleteSpy = vi.fn().mockResolvedValue({ ok: true });
+      const publishSpy = vi.fn().mockResolvedValue({ ok: true });
+      const mockClient = {
+        chat: {
+          delete: deleteSpy,
+          postEphemeral: vi.fn(),
+          postMessage: vi.fn(),
+        },
+        views: {
+          publish: publishSpy,
+        },
+        users: {
+          info: vi.fn().mockResolvedValue({ user: { locale: 'en-US' } }),
+        },
+      } as any;
+
+      await deleteHandler!({
+        action: { value: JSON.stringify({ pollId: poll.id }) },
+        ack: vi.fn().mockResolvedValue(undefined),
+        body: {
+          user: { id: 'U_CREATOR_DEL' },
+          team: { id: workspaceId },
+        },
+        client: mockClient,
+      });
+
+      const deletedRecord = await prisma.poll.findUnique({ where: { id: poll.id } });
+      expect(deletedRecord).toBeNull();
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(publishSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ user_id: 'U_CREATOR_DEL' })
+      );
+    });
+
+    it('clears closed polls from database upon app_home_clear_closed_click without deleting Slack channel message cards', async () => {
+      const closedPoll1 = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_CLEAR_1',
+        messageTs: '1700000000.000930',
+        creatorId: 'U_CREATOR_CLEAR',
+        question: 'Closed Poll 1',
+        options: ['Opt 1', 'Opt 2'],
+      });
+      await PollService.closePoll(closedPoll1.id, 'U_CREATOR_CLEAR', 'CLOSED');
+
+      const closedPoll2 = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_CLEAR_2',
+        messageTs: '1700000000.000931',
+        creatorId: 'U_CREATOR_CLEAR',
+        question: 'Closed Poll 2',
+        options: ['Opt 1', 'Opt 2'],
+      });
+      await PollService.closePoll(closedPoll2.id, 'U_CREATOR_CLEAR', 'CLOSED');
+
+      const activePoll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_CLEAR_3',
+        messageTs: '1700000000.000932',
+        creatorId: 'U_CREATOR_CLEAR',
+        question: 'Active Poll Preserved',
+        options: ['Opt 1', 'Opt 2'],
+      });
+
+      const actionHandlers: Map<string | RegExp, Function> = new Map();
+      const mockApp = {
+        action: (pattern: any, handler: any) => actionHandlers.set(pattern, handler),
+      } as any;
+
+      registerActionHandlers(mockApp);
+
+      const clearHandler = actionHandlers.get('app_home_clear_closed_click');
+      expect(clearHandler).toBeDefined();
+
+      const deleteSpy = vi.fn().mockResolvedValue({ ok: true });
+      const publishSpy = vi.fn().mockResolvedValue({ ok: true });
+      const mockClient = {
+        chat: {
+          delete: deleteSpy,
+          postEphemeral: vi.fn(),
+          postMessage: vi.fn(),
+        },
+        views: {
+          publish: publishSpy,
+        },
+        users: {
+          info: vi.fn().mockResolvedValue({ user: { locale: 'en-US' } }),
+        },
+      } as any;
+
+      await clearHandler!({
+        ack: vi.fn().mockResolvedValue(undefined),
+        body: {
+          user: { id: 'U_CREATOR_CLEAR' },
+          team: { id: workspaceId },
+        },
+        client: mockClient,
+      });
+
+      const p1 = await prisma.poll.findUnique({ where: { id: closedPoll1.id } });
+      const p2 = await prisma.poll.findUnique({ where: { id: closedPoll2.id } });
+      const active = await prisma.poll.findUnique({ where: { id: activePoll.id } });
+
+      expect(p1).toBeNull();
+      expect(p2).toBeNull();
+      expect(active).not.toBeNull();
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(publishSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ user_id: 'U_CREATOR_CLEAR' })
+      );
+    });
+  });
+
+  describe('publishHomeTab & Multi-Tenant Token Resolution', () => {
+    it('passes resolved workspace bot token to client.views.publish for third-party workspaces', async () => {
+      const publishSpy = vi.fn().mockResolvedValue({ ok: true });
+      const mockClient = {
+        views: {
+          publish: publishSpy,
+        },
+        users: {
+          info: vi.fn().mockResolvedValue({ user: { locale: 'en-US' } }),
+        },
+      };
+
+      await publishHomeTab(mockClient, 'U_THIRD_PARTY_USER', workspaceId);
+
+      expect(publishSpy).toHaveBeenCalledTimes(1);
+      const callArgs = publishSpy.mock.calls[0][0];
+      expect(callArgs.user_id).toBe('U_THIRD_PARTY_USER');
+      expect(callArgs.token).toBeDefined();
+      expect(typeof callArgs.token).toBe('string');
+      expect(callArgs.view).toBeDefined();
+      expect(callArgs.view.type).toBe('home');
+    });
   });
 });
+

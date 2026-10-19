@@ -287,10 +287,21 @@ export const app = new App(
         customRoutes,
       }
     : {
-        token: env.SLACK_BOT_TOKEN,
         signingSecret: env.SLACK_SIGNING_SECRET,
         port: env.PORT,
         customRoutes,
+        authorize: async ({ teamId, enterpriseId }) => {
+          const targetTeamId = teamId;
+          const botToken = targetTeamId
+            ? await PollService.resolveWorkspaceBotToken(targetTeamId)
+            : env.SLACK_BOT_TOKEN;
+
+          return {
+            botToken,
+            teamId: targetTeamId,
+            enterpriseId,
+          };
+        },
       }
 );
 
@@ -328,6 +339,9 @@ app.use(async ({ context, body, client, next }) => {
       context.botToken = resolvedToken;
       if (client) {
         (client as any).token = resolvedToken;
+        if ((client as any).axios?.defaults?.headers) {
+          (client as any).axios.defaults.headers['Authorization'] = `Bearer ${resolvedToken}`;
+        }
       }
     } catch {
       // Fallback to default token

@@ -210,16 +210,7 @@ export function registerActionHandlers(app: App) {
         userId,
         workspaceId
       );
-      const deleted = await PollService.deletePoll(pollId, userId, isManager);
-
-      try {
-        await client.chat?.delete?.({
-          channel: deleted.channelId,
-          ts: deleted.messageTs,
-        });
-      } catch {
-        // ignore message deletion failures
-      }
+      await PollService.deletePoll(pollId, userId, isManager);
 
       await publishHomeTab(client, userId, workspaceId);
     } catch (error) {
@@ -268,15 +259,7 @@ export function registerActionHandlers(app: App) {
 
     try {
       const isManager = await PollService.isUserWorkspaceManager(client, userId, workspaceId);
-      const { deletedPolls } = await PollService.clearClosedPolls(workspaceId, userId, isManager);
-
-      for (const p of deletedPolls) {
-        try {
-          await client.chat?.delete?.({ channel: p.channelId, ts: p.messageTs });
-        } catch {
-          // ignore failures deleting already removed or old messages
-        }
-      }
+      await PollService.clearClosedPolls(workspaceId, userId, isManager);
 
       await publishHomeTab(client, userId, workspaceId);
     } catch (error) {

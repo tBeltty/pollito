@@ -95,4 +95,26 @@ describe('i18n catalog parity and resolution', () => {
     expect(esText).toBe('Cerrar');
     expect(enText).toBe('Close');
   });
+
+  it('guarantees all modal title keys satisfy Slack 24-character maximum limit', () => {
+    const modalTitleKeys = [
+      'analytics.title',
+      'csv.title',
+      'history.title',
+      'settings.title',
+      'guide.title',
+      'templates.title',
+      'detail.title',
+      'cp.title.huddle',
+      'cp.title.create',
+      'cp.title.editTemplate',
+      'cp.title.newTemplate',
+      'cp.title.newWorkspaceTemplate',
+    ] as const;
+
+    for (const key of modalTitleKeys) {
+      expect(en[key].length, `EN modal title "${key}" exceeds 24 chars: "${en[key]}"`).toBeLessThanOrEqual(24);
+      expect(es[key].length, `ES modal title "${key}" exceeds 24 chars: "${es[key]}"`).toBeLessThanOrEqual(24);
+    }
+  });
 });

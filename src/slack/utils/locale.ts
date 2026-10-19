@@ -17,12 +17,20 @@ export function clearUserLocaleCache(): void {
   userLocaleCache.clear();
 }
 
-async function fetchSlackUserLocale(client: any, userId: string): Promise<string | null> {
+async function fetchSlackUserLocale(
+  client: any,
+  userId: string,
+  token?: string
+): Promise<string | null> {
   const cached = userLocaleCache.get(userId);
   if (cached && cached.expiresAt > Date.now()) return cached.slackLocale;
 
   try {
-    const response = await client?.users?.info?.({ user: userId, include_locale: true });
+    const response = await client?.users?.info?.({
+      ...(token ? { token } : {}),
+      user: userId,
+      include_locale: true,
+    });
     const slackLocale: string | null = response?.user?.locale ?? null;
     if (userLocaleCache.size >= MAX_CACHED_USERS) userLocaleCache.clear();
     userLocaleCache.set(userId, { slackLocale, expiresAt: Date.now() + USER_LOCALE_TTL_MS });
@@ -45,7 +53,16 @@ export async function resolveRequestLocale(
   client: any,
   { userId, workspaceId }: LocaleRequest
 ): Promise<Locale> {
-  const slackLocale = userId ? await fetchSlackUserLocale(client, userId) : null;
+  let botToken: string | undefined;
+  if (workspaceId) {
+    try {
+      botToken = await PollService.resolveWorkspaceBotToken(workspaceId);
+    } catch {
+      botToken = undefined;
+    }
+  }
+
+  const slackLocale = userId ? await fetchSlackUserLocale(client, userId, botToken) : null;
   const userLocale = normalizeLocale(slackLocale);
   if (userLocale) return userLocale;
 
