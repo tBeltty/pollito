@@ -9,11 +9,13 @@ code review purposes, subject to the following conditions:
 
 1. NO PLAGIARISM OR DERIVATIVE WORKS:
    You may not copy, extract, adapt, translate, modify, or create derivative
-   works based on the Software or any portion thereof.
+   works based on the Software or any portion thereof, except as allowed in
+   section 5 (security testing) and section 6 (platform forks).
 
 2. NO REDISTRIBUTION OR REBRANDING:
    You may not distribute, redistribute, publish, sublicense, transfer,
-   rebrand, sell, lease, or make the Software available to third parties.
+   rebrand, sell, lease, or make the Software available to third parties,
+   except as allowed in section 6 (platform forks).
 
 3. NO COMMERCIAL OR PRODUCTION DEPLOYMENT:
    You may not run, host, deploy, or operate the Software in a production or
@@ -24,6 +26,23 @@ code review purposes, subject to the following conditions:
    The copyright holder reserves all commercial, distribution, and licensing
    rights. To purchase a commercial license, arrange deployment rights, or
    inquire about intellectual property assignment, contact the repository owner.
+
+5. SECURITY TESTING AND AUDIT MODIFICATIONS:
+   For security auditing and penetration testing of the Software, you may make
+   temporary, local changes to your own copy, such as applying patches, adding
+   logging or instrumentation, or altering configuration. These changes must
+   stay on your own systems, must not be distributed or deployed to a
+   production or commercial environment, and must be deleted when the audit
+   ends. You may share your findings with the copyright holder, including the
+   minimal code needed to reproduce an issue.
+
+6. PLATFORM FORKS:
+   If the Software is published in a public repository on a hosting platform
+   whose terms of service require that others be able to fork it within that
+   platform (for example GitHub), that forking is permitted solely through the
+   platform's own fork feature. A fork made this way grants no right to
+   distribute the Software outside the platform, and every other term of this
+   license continues to apply to the fork and to anyone who uses it.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
