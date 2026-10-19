@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-describe('Anti-AI Slop Quality Gate', () => {
+describe('Copy style gate', () => {
   const bannedKeywords = [
     /\bdelve\b/i,
     /\btestament\b/i,
@@ -59,7 +59,7 @@ describe('Anti-AI Slop Quality Gate', () => {
   targetFiles.forEach((file) => {
     const filename = path.basename(file);
 
-    it(`${filename} adheres strictly to Anti-AI Slop standards`, () => {
+    it(`${filename} follows the editorial standards`, () => {
       expect(fs.existsSync(file), `File ${filename} must exist`).toBe(true);
       const content = fs.readFileSync(file, 'utf-8');
 
@@ -68,7 +68,7 @@ describe('Anti-AI Slop Quality Gate', () => {
         const match = content.match(pattern);
         expect(
           match,
-          `Found banned AI-slop pattern ${pattern} in ${filename}`
+          `Found banned pattern ${pattern} in ${filename}`
         ).toBeNull();
       }
 

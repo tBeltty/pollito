@@ -45,7 +45,7 @@ jobs:
           pnpm db:generate
           pnpm db:push
 
-      - name: Run Test Suite (Vitest & Anti-Slop Linter)
+      - name: Run Test Suite (Vitest & copy style gate)
         run: pnpm test
 
       - name: Typecheck and Build TypeScript
@@ -76,7 +76,7 @@ jobs:
           
           # Rollback handler in case of build or smoke test failure
           rollback() {
-            echo "🚨 DEPLOYMENT FAILED! Initiating automatic rollback to $PREV_SHA..."
+            echo "DEPLOYMENT FAILED! Initiating automatic rollback to $PREV_SHA..."
             cd "$PROD_DIR"
             git reset --hard "$PREV_SHA"
             pnpm install
@@ -117,7 +117,7 @@ jobs:
             HEALTH_RESPONSE=$(curl -sS -m 3 http://127.0.0.1:3015/healthz || true)
             
             if echo "$HEALTH_RESPONSE" | grep -q '"status":"ok"'; then
-              echo "✅ Local health check passed: $HEALTH_RESPONSE"
+              echo "Local health check passed: $HEALTH_RESPONSE"
               SUCCESS=1
               break
             fi
@@ -125,7 +125,7 @@ jobs:
           done
           
           if [ $SUCCESS -ne 1 ]; then
-            echo "❌ Local health check failed after $MAX_ATTEMPTS attempts."
+            echo "Local health check failed after $MAX_ATTEMPTS attempts."
             echo "Last response: $HEALTH_RESPONSE"
             false
           fi
@@ -134,7 +134,7 @@ jobs:
           PUBLIC_HEALTH=$(curl -sS -m 5 https://pollito.tbelt.online/healthz || true)
           echo "Public health response: $PUBLIC_HEALTH"
           if echo "$PUBLIC_HEALTH" | grep -q '"status":"ok"'; then
-            echo "✅ Public Cloudflare HTTPS health check passed!"
+            echo "Public Cloudflare HTTPS health check passed!"
           else
-            echo "⚠️ Public health check pending or response: $PUBLIC_HEALTH"
+            echo "Public health check pending or response: $PUBLIC_HEALTH"
           fi
