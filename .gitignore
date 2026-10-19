@@ -51,3 +51,4 @@ Technical Guide_ Building Slack Applications.md
 
 # Runtime data (status probe history)
 data/
+public/status/status.json
