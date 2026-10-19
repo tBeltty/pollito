@@ -195,6 +195,7 @@ const customRoutes = [
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pollito Installed!</title>
+  <meta http-equiv="refresh" content="5;url=/support.html">
   <style>
     body {
       background: #0F172A;
@@ -248,6 +249,13 @@ const customRoutes = [
     .btn:hover {
       background: #D97706;
     }
+    .redirect {
+      font-size: 13px;
+      margin: 20px 0 0;
+    }
+    .redirect a {
+      color: #CBD5E1;
+    }
   </style>
 </head>
 <body>
@@ -256,6 +264,7 @@ const customRoutes = [
     <h1>Pollito Installed!</h1>
     <p>Pollito is now ready in your Slack workspace. Head back to Slack and run <strong>/pollito</strong> in any channel to create your first poll.</p>
     <a href="slack://open" class="btn">Open Slack</a>
+    <p class="redirect">Taking you to the <a href="/support.html">help and support page</a> in 5 seconds.</p>
   </div>
 </body>
 </html>`);
