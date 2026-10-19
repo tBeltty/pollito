@@ -97,7 +97,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
 
     it('formats QUORUM_REACHED summary with winning option and vote counts', () => {
       const summary = formatPollClosureSummary(mockPoll, 'QUORUM_REACHED');
-      expect(summary).toContain('🎉 *Quorum Reached — Poll Closed*');
+      expect(summary).toContain('🎉 *Quorum reached. Poll closed*');
       expect(summary).toContain('*Sprint Retro Date*');
       expect(summary).toContain('*3* participants');
       expect(summary).toContain('Winner: *Thursday 2pm* (5 votes)');
@@ -123,7 +123,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
 
     it('formats TIME_EXPIRED summary', () => {
       const summary = formatPollClosureSummary(mockPoll, 'TIME_EXPIRED');
-      expect(summary).toContain('⏰ *Poll Closed — Time Expired*');
+      expect(summary).toContain('⏰ *Poll closed. Time expired*');
       expect(summary).toContain('Winner: *Thursday 2pm* (5 votes)');
     });
 
@@ -212,7 +212,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
         expect.objectContaining({
           channel: 'C_DEV_1',
           thread_ts: '1700000000.000100',
-          text: expect.stringContaining('🎉 *Quorum Reached — Poll Closed*'),
+          text: expect.stringContaining('🎉 *Quorum reached. Poll closed*'),
         })
       );
       expect(postEphemeralSpy).toHaveBeenCalledWith(
@@ -464,7 +464,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
         expect.objectContaining({
           channel: 'C_DEV_3',
           user: 'U_CREATOR_CAROL',
-          text: expect.stringContaining('A reminder was already sent within the last 4 hours'),
+          text: expect.stringContaining('A reminder was already sent in the last 4 hours'),
         })
       );
     });
@@ -532,7 +532,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
           channel: 'C_LARGE_CHANNEL',
           user: 'U_CREATOR_CAROL',
           text: expect.stringContaining(
-            'Smart Nudges are disabled for channels with more than 50 members'
+            'Reminders are not available in channels with more than 50 members'
           ),
         })
       );

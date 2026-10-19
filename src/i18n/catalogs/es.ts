@@ -28,7 +28,7 @@ export const es: MessageCatalog = {
   'poll.status.timeExpired': 'Límite de tiempo alcanzado • Cerrada',
   'poll.status.closed': 'Votación cerrada',
   'poll.status.approachingQuorum': 'Cerca del quórum objetivo',
-  'poll.ballot.anonymous': 'Voto secreto anónimo',
+  'poll.ballot.anonymous': 'Voto anónimo',
   'poll.ballot.public': 'Voto público',
   'poll.choice.multiple': 'Opción múltiple',
   'poll.choice.single': 'Opción única',
@@ -36,10 +36,10 @@ export const es: MessageCatalog = {
   'poll.option.votes': '{count, plural, one {*#* voto} other {*#* votos}}',
   'poll.option.moreVoters': '+{count} más',
   'poll.vote.button': 'Votar {number}',
-  'poll.nudge.button': 'Recordar a pendientes',
+  'poll.nudge.button': 'Recordar a quienes faltan',
   'poll.nudge.confirmTitle': '¿Enviar recordatorio a quienes faltan?',
   'poll.nudge.confirmBody':
-    'Pollito enviará un recordatorio por mensaje directo a los miembros de este canal que aún no han votado. Solo el creador de la votación puede activarlo (con 4 horas de espera entre envíos).',
+    'Pollito enviará un mensaje directo privado a los miembros de este canal que aún no han votado. Solo quien creó la votación puede enviar recordatorios, y cada votación permite uno cada {hours, plural, one {hora} other {# horas}}.',
   'poll.nudge.confirmSubmit': 'Enviar recordatorios',
   'poll.close.button': 'Cerrar votación',
   'poll.close.confirmTitle': '¿Cerrar esta votación ahora?',
@@ -61,9 +61,9 @@ export const es: MessageCatalog = {
   'poll.fallback.creating': 'Creando votación: {question}...',
 
   // ── Anuncios de cierre ─────────────────────────────────────────────────
-  'closure.title.quorum': '🎉 *Quórum alcanzado — Votación cerrada*',
+  'closure.title.quorum': '🎉 *Quórum alcanzado. Votación cerrada*',
   'closure.title.closed': '🔒 *Votación cerrada por quien la creó*',
-  'closure.title.expired': '⏰ *Votación cerrada — Tiempo agotado*',
+  'closure.title.expired': '⏰ *Votación cerrada. Tiempo agotado*',
   'closure.body.quorum':
     '*{question}* alcanzó el quórum objetivo con {count, plural, one {*#* participante} other {*#* participantes}}.',
   'closure.body.closed':
@@ -79,20 +79,20 @@ export const es: MessageCatalog = {
 
   // ── Recordatorios y notificaciones ───────────────────────────────────
   'nudge.dm':
-    '👋 Recordatorio amistoso de <@{creatorId}>: Aún falta tu voto en *{question}* en <#{channelId}>.',
+    '👋 <@{creatorId}> espera tu voto en *{question}* en <#{channelId}>.',
   'nudge.sent':
     '📬 Se enviaron recordatorios privados a {count, plural, one {# compañero} other {# compañeros}}.',
   'nudge.nonePending': '¡No hay votos pendientes! Todo el equipo ya emitió su voto.',
-  'nudge.disabled': 'Los recordatorios automáticos están desactivados en este espacio de trabajo.',
+  'nudge.disabled': 'Los recordatorios están desactivados en este espacio de trabajo.',
   'nudge.channelTooLarge': 'Los recordatorios no están disponibles en canales de más de {max} miembros.',
-  'nudge.cooldown': 'Ya se envió un recordatorio en las últimas 4 horas.',
+  'nudge.cooldown': 'Ya se envió un recordatorio en {hours, plural, one {la última hora} other {las últimas # horas}}.',
   'nudge.noPoll': 'No se encontró ninguna votación activa que hayas creado en este canal.',
   'vote.recorded': 'Tu voto ha sido registrado.',
   'vote.recordedAnonymous': 'Tu voto anónimo ha sido registrado.',
   'huddle.reminder.fallback':
-    '🗳️ *Recuerda votar:* La junta de voz terminó y *{question}* sigue abierta. <{permalink}|Ver votación en el hilo>',
+    '🗳️ El Huddle terminó y *{question}* sigue abierta. <{permalink}|Votar en el hilo>',
   'huddle.reminder.body':
-    '🗳️ *¡Recuerda votar!*\nLa junta de voz terminó y *<{permalink}|{question}>* sigue abierta para votar en el hilo.',
+    '🗳️ *El Huddle terminó.*\n*<{permalink}|{question}>* sigue abierta para votar en el hilo.',
   'huddle.reminder.button': 'Ir a la votación',
 
   // ── Respuestas a comandos de barra ─────────────────────────────────────
@@ -107,7 +107,7 @@ export const es: MessageCatalog = {
   'command.pollClosed': 'Votación cerrada correctamente: *{question}*',
 
   // ── Errores de cara al usuario ─────────────────────────────────────────
-  'error.workspaceIdMissing': 'Falta el identificador del espacio de trabajo.',
+  'error.workspaceIdMissing': 'Algo salió mal. Inténtalo de nuevo.',
   'error.activePollInChannel':
     'Ya hay una votación activa en este canal. Ciérrala primero o elige otro canal.',
   'error.pollNotFound': 'Votación no encontrada.',
@@ -115,7 +115,7 @@ export const es: MessageCatalog = {
   'error.invalidOption': 'Opción de votación no válida.',
   'error.alreadyVoted': 'Ya has votado en esta votación.',
   'error.alreadyVotedOption': 'Ya has votado por esta opción.',
-  'error.voteRetriesExhausted': 'No fue posible registrar tu voto tras varios intentos.',
+  'error.voteRetriesExhausted': 'No fue posible registrar tu voto. Inténtalo de nuevo en un momento.',
   'error.closeCreatorOnly': 'Solo quien creó la votación puede cerrarla manualmente.',
   'error.nudgeCreatorOnly': 'Solo quien creó la votación puede enviar recordatorios.',
   'error.detailsForbidden':
@@ -135,11 +135,11 @@ export const es: MessageCatalog = {
   'error.generic.nudge': 'Ocurrió un error al enviar los recordatorios.',
   'error.generic.details': 'No se pudieron abrir los detalles de la votación.',
   'error.generic.command': 'Ocurrió un error al procesar el comando.',
-  'error.unknownReason': 'Error desconocido',
+  'error.unknownReason': 'Algo salió mal',
   'poll.create.notInChannel':
     'Pollito no está en <#{channelId}>. Invita a la app escribiendo `/invite @Pollito` en ese canal y vuelve a iniciar tu votación.',
   'poll.create.failed': 'No se pudo crear la votación: {reason}.',
-  'poll.create.reserveFailed': 'No se pudo reservar el mensaje en el canal.',
+  'poll.create.reserveFailed': 'No se pudo publicar la votación en el canal. Inténtalo de nuevo.',
 
   // ── Validación de formularios ──────────────────────────────────────────
   'validation.channelRequired': 'Elige un canal para esta votación',
@@ -148,7 +148,7 @@ export const es: MessageCatalog = {
   'validation.optionRequired': 'La opción {number} es obligatoria',
   'validation.optionMax': 'La opción {number} no debe superar los {max} caracteres',
   'validation.quorumInteger': 'El quórum objetivo debe ser un número entero entre 51 y 100',
-  'validation.quorumMin': 'El quórum exige mayoría absoluta (entre 51% y 100%)',
+  'validation.quorumMin': 'El quórum debe superar la mitad (entre 51% y 100%)',
   'validation.quorumMax': 'El quórum objetivo debe estar entre 51 y 100',
   'validation.invalidHuddleLink':
     'Enlace o marca temporal de hilo no válida. Pega un enlace de mensaje de Slack (.../archives/C.../p1234567890123456) o un thread_ts (1234567890.123456).',
@@ -166,9 +166,9 @@ export const es: MessageCatalog = {
   'guide.step1':
     '*1. Lanza en un canal o hilo de junta de voz*\nAbre el creador interactivo con `/pollito`, pasa opciones directamente para una votación instantánea o usa `/pollito huddle` para publicar dentro de la junta de voz activa.',
   'guide.step2':
-    '*2. Voto secreto de doble urna y cierre por quórum*\nLas votaciones anónimas separan la participación de las elecciones emitidas para que nadie pueda rastrear tu voto. Establece un quórum (mínimo 51%) para cerrar automáticamente cuando vote suficiente equipo, o elige "Sin quórum requerido".',
+    '*2. Votaciones anónimas y quórum*\nEn las votaciones anónimas nadie puede ver quién votó por qué. Define un quórum de 51% o más para cerrar la votación en cuanto vote suficiente gente del canal, o elige "Sin quórum requerido" para votaciones informales.',
   'guide.step3':
-    '*3. Recordatorios y estadísticas por rol*\nSolo quien crea la votación puede enviar recordatorios privados por mensaje directo (disponible en canales de hasta 50 miembros con 4 horas de espera). Quien crea la votación ve resultados detallados; administradores y gestores pueden inspeccionar todo el espacio.',
+    '*3. Recordatorios y resultados*\nSolo quien creó la votación puede enviar recordatorios privados a quienes faltan, en canales por debajo del límite de tamaño definido en Ajustes y con un recordatorio cada {hours, plural, one {hora} other {# horas}}. Quien crea una votación ve sus resultados completos. Los administradores y gestores de Pollito ven los de todo el espacio.',
   'guide.header.commands': 'Referencia de comandos de barra',
   'guide.cmd.builder': '• `/pollito`: Abre el creador interactivo para el canal actual',
   'guide.cmd.instant': '• `/pollito "Pregunta" "Opción 1" "Opción 2"`: Lanza una votación rápida en el canal',
@@ -178,23 +178,23 @@ export const es: MessageCatalog = {
     '• `/pollito huddle "Pregunta" "Opción 1" "Opción 2"`: Lanza una votación rápida en la junta de voz',
   'guide.cmd.close': '• `/pollito close [id-votación]`: Cierra una votación activa que hayas creado',
   'guide.cmd.nudge':
-    '• `/pollito nudge [id-votación]`: Envía recordatorios por mensaje directo a quienes faltan (hasta 50 miembros)',
+    '• `/pollito nudge [id-votación]`: Envía recordatorios privados a quienes faltan',
   'guide.cmd.report': '• `/pollito report`: Consulta tus resultados y el informe de participación',
 
   // ── Analítica y desglose de votación ──────────────────────────────────
   'analytics.title': 'Resultados y estadísticas',
   'analytics.scope.personal':
-    'Resultados de tus votaciones y participación en {days, plural, one {el último día} other {los últimos # días}}. Solo aparecen votaciones que creaste tú. La vista global está reservada a administradores y gestores.',
+    'Resultados de tus votaciones y participación en {days, plural, one {el último día} other {los últimos # días}}. Solo aparecen votaciones que creaste tú. La vista global está reservada a administradores y gestores de Pollito.',
   'analytics.scope.workspace':
     'Resultados y participación en todo el espacio de trabajo en {days, plural, one {el último día} other {los últimos # días}}.',
   'analytics.metric.quorum':
-    '*Quórum conseguido*\n*{rate}%* ({count} alcanzaron quórum)',
+    '*Con quórum alcanzado*\n*{rate}%* de las votaciones ({count})',
   'analytics.metric.participation':
     '*Participación promedio*\n*{pct}%* entre miembros convocados',
   'analytics.metric.ballots':
     '*Votos emitidos*\n{votes, plural, one {*#* voto} other {*#* votos}} en {polls, plural, one {*#* votación} other {*#* votaciones}}',
   'analytics.metric.privacy':
-    '*Tipo de privacidad*\n*{publicCount}* Públicas • *{anonymousCount}* Anónimas',
+    '*Públicas y anónimas*\n*{publicCount}* públicas • *{anonymousCount}* anónimas',
   'analytics.export.button': 'Personalizar y exportar CSV',
   'analytics.recent.header': 'Resultados de votaciones recientes',
   'analytics.empty': 'No hay votaciones registradas en este período.',
@@ -207,7 +207,7 @@ export const es: MessageCatalog = {
     'Canal: <#{channelId}> • *{status}* • *{mode}* • {participants, plural, one {*#* participante} other {*#* participantes}} • {outcome}',
   'detail.title': 'Desglose de resultados',
   'detail.fallbackQuestion': 'Resultados de la votación',
-  'detail.mode.anonymous': 'Anónima (Doble urna)',
+  'detail.mode.anonymous': 'Anónima',
   'detail.field.channel': '*Canal*\n<#{channelId}>',
   'detail.field.status': '*Estado y resultado*\n{status} • {outcome}',
   'detail.field.ballot': '*Modalidad de voto*\n{mode} • {choice}',
@@ -241,7 +241,7 @@ export const es: MessageCatalog = {
   'home.templates.emptyManager':
     '*Plantillas rápidas*\nTodavía no hay plantillas compartidas. Como administrador, puedes crear plantillas para que el equipo las lance en un clic.',
   'home.templates.emptyMember':
-    '*Plantillas rápidas*\nAún no hay plantillas publicadas por administradores. Abre el menú *Plantillas* arriba para crear las tuyas.',
+    '*Plantillas rápidas*\nTodavía nadie ha compartido plantillas con el espacio. Abre *Plantillas* arriba para crear las tuyas.',
   'home.templates.add': '+ Añadir plantilla',
   'home.templates.addWorkspace': '+ Añadir plantilla de equipo',
   'home.recent.header': 'Votaciones recientes',
@@ -313,10 +313,10 @@ export const es: MessageCatalog = {
   'settings.title': 'Ajustes del espacio de trabajo',
   'settings.submit': 'Guardar ajustes',
   'settings.readOnly.body':
-    '*Vista de solo lectura*\nLos ajustes del espacio de trabajo solo pueden ser modificados por administradores de Slack y gestores designados.',
+    '*Vista de solo lectura*\nLos ajustes del espacio de trabajo solo pueden cambiarlos los administradores de Slack y los gestores de Pollito.',
   'settings.value.concurrencyMultiple': 'Se permiten varias votaciones activas a la vez',
   'settings.value.concurrencySingle': 'Solo 1 votación activa por canal',
-  'settings.value.privacyAnonymous': 'Anónima con doble urna',
+  'settings.value.privacyAnonymous': 'Anónima',
   'settings.value.privacyPublic': 'Pública',
   'settings.value.quorumNone': 'Sin quórum',
   'settings.value.nudgesEnabled': 'Activados (en canales de hasta {max} miembros)',
@@ -326,27 +326,27 @@ export const es: MessageCatalog = {
   'settings.field.concurrency': '*Concurrencia por canal*\n{value}',
   'settings.field.privacy': '*Privacidad por defecto*\n{value}',
   'settings.field.quorum': '*Quórum por defecto*\n{value}',
-  'settings.field.nudges': '*Recordatorios automáticos*\n{value}',
-  'settings.field.managers': '*Gestores designados*\n{value}',
+  'settings.field.nudges': '*Recordatorios*\n{value}',
+  'settings.field.managers': '*Gestores de Pollito*\n{value}',
   'settings.field.locale': '*Idioma del espacio*\n{value}',
   'settings.option.concurrency': '*Permitir varias votaciones activas en el mismo canal*',
   'settings.option.concurrencyHint': 'Desmarcado por defecto: una sola votación activa por canal.',
-  'settings.option.anonymous': '*Voto anónimo por defecto (Doble urna secreta)*',
-  'settings.option.nudges': '*Activar recordatorios automáticos para quien crea la votación*',
+  'settings.option.anonymous': '*Voto anónimo por defecto*',
+  'settings.option.nudges': '*Permitir que quien crea la votación envíe recordatorios a quienes faltan*',
   'settings.quorum.none': 'Sin quórum requerido',
-  'settings.quorum.51': '51% — Mayoría simple (La mitad + 1)',
-  'settings.quorum.66': '66% — Mayoría cualificada (Dos tercios)',
-  'settings.quorum.70': '70% — Consenso estándar de equipo',
-  'settings.quorum.75': '75% — Consenso amplio',
-  'settings.quorum.80': '80% — Supermayoría estricta',
-  'settings.quorum.100': '100% — Unanimidad',
+  'settings.quorum.51': '51% (mayoría)',
+  'settings.quorum.66': '66% (dos tercios)',
+  'settings.quorum.70': '70% (consenso de equipo)',
+  'settings.quorum.75': '75% (consenso amplio)',
+  'settings.quorum.80': '80% (mayoría fuerte)',
+  'settings.quorum.100': '100% (unanimidad)',
   'settings.label.concurrency': 'Concurrencia por canal',
   'settings.label.privacy': 'Privacidad y recordatorios por defecto',
   'settings.label.quorum': 'Umbral de quórum por defecto',
   'settings.label.maxNudge': 'Tamaño máximo de canal para recordatorios',
   'settings.hint.maxNudge':
     'Los canales que superen este número de miembros no mostrarán el botón de recordatorio.',
-  'settings.label.managers': 'Gestores designados de la app',
+  'settings.label.managers': 'Gestores de Pollito',
   'settings.placeholder.managers': 'Elige compañeros que puedan gestionar los ajustes del espacio',
   'settings.label.locale': 'Idioma del espacio',
   'settings.hint.locale':
@@ -382,7 +382,8 @@ export const es: MessageCatalog = {
   'cp.option.placeholder3': 'Tercera opción (opcional)',
   'cp.option.placeholder4': 'Cuarta opción (opcional)',
   'cp.settings.label': 'Ajustes de privacidad',
-  'cp.settings.anonymous': '*Voto anónimo (Doble urna secreta)*',
+  'cp.settings.anonymous': '*Voto anónimo*',
+  'cp.settings.anonymousHint': 'Nadie puede ver quién votó por qué.',
   'cp.settings.multiple': '*Opción múltiple*',
   'cp.settings.multipleHint': 'Permite al equipo elegir más de una opción.',
   'cp.settings.noQuorum': '*Sin quórum requerido*',
@@ -391,7 +392,7 @@ export const es: MessageCatalog = {
   'cp.settings.forwardHuddleHint': 'Publica un enlace de recordatorio en el canal si la votación sigue abierta al terminar la junta.',
   'cp.quorum.label': 'Porcentaje de quórum objetivo (%)',
   'cp.quorum.hint':
-    'Mínimo 51% (mayoría absoluta: la mitad + 1). Déjalo en blanco o marca "Sin quórum requerido" para votaciones informales.',
+    'Mínimo 51% (más de la mitad). Déjalo en blanco o marca "Sin quórum requerido" para votaciones informales.',
   'cp.duration.none': 'Sin límite de tiempo (Manual o por quórum)',
   'cp.duration.15m': '15 minutos (Standup rápido)',
   'cp.duration.1h': '1 hora',

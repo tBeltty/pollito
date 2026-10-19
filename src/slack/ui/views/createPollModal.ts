@@ -41,7 +41,7 @@ export function buildCreatePollModalView(
   const anonymousOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: t('cp.settings.anonymous'),
+      text: `${t('cp.settings.anonymous')}\n${t('cp.settings.anonymousHint')}`,
     },
     value: 'is_anonymous',
   };

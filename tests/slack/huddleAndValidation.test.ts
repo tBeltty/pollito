@@ -238,7 +238,7 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
   });
 
   describe('Huddle End Notification Flow', () => {
-    it('posts a "Remember to vote" reminder to the main channel when Huddle ends with an active poll', async () => {
+    it('posts a vote reminder to the main channel when Huddle ends with an active poll', async () => {
       const poll = await PollService.createPoll({
         workspaceId,
         channelId: 'C_REMINDER_TEST_CH',
@@ -270,7 +270,7 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
       expect(postMessageSpy).toHaveBeenCalledTimes(1);
       const postArgs = postMessageSpy.mock.calls[0][0];
       expect(postArgs.channel).toBe('C_REMINDER_TEST_CH');
-      expect(postArgs.text).toContain('Remember to vote');
+      expect(postArgs.text).toContain('The Huddle ended');
       expect(postArgs.text).toContain('Sprint retrospective feedback');
       expect(postArgs.unfurl_links).toBe(true);
 

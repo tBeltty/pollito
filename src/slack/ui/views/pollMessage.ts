@@ -1,6 +1,7 @@
 import type { Block, KnownBlock } from '@slack/web-api';
 import type { Poll, PollOption } from '@prisma/client';
 import { defaultTranslator, type Translator } from '../../../i18n/index.js';
+import { NUDGE_COOLDOWN_HOURS } from '../../../config/limits.js';
 
 export type PollWithDetails = Omit<Poll, 'allowMultipleVotes'> & {
   allowMultipleVotes?: boolean;
@@ -184,7 +185,7 @@ export function buildPollMessageBlocks(
           },
           text: {
             type: 'mrkdwn',
-            text: t('poll.nudge.confirmBody'),
+            text: t('poll.nudge.confirmBody', { hours: NUDGE_COOLDOWN_HOURS }),
           },
           confirm: {
             type: 'plain_text',
