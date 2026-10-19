@@ -52,6 +52,8 @@ describe('Anti-AI Slop Quality Gate', () => {
     path.resolve(process.cwd(), 'public/terms.html'),
     path.resolve(process.cwd(), 'public/support.html'),
     path.resolve(process.cwd(), 'public/index.html'),
+    path.resolve(process.cwd(), 'public/status/index.html'),
+    path.resolve(process.cwd(), 'public/status/status.js'),
   ];
 
   targetFiles.forEach((file) => {

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Public status page (`public/status/`) for `status.tbelt.online`: current state, 30-day uptime, time since the last restart, response time, a 90-day availability chart, and recent restarts and outages, in English and Spanish. A one-minute probe (`src/status/probe.ts`) writes a sanitized `status.json` with no hostnames, process ids, or resource figures; the pure history logic in `src/status/history.ts` is covered by tests. An nginx template lives in `deploy/nginx/`.
 - Comprehensive bilingual internationalization (i18n) and localization (l10n) architecture for English (`en`, default) and Spanish (`es`) across Slack and web surfaces.
 - Typed message catalogs (`src/i18n/catalogs/en.ts` and `src/i18n/catalogs/es.ts`) with 317 compile-time verified message keys and 100% key and parameter parity.
 - Lightweight, zero-dependency ICU MessageFormat parser supporting parameter interpolation, plurals (`Intl.PluralRules`), select branches, and ECMAScript `Intl` formatters (number, date, relative time, and list).

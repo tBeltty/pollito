@@ -246,3 +246,39 @@ La suite valida:
 2. **Cálculo de quórums**: Comportamiento de cierre por porcentaje o conteo de miembros.
 3. **Barra de progreso**: Renderizado monoespaciado en bloques de 10 caracteres.
 4. **Anti-AI Slop Gate** (`tests/copy/antiSlop.test.ts`): Baneo estricto de clichés corporativos (*"workspace dashboard"*, *"synergize"*, contrastes binarios *"not X, but Y"*).
+
+---
+
+## 7. Página de estado pública (`status.tbelt.online`)
+
+La página es estática (`public/status/`) y lee un único archivo, `status.json`, que genera una sonda local cada minuto. Nada interno llega al exterior: el JSON solo contiene estado, porcentajes de disponibilidad, segundos desde el último arranque, tiempo de respuesta medio y marcas de tiempo de reinicios y caídas.
+
+```mermaid
+flowchart LR
+    Cron["cron (cada minuto)"] --> Probe["dist/status/probe.js"]
+    Probe -->|GET 127.0.0.1:3015/healthz| Bot["pollito (PM2)"]
+    Probe -->|pm2 jlist: hora de arranque| Bot
+    Probe --> Hist["data/status/history.json (privado)"]
+    Probe --> Json["data/status/status.json (público)"]
+    Json --> Nginx["nginx: /status.json"]
+    Nginx --> Page["public/status (HTML, CSS, JS)"]
+```
+
+### Puesta en marcha (una sola vez, requiere acciones fuera del repositorio)
+
+1. **DNS**: crear en Cloudflare un registro `status` (A/AAAA o CNAME) hacia el mismo destino que `pollito.tbelt.online`, con proxy activado.
+2. **nginx**: copiar `deploy/nginx/status.tbelt.online.conf` a `/etc/nginx/sites-available/`, enlazarlo en `sites-enabled`, y ejecutar `nginx -t && systemctl reload nginx`. Luego `certbot --nginx -d status.tbelt.online` para el certificado.
+3. **Sonda**: tras el siguiente despliegue existe `dist/status/probe.js`. Añadir al crontab del usuario que ejecuta PM2 (necesita `pm2 jlist`):
+
+```bash
+* * * * * cd /home/jhonatan/pollito && /usr/bin/node dist/status/probe.js >> /home/jhonatan/pollito/data/status/probe.log 2>&1
+```
+
+4. **Verificar**: `cat data/status/status.json` debe mostrar `"state":"operational"` y `curl -fsS https://status.tbelt.online/status.json` debe devolver lo mismo.
+
+### Comportamiento
+
+* Si la sonda deja de ejecutarse, la página muestra "Las actualizaciones se están retrasando" a partir de 5 minutos, en vez de un falso "todo bien".
+* Si el bot cae, la sonda lo detecta (falla `/healthz`) y registra una caída con su duración. Si el servidor entero cae, la página también cae, porque vive en el mismo VPS. Para cubrir ese caso habría que alojarla fuera (por ejemplo, Cloudflare Pages).
+* Variables opcionales de la sonda: `STATUS_HEALTH_URL`, `STATUS_PM2_NAME` y `STATUS_DATA_DIR`.
+* Los reinicios se detectan por cambio en la hora de arranque del proceso. Se cuentan los de después de la primera ejecución de la sonda.

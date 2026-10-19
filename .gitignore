@@ -48,3 +48,6 @@ docs/internal/
 Technical Guide_ Building Slack Applications.md
 *Technical Guide*
 
+
+# Runtime data (status probe history)
+data/
