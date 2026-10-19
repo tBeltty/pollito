@@ -182,7 +182,7 @@ export const es: MessageCatalog = {
   'guide.cmd.report': '• `/pollito report`: Consulta tus resultados y el informe de participación',
 
   // ── Analítica y desglose de votación ──────────────────────────────────
-  'analytics.title': 'Resultados y estadísticas',
+  'analytics.title': 'Estadísticas',
   'analytics.scope.personal':
     'Resultados de tus votaciones y participación en {days, plural, one {el último día} other {los últimos # días}}. Solo aparecen votaciones que creaste tú. La vista global está reservada a administradores y gestores de Pollito.',
   'analytics.scope.workspace':
@@ -259,7 +259,7 @@ export const es: MessageCatalog = {
   'home.footer': 'Votaciones públicas y anónimas • Soporte para quórum y Huddles',
 
   // ── Exportación CSV e historial ────────────────────────────────────────
-  'csv.title': 'Exportar votaciones a CSV',
+  'csv.title': 'Exportar a CSV',
   'csv.intro':
     'Filtra las votaciones por fecha, estado o preguntas específicas, y copia el contenido CSV:',
   'csv.status.all': 'Todos los estados',
@@ -274,7 +274,7 @@ export const es: MessageCatalog = {
   'csv.polls.placeholder': 'Todas las del rango (o elige específicas)',
   'csv.polls.label': 'Votaciones específicas a exportar',
   'csv.apply': 'Aplicar filtros',
-  'history.title': 'Gestionar historial de votaciones',
+  'history.title': 'Historial de votos',
   'history.submit': 'Eliminar seleccionadas',
   'history.intro':
     'Selecciona una o más votaciones para eliminarlas permanentemente del historial y estadísticas:',
@@ -310,7 +310,7 @@ export const es: MessageCatalog = {
     '_Todavía no hay plantillas compartidas en el espacio de trabajo. Cualquier miembro puede crear una y compartirla con los demás._',
 
   // ── Ajustes del espacio de trabajo ─────────────────────────────────────
-  'settings.title': 'Ajustes del espacio de trabajo',
+  'settings.title': 'Configuración',
   'settings.submit': 'Guardar ajustes',
   'settings.readOnly.body':
     '*Vista de solo lectura*\nLos ajustes del espacio de trabajo solo pueden cambiarlos los administradores de Slack y los gestores de Pollito.',
@@ -356,11 +356,11 @@ export const es: MessageCatalog = {
   'settings.locale.es': 'Español',
 
   // ── Creador de votación y plantilla ───────────────────────────────────
-  'cp.title.huddle': 'Crear votación en un Huddle',
-  'cp.title.create': 'Crear una votación',
-  'cp.title.editTemplate': 'Editar plantilla de votación',
-  'cp.title.newTemplate': 'Nueva plantilla de votación',
-  'cp.title.newWorkspaceTemplate': 'Nueva plantilla del espacio',
+  'cp.title.huddle': 'Votación en Huddle',
+  'cp.title.create': 'Crear votación',
+  'cp.title.editTemplate': 'Editar plantilla',
+  'cp.title.newTemplate': 'Nueva plantilla',
+  'cp.title.newWorkspaceTemplate': 'Plantilla de equipo',
   'cp.submit.launch': 'Lanzar votación',
   'cp.submit.saveTemplate': 'Guardar plantilla',
   'cp.submit.createTemplate': 'Crear plantilla',

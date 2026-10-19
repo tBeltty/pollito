@@ -13,14 +13,21 @@ echo "This script securely updates Slack OAuth credentials on ${VPS_HOST} withou
 echo "them in shell history, command-line arguments, chat logs, or LLM transcripts."
 echo ""
 
-# 1. Capture Slack Client ID (defaults to Pollito's public Client ID if Enter is pressed)
-DEFAULT_CLIENT_ID="12145588418240.12338463584437"
-read -r -p "1. Enter Slack Client ID [Press Enter for ${DEFAULT_CLIENT_ID}]: " INPUT_CLIENT_ID
-SLACK_CLIENT_ID="${INPUT_CLIENT_ID:-$DEFAULT_CLIENT_ID}"
+# Ensure terminal echo is always restored even if interrupted
+cleanup() {
+  stty echo < /dev/tty 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
 
-# 2. Capture Slack Client Secret silently
-read -s -r -p "2. Enter Slack Client Secret: " SLACK_CLIENT_SECRET
-echo ""
+SLACK_CLIENT_ID="12145588418240.12338463584437"
+
+# Capture Slack Client Secret with kernel-level echo suppression
+printf "Pega tu Slack Client Secret (entrada oculta) > "
+stty -echo < /dev/tty 2>/dev/null || true
+read -r SLACK_CLIENT_SECRET < /dev/tty
+stty echo < /dev/tty 2>/dev/null || true
+printf "\n"
+
 if [[ -z "$SLACK_CLIENT_SECRET" ]]; then
   echo "❌ Error: Client secret cannot be empty."
   exit 1

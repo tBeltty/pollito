@@ -177,7 +177,7 @@ export const en = {
   'guide.cmd.report': '• `/pollito report`: View your poll results and analytics report',
 
   // ── Analytics and poll detail modals ──────────────────────────────────
-  'analytics.title': 'Poll results and analytics',
+  'analytics.title': 'Poll Analytics',
   'analytics.scope.personal':
     'Your poll results and participation metrics for the *last {days, plural, one {day} other {# days}}*. Only polls you created appear here. Workspace-wide analytics are visible to workspace admins and Pollito managers.',
   'analytics.scope.workspace':

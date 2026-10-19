@@ -15,7 +15,7 @@ export async function publishHomeTab(
   userId: string,
   workspaceId: string
 ): Promise<void> {
-  const [settings, viewer, polls, templates] = await Promise.all([
+  const [settings, viewer, polls, templates, botToken] = await Promise.all([
     PollService.getWorkspaceSettings(workspaceId),
     PollService.getReportViewer(client, userId, workspaceId),
     prisma.poll.findMany({
@@ -28,6 +28,7 @@ export async function publishHomeTab(
       take: 15,
     }),
     PollService.listTemplates(workspaceId, userId),
+    PollService.resolveWorkspaceBotToken(workspaceId),
   ]);
 
   const { getRequestTranslator } = await import('../utils/locale.js');
@@ -54,6 +55,7 @@ export async function publishHomeTab(
   });
 
   await client.views.publish({
+    token: botToken,
     user_id: userId,
     view: homeView,
   });

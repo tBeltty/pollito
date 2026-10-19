@@ -642,7 +642,7 @@ export function registerViewHandlers(app: App) {
     }
   });
 
-  app.view('manage_history_modal_submit', async ({ ack, view, body, client }) => {
+  const handleBulkDeletePolls = async ({ ack, view, body, client }: any) => {
     const selected =
       view.state.values.delete_polls_select_block?.delete_polls_multi_select?.selected_options ?? [];
     const pollIds = selected.map((o: any) => o.value).filter(Boolean);
@@ -672,24 +672,19 @@ export function registerViewHandlers(app: App) {
         userId,
         workspaceId
       );
-      const { deletedPolls } = await PollService.deletePollsBulk(
+      await PollService.deletePollsBulk(
         pollIds,
         workspaceId,
         userId,
         isManager
       );
 
-      for (const p of deletedPolls) {
-        try {
-          await client.chat?.delete?.({ channel: p.channelId, ts: p.messageTs });
-        } catch {
-          // ignore failures deleting already removed or old messages
-        }
-      }
-
       await publishHomeTab(client, userId, workspaceId);
     } catch (error) {
       console.error('Failed to bulk delete polls:', error);
     }
-  });
+  };
+
+  app.view('manage_history_modal_submit', handleBulkDeletePolls);
+  app.view('delete_polls_modal', handleBulkDeletePolls);
 }
