@@ -3,7 +3,6 @@ set -euo pipefail
 
 # ==============================================================================
 # Blind-Secret Ingestion Script for Pollito Slack App (OAuth Credentials)
-# Complies with ~/.gemini/config/rules/blind-secrets.md
 # ==============================================================================
 
 VPS_HOST="${VPS_HOST:-mi-vps}"

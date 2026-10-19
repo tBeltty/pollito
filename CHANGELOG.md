@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a 2000ms maximum wait ceiling (`MAX_WAIT_MS`), `flushNow`, and `flushAll` to `UpdateQueue` so rapid voting bursts update Slack cards in real time without starvation.
 - Excluded the bot's own `user_id` (`getEligibleChannelMembers`) from channel member counts so 100% quorum thresholds remain mathematically reachable.
 - Removed all `new Date()` calls from `src/slack/ui/views/pollMessage.ts` for pure, clock-free Block Kit rendering.
-- Purged legacy `HuddlePace`, `Vector the Falcon`, and `/pace` references from `docs/guidelines/` and aligned pricing copy around the Freemium launch model and planned $15/month flat-rate Pro tier.
+- Removed references to a former product name from `docs/guidelines/` and aligned pricing copy around the Freemium launch model and planned $15/month flat-rate Pro tier.
 
 ### Fixed
 - Fixed `PollTimerWorker` token resolution on auto-created workspaces so it decrypts stored OAuth bot tokens or falls back to `env.SLACK_BOT_TOKEN` instead of passing the `'bot_token_managed'` placeholder.

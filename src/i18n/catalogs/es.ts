@@ -5,7 +5,7 @@ import type { MessageCatalog } from '../index.js';
  * Sigue las directrices del proyecto:
  * - 100% tuteo ("tú", "tu", "elige", "crea").
  * - Puntuación y ortografía RAE (apertura de signos ¿ y ¡, mayúsculas correctas).
- * - Cero AI slop (tono directo, humano y profesional).
+ * - Tono directo, humano y profesional, sin frases de relleno.
  * - Paridad estricta de claves y sintaxis ICU ({name}, {count, plural, one {..} other {..}}).
  */
 export const es: MessageCatalog = {
