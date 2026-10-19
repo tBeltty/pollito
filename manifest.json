@@ -19,8 +19,36 @@
       {
         "command": "/pollito",
         "url": "https://pollito.tbelt.online/slack/events",
-        "description": "Create a team poll with automatic closing",
-        "usage_hint": "[huddle | report | close | nudge | help]",
+        "description": "Create a poll that closes at quorum",
+        "usage_hint": "\"Question\" \"Option 1\" \"Option 2\"",
+        "should_escape": false
+      },
+      {
+        "command": "/pollito-huddle",
+        "url": "https://pollito.tbelt.online/slack/events",
+        "description": "Start a poll in the active Huddle thread",
+        "usage_hint": "\"Question\" \"Option 1\" \"Option 2\"",
+        "should_escape": false
+      },
+      {
+        "command": "/pollito-report",
+        "url": "https://pollito.tbelt.online/slack/events",
+        "description": "See results and analytics for your polls",
+        "usage_hint": "[poll-id]",
+        "should_escape": false
+      },
+      {
+        "command": "/pollito-close",
+        "url": "https://pollito.tbelt.online/slack/events",
+        "description": "Close one of your active polls now",
+        "usage_hint": "[poll-id]",
+        "should_escape": false
+      },
+      {
+        "command": "/pollito-nudge",
+        "url": "https://pollito.tbelt.online/slack/events",
+        "description": "Privately remind the people who haven't voted",
+        "usage_hint": "[poll-id]",
         "should_escape": false
       }
     ]
