@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pollito status</title>
+  <meta name="description" content="Live availability, uptime, and recent restarts for Pollito, the Slack polling app.">
+  <link rel="canonical" href="https://status.tbelt.online/">
+  <meta property="og:site_name" content="Pollito">
+  <meta property="og:title" content="Pollito status">
+  <meta property="og:description" content="Live availability, uptime, and recent restarts for Pollito.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://status.tbelt.online/">
+  <meta property="og:image" content="https://pollito.tbelt.online/assets/og/og-en.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0b0f19">
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/png" href="https://pollito.tbelt.online/assets/plates/pollito-nav-logo.png">
+  <link rel="stylesheet" href="status.css?v=3">
+</head>
+<body>
+  <main class="page">
+    <header class="top">
+      <a class="brand" href="https://pollito.tbelt.online/">
+        <img src="https://pollito.tbelt.online/assets/plates/pollito-nav-logo.png" alt="" width="32" height="32">
+        <span data-i18n="title">Pollito status</span>
+      </a>
+      <button class="lang" id="lang" type="button" aria-label="Cambiar idioma / Change language">ES</button>
+    </header>
+
+    <section class="banner" id="banner" data-state="loading" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <div>
+        <h1 id="banner-title" data-i18n="loading.title">Checking status</h1>
+        <p id="banner-sub" data-i18n="loading.sub">One moment.</p>
+      </div>
+    </section>
+
+    <section class="stats" id="stats" aria-label="Key figures" hidden>
+      <div class="stat">
+        <span class="stat-label" data-i18n="stat.uptime">Uptime, 30 days</span>
+        <span class="stat-value" id="stat-uptime">-</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label" data-i18n="stat.running">Running for</span>
+        <span class="stat-value" id="stat-running">-</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label" data-i18n="stat.response">Response time</span>
+        <span class="stat-value" id="stat-response">-</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2 data-i18n="days.title">Last 90 days</h2>
+        <span class="muted" id="days-summary"></span>
+      </div>
+      <div class="bars" id="bars" role="img" aria-label="Daily availability for the last 90 days"></div>
+      <div class="bars-axis muted"><span data-i18n="days.start">90 days ago</span><span data-i18n="days.end">Today</span></div>
+    </section>
+
+    <section class="card">
+      <h2 data-i18n="events.title">Recent events</h2>
+      <ul class="events" id="events"></ul>
+    </section>
+
+    <noscript><p class="muted">This page needs JavaScript to show live data.</p></noscript>
+
+    <footer class="foot muted">
+      <p data-i18n="foot.note">Checked every minute. Days are counted in UTC and times use your local timezone.</p>
+      <p><a href="https://pollito.tbelt.online/support.html" data-i18n="foot.support">Support</a></p>
+    </footer>
+  </main>
+  <script src="status.js?v=2"></script>
+</body>
+</html>
