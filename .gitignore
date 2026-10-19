@@ -52,3 +52,17 @@ Technical Guide_ Building Slack Applications.md
 # Runtime data (status probe history)
 data/
 public/status/status.json
+
+# Local tooling and working notes (kept on disk, not published)
+.claude/
+.agents/
+.impeccable/
+audit/
+AGENTS.md
+docs/KNOWLEDGE_INDEX.md
+docs/guidelines/SUBAGENT_ORCHESTRATION.md
+docs/guidelines/REPOSITORY_HYGIENE.md
+docs/guidelines/DEFINITION_OF_DONE.md
+docs/guidelines/RELEASE_PROCESS.md
+assets/avatar-variant-*.png
+public/assets/plates/mascot-pollito-stage.png
