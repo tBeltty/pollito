@@ -105,7 +105,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
 
     it('formats CLOSED summary with winning option when votes cast', () => {
       const summary = formatPollClosureSummary(mockPoll, 'CLOSED');
-      expect(summary).toContain('🔒 *Poll Closed by Creator*');
+      expect(summary).toContain('🔒 *Poll closed by its creator*');
       expect(summary).toContain('*3* total participants');
       expect(summary).toContain('Winner: *Thursday 2pm* (5 votes)');
     });
@@ -117,7 +117,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
         participations: [],
       };
       const summary = formatPollClosureSummary(emptyPoll, 'CLOSED');
-      expect(summary).toContain('🔒 *Poll Closed by Creator*');
+      expect(summary).toContain('🔒 *Poll closed by its creator*');
       expect(summary).toContain('was closed with 0 votes cast.');
     });
 
@@ -283,7 +283,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
         expect.objectContaining({
           channel: 'C_DEV_2',
           thread_ts: '1700000000.000200',
-          text: expect.stringContaining('🔒 *Poll Closed by Creator*'),
+          text: expect.stringContaining('🔒 *Poll closed by its creator*'),
         })
       );
 
@@ -587,7 +587,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
         expect.objectContaining({
           channel: 'C_COMMAND_1',
           thread_ts: '1700000000.000400',
-          text: expect.stringContaining('🔒 *Poll Closed by Creator*'),
+          text: expect.stringContaining('🔒 *Poll closed by its creator*'),
         })
       );
       expect(postEphemeralSpy).toHaveBeenCalledWith(

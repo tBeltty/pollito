@@ -181,7 +181,7 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
 
       expect(viewsOpenSpy).toHaveBeenCalledTimes(1);
       const modalView = viewsOpenSpy.mock.calls[0][0].view;
-      expect(modalView.title.text).toBe('Create a Huddle Poll');
+      expect(modalView.title.text).toBe('Create a Huddle poll');
 
       const huddleThreadBlock = modalView.blocks.find(
         (b: any) => b.block_id === 'huddle_thread_block'

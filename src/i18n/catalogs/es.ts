@@ -53,7 +53,7 @@ export const es: MessageCatalog = {
   'poll.footer.quorumCount':
     'Quórum objetivo: {target, plural, one {# voto} other {# votos}} ({votes}/{target} alcanzado)',
   'poll.footer.closes': 'Cierra: {date}',
-  'poll.footer.closed': 'Cerró: {date}',
+  'poll.footer.closed': 'Cerrada: {date}',
   'poll.footer.meta': 'Creada por <@{creatorId}> • ID: {pollId}',
   'poll.fallback.active': 'Votación: {question}',
   'poll.fallback.closed': '[Cerrada] Votación: {question}',
@@ -97,9 +97,9 @@ export const es: MessageCatalog = {
 
   // ── Respuestas a comandos de barra ─────────────────────────────────────
   'command.help':
-    '*Ayuda rápida de Pollito*\n\n• `/pollito`: Abre el creador de votaciones.\n• `/pollito "Pregunta" "Opción 1" "Opción 2"`: Crea una votación rápida al instante.\n• `/pollito huddle`: Abre el creador para publicar en la junta de voz activa.\n• `/pollito huddle "Pregunta" "Opción 1" "Opción 2"`: Publica de inmediato en la junta de voz.\n• `/pollito close [id-votación]`: Cierra una votación activa que hayas creado.\n• `/pollito nudge [id-votación]`: Envía recordatorios privados a quienes faltan por votar.\n• `/pollito report`: Abre las estadísticas de tus votaciones o del espacio de trabajo.\n• Visita la pestaña Inicio de la app para ver resultados y plantillas.',
+    '*Ayuda rápida de Pollito*\n\n• `/pollito`: Abre el creador de votaciones.\n• `/pollito "Pregunta" "Opción 1" "Opción 2"`: Crea una votación rápida al instante.\n• `/pollito huddle`: Abre el creador para publicar en el Huddle activo.\n• `/pollito huddle "Pregunta" "Opción 1" "Opción 2"`: Publica de inmediato en el Huddle.\n• `/pollito close [id-votación]`: Cierra una votación activa que hayas creado.\n• `/pollito nudge [id-votación]`: Envía recordatorios privados a quienes faltan por votar.\n• `/pollito report`: Abre las estadísticas de tus votaciones o del espacio de trabajo.\n• Visita la pestaña Inicio de la app para ver resultados y plantillas.',
   'command.noHuddle':
-    'No se detectó ninguna junta de voz activa en este canal. Inicia una junta primero o usa `/pollito huddle` para abrir el creador.',
+    'No se detectó ningún Huddle activo en este canal. Inicia un Huddle primero o usa `/pollito huddle` para abrir el creador.',
   'command.inviteBot':
     'Primero invita a Pollito a este canal. Escribe `/invite @Pollito` y vuelve a ejecutar {command}.',
   'command.report.summary':
@@ -153,7 +153,7 @@ export const es: MessageCatalog = {
   'validation.invalidHuddleLink':
     'Enlace o marca temporal de hilo no válida. Pega un enlace de mensaje de Slack (.../archives/C.../p1234567890123456) o un thread_ts (1234567890.123456).',
   'validation.noActiveHuddle':
-    'No se detectó ninguna junta de voz activa en este canal. Inicia una junta primero o pega el enlace del mensaje aquí.',
+    'No se detectó ningún Huddle activo en este canal. Inicia un Huddle primero o pega el enlace del mensaje aquí.',
   'validation.templateNameRequired': 'Asigna un nombre a esta plantilla.',
   'validation.maxNudgeRange':
     'El tamaño máximo de canal para recordatorios debe ser un número entero entre 5 y 500.',
@@ -164,7 +164,7 @@ export const es: MessageCatalog = {
   'guide.close': 'Entendido',
   'guide.header.how': 'Cómo funciona Pollito',
   'guide.step1':
-    '*1. Lanza en un canal o hilo de junta de voz*\nAbre el creador interactivo con `/pollito`, pasa opciones directamente para una votación instantánea o usa `/pollito huddle` para publicar dentro de la junta de voz activa.',
+    '*1. Lanza en un canal o hilo de Huddle*\nAbre el creador interactivo con `/pollito`, pasa opciones directamente para una votación instantánea o usa `/pollito huddle` para publicar dentro del Huddle activo.',
   'guide.step2':
     '*2. Votaciones anónimas y quórum*\nEn las votaciones anónimas nadie puede ver quién votó por qué. Define un quórum de 51% o más para cerrar la votación en cuanto vote suficiente gente del canal, o elige "Sin quórum requerido" para votaciones informales.',
   'guide.step3':
@@ -173,9 +173,9 @@ export const es: MessageCatalog = {
   'guide.cmd.builder': '• `/pollito`: Abre el creador interactivo para el canal actual',
   'guide.cmd.instant': '• `/pollito "Pregunta" "Opción 1" "Opción 2"`: Lanza una votación rápida en el canal',
   'guide.cmd.huddleBuilder':
-    '• `/pollito huddle`: Abre el creador orientado al hilo de la junta de voz en este canal',
+    '• `/pollito huddle`: Abre el creador orientado al hilo del Huddle en este canal',
   'guide.cmd.huddleInstant':
-    '• `/pollito huddle "Pregunta" "Opción 1" "Opción 2"`: Lanza una votación rápida en la junta de voz',
+    '• `/pollito huddle "Pregunta" "Opción 1" "Opción 2"`: Lanza una votación rápida en el Huddle',
   'guide.cmd.close': '• `/pollito close [id-votación]`: Cierra una votación activa que hayas creado',
   'guide.cmd.nudge':
     '• `/pollito nudge [id-votación]`: Envía recordatorios privados a quienes faltan',
@@ -236,14 +236,14 @@ export const es: MessageCatalog = {
   'home.stat.active': '*Votaciones activas:*\n{count}',
   'home.stat.quorums': '*Quórums alcanzados:*\n{count}',
   'home.stat.closed': '*Votaciones cerradas:*\n{count}',
-  'home.stat.participation': '*Participación media:*\n{pct}%',
+  'home.stat.participation': '*Participación promedio:*\n{pct}%',
   'home.templates.intro': '*Plantillas rápidas*\nInicia una votación recurrente con un solo clic.',
   'home.templates.emptyManager':
     '*Plantillas rápidas*\nTodavía no hay plantillas compartidas. Como administrador, puedes crear plantillas para que el equipo las lance en un clic.',
   'home.templates.emptyMember':
     '*Plantillas rápidas*\nTodavía nadie ha compartido plantillas con el espacio. Abre *Plantillas* arriba para crear las tuyas.',
   'home.templates.add': '+ Añadir plantilla',
-  'home.templates.addWorkspace': '+ Añadir plantilla de equipo',
+  'home.templates.addWorkspace': '+ Añadir plantilla del espacio',
   'home.recent.header': 'Votaciones recientes',
   'home.recent.empty':
     '_Todavía no hay votaciones. Escribe `/pollito` en cualquier canal o pulsa "Nueva votación" arriba._',
@@ -256,7 +256,7 @@ export const es: MessageCatalog = {
     'Esto eliminará de forma permanente el registro de App Home y de las estadísticas del espacio.',
   'home.clear.confirmTitle': '¿Limpiar votaciones cerradas?',
   'home.clear.confirmBody': 'Esto eliminará de forma permanente las votaciones finalizadas de tu historial.',
-  'home.footer': 'Votaciones públicas y anónimas • Soporte para quórum y juntas de voz',
+  'home.footer': 'Votaciones públicas y anónimas • Soporte para quórum y Huddles',
 
   // ── Exportación CSV e historial ────────────────────────────────────────
   'csv.title': 'Exportar votaciones a CSV',
@@ -267,9 +267,9 @@ export const es: MessageCatalog = {
   'csv.status.closed': 'Solo cerradas',
   'csv.status.active': 'Solo activas',
   'csv.startDate.placeholder': 'Elige fecha inicial',
-  'csv.startDate.label': 'Fecha inicial (Opcional)',
+  'csv.startDate.label': 'Fecha inicial (opcional)',
   'csv.endDate.placeholder': 'Elige fecha final',
-  'csv.endDate.label': 'Fecha final (Opcional)',
+  'csv.endDate.label': 'Fecha final (opcional)',
   'csv.statusFilter.label': 'Filtro por estado',
   'csv.polls.placeholder': 'Todas las del rango (o elige específicas)',
   'csv.polls.label': 'Votaciones específicas a exportar',
@@ -285,10 +285,10 @@ export const es: MessageCatalog = {
   'templates.title': 'Plantillas de votación',
   'templates.intro':
     'Guarda preguntas habituales, reglas de quórum y opciones de privacidad como plantillas reutilizables.',
-  'templates.button.newWorkspace': '+ Crear plantilla de equipo',
+  'templates.button.newWorkspace': '+ Crear plantilla del espacio',
   'templates.button.new': '+ Nueva plantilla',
   'templates.tab.mine': 'Mis plantillas ({count})',
-  'templates.tab.workspace': 'Plantillas del equipo ({count})',
+  'templates.tab.workspace': 'Plantillas del espacio ({count})',
   'templates.delete.prompt': '*¿Eliminar la plantilla "{name}"?*\nEsta acción no se puede deshacer.',
   'templates.delete.fallbackName': 'Plantilla seleccionada',
   'templates.delete.confirm': 'Confirmar eliminación',
@@ -307,7 +307,7 @@ export const es: MessageCatalog = {
   'templates.empty.mine':
     '_Aún no tienes plantillas guardadas. Marca "Guardar como plantilla reutilizable" al crear una votación o duplica una del equipo._',
   'templates.empty.workspace':
-    '_Todavía no hay plantillas compartidas en el equipo. Cualquier miembro puede crear una y compartirla con los demás._',
+    '_Todavía no hay plantillas compartidas en el espacio de trabajo. Cualquier miembro puede crear una y compartirla con los demás._',
 
   // ── Ajustes del espacio de trabajo ─────────────────────────────────────
   'settings.title': 'Ajustes del espacio de trabajo',
@@ -356,24 +356,24 @@ export const es: MessageCatalog = {
   'settings.locale.es': 'Español',
 
   // ── Creador de votación y plantilla ───────────────────────────────────
-  'cp.title.huddle': 'Crear votación en junta de voz',
+  'cp.title.huddle': 'Crear votación en un Huddle',
   'cp.title.create': 'Crear una votación',
   'cp.title.editTemplate': 'Editar plantilla de votación',
   'cp.title.newTemplate': 'Nueva plantilla de votación',
-  'cp.title.newWorkspaceTemplate': 'Nueva plantilla del equipo',
+  'cp.title.newWorkspaceTemplate': 'Nueva plantilla del espacio',
   'cp.submit.launch': 'Lanzar votación',
   'cp.submit.saveTemplate': 'Guardar plantilla',
   'cp.submit.createTemplate': 'Crear plantilla',
   'cp.huddle.inChannel': ' en <#{channelId}>',
   'cp.huddle.bannerActive':
-    '🎧 *Destino: Hilo de la junta de voz activa*{inChannel}\nEsta votación se publicará directamente dentro de la junta de voz en curso.',
+    '🎧 *Destino: Hilo del Huddle activo*{inChannel}\nEsta votación se publicará directamente dentro del Huddle en curso.',
   'cp.huddle.bannerPending':
-    '🎧 *Destino: Hilo de la junta de voz*{inChannel}\nPollito detectará la junta de voz al lanzarla, o puedes pegar el enlace del mensaje abajo.',
+    '🎧 *Destino: Hilo del Huddle*{inChannel}\nPollito detectará el Huddle al lanzar la votación, o puedes pegar el enlace del mensaje abajo.',
   'cp.channel.placeholder': 'Elige un canal',
   'cp.channel.label': 'Canal',
-  'cp.channel.labelTemplate': 'Canal por defecto (Opcional)',
+  'cp.channel.labelTemplate': 'Canal por defecto (opcional)',
   'cp.huddleThread.placeholder': 'En blanco para detectar solo, o pega enlace del mensaje / thread ts',
-  'cp.huddleThread.label': 'Enlace o marca temporal del hilo de la junta (Opcional)',
+  'cp.huddleThread.label': 'Enlace o marca temporal del hilo del Huddle (opcional)',
   'cp.question.placeholder': 'Ej. ¿Qué fecha nos viene mejor para la retrospectiva?',
   'cp.question.label': 'Pregunta de la votación',
   'cp.option.label': 'Opción {number}',
@@ -381,19 +381,19 @@ export const es: MessageCatalog = {
   'cp.option.placeholder2': 'Segunda opción',
   'cp.option.placeholder3': 'Tercera opción (opcional)',
   'cp.option.placeholder4': 'Cuarta opción (opcional)',
-  'cp.settings.label': 'Ajustes de privacidad',
+  'cp.settings.label': 'Ajustes de la votación',
   'cp.settings.anonymous': '*Voto anónimo*',
   'cp.settings.anonymousHint': 'Nadie puede ver quién votó por qué.',
   'cp.settings.multiple': '*Opción múltiple*',
   'cp.settings.multipleHint': 'Permite al equipo elegir más de una opción.',
   'cp.settings.noQuorum': '*Sin quórum requerido*',
   'cp.settings.noQuorumHint': 'Sin umbral de participación. Se cierra a mano o al vencer el plazo.',
-  'cp.settings.forwardHuddle': '*Recordar en el canal cuando termine la junta*',
-  'cp.settings.forwardHuddleHint': 'Publica un enlace de recordatorio en el canal si la votación sigue abierta al terminar la junta.',
+  'cp.settings.forwardHuddle': '*Recordar en el canal cuando termine el Huddle*',
+  'cp.settings.forwardHuddleHint': 'Publica un enlace de recordatorio en el canal si la votación sigue abierta al terminar el Huddle.',
   'cp.quorum.label': 'Porcentaje de quórum objetivo (%)',
   'cp.quorum.hint':
     'Mínimo 51% (más de la mitad). Déjalo en blanco o marca "Sin quórum requerido" para votaciones informales.',
-  'cp.duration.none': 'Sin límite de tiempo (Manual o por quórum)',
+  'cp.duration.none': 'Sin límite de tiempo (manual o por quórum)',
   'cp.duration.15m': '15 minutos (Standup rápido)',
   'cp.duration.1h': '1 hora',
   'cp.duration.4h': '4 horas',
@@ -407,10 +407,10 @@ export const es: MessageCatalog = {
   'cp.template.name.placeholderNew': 'Ej. Bloqueos de la sincronización diaria',
   'cp.template.name.placeholderOptional': 'Nombre opcional (por defecto toma la pregunta)',
   'cp.template.name.label': 'Nombre de la plantilla',
-  'cp.template.availability.label': 'Disponibilidad en el equipo',
+  'cp.template.availability.label': 'Disponibilidad en el espacio',
   'cp.template.save.label': 'Plantilla reutilizable',
-  'cp.template.save': '*Guardar como plantilla reutilizable (Privada para ti)*',
+  'cp.template.save': '*Guardar como plantilla reutilizable (solo tú la verás)*',
   'cp.template.saveHint': 'Guarda la pregunta, opciones y quórum en tus Plantillas.',
-  'cp.template.share': '*Hacer pública para todo el equipo*',
+  'cp.template.share': '*Compartir con el espacio de trabajo*',
   'cp.template.shareHint': 'Cualquier compañero podrá usarla desde Inicio y Plantillas.',
 };

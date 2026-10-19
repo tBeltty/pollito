@@ -52,9 +52,12 @@ Pollito is a focused, friendly chick who facilitates team decisions with warmth 
 
 ## 3. Language & Internationalization Policy
 
-### 1. Strict English Policy for Slack UI
-- **100% of Slack in-app text must be in English**: Block Kit cards, section headers, modal inputs, button text, overflow menus, ephemeral errors, and DM notifications.
-- Slack workspaces are often multi-cultural and global. English is the universal baseline for all bot interactions.
+### 1. Slack UI Language (English default, Spanish supported)
+- **English is the base catalog** (`src/i18n/catalogs/en.ts`) and the fallback for any Slack language Pollito does not support. Spanish lives in `es.ts` with identical keys and parameters.
+- Every user-facing string in Block Kit cards, section headers, modal inputs, button text, overflow menus, ephemeral errors, and DM notifications goes through the catalogs. Never throw or post hard-coded English text; throw `LocalizedError` and render it with `describeError`.
+- **Button, label, and title text uses sentence case** ("Close poll", not "Close Poll").
+- **Use the same names the product uses**: *Reminders* (not "Smart Nudges"), *Huddle* (also in Spanish), *Pollito managers*. Do not expose internal terms such as double-urn or ballot pools in the interface.
+- **Spanish stays pan-regional**: "promedio", not "media"; "Huddle", not "junta de voz".
 
 ### 2. Marketing & Documentation (Bilingual ES / EN)
 When drafting Spanish copy for marketing (`marketing/`), target niches (`docs/TARGET_NICHES.md`), or internal guides:
