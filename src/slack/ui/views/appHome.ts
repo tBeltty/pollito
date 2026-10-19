@@ -374,15 +374,23 @@ export function buildAppHomeView(
           : t('home.role.participant')
         : '';
 
-      const sectionBlock: any = {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*${p.question}*\nChannel: <#${p.channelId}> • ${t('poll.option.votes', { count: votes })} • *${statusLabel}*${roleBadge}`,
-        },
-      };
-
-      recentPollBlocks.push(sectionBlock);
+      recentPollBlocks.push(
+        { type: 'section', text: { type: 'mrkdwn', text: `*${p.question}*` } },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: t('home.recent.meta', {
+                channelId: p.channelId,
+                votes,
+                status: statusLabel,
+                role: roleBadge,
+              }),
+            },
+          ],
+        }
+      );
 
       if (canManagePoll) {
         const actionElements: any[] = [];
@@ -476,7 +484,6 @@ export function buildAppHomeView(
           },
           action_id: 'poll_delete_click',
           value: JSON.stringify({ pollId: p.id }),
-          style: 'danger',
           confirm: {
             title: {
               type: 'plain_text',
@@ -503,6 +510,9 @@ export function buildAppHomeView(
           elements: actionElements,
         });
       }
+      if (p !== polls.slice(0, 10).at(-1)) {
+        recentPollBlocks.push({ type: 'divider' });
+      }
     }
   }
 
@@ -511,13 +521,6 @@ export function buildAppHomeView(
     : t('home.greeting.anonymous');
 
   const blocks: (Block | KnownBlock)[] = [
-    {
-      type: 'header',
-      text: {
-        type: 'plain_text',
-        text: t('home.title'),
-      },
-    },
     {
       type: 'section',
       text: {
@@ -675,29 +678,7 @@ export function buildAppHomeView(
               },
             },
           ]),
-    {
-      type: 'actions',
-      block_id: 'app_home_utility_actions',
-      elements: [
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: t('home.button.exportCsv'),
-          },
-          action_id: 'app_home_export_csv_click',
-        },
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: t('home.button.docs'),
-          },
-          url: 'https://pollito.tbelt.online/support.html',
-          action_id: 'app_home_docs_click',
-        },
-      ],
-    },
+    { type: 'divider' },
     {
       type: 'header',
       text: {
@@ -705,6 +686,7 @@ export function buildAppHomeView(
         text: t('home.recent.header'),
       },
     },
+    ...recentPollBlocks,
     ...(polls.length > 0
       ? [
           {
@@ -728,7 +710,6 @@ export function buildAppHomeView(
                   emoji: true,
                 },
                 action_id: 'app_home_clear_closed_click',
-                style: 'danger' as const,
                 confirm: {
                   title: {
                     type: 'plain_text' as const,
@@ -752,9 +733,31 @@ export function buildAppHomeView(
           },
         ]
       : []),
-    ...recentPollBlocks,
     {
       type: 'divider',
+    },
+    {
+      type: 'actions',
+      block_id: 'app_home_utility_actions',
+      elements: [
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: t('home.button.exportCsv'),
+          },
+          action_id: 'app_home_export_csv_click',
+        },
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: t('home.button.docs'),
+          },
+          url: 'https://pollito.tbelt.online/support.html',
+          action_id: 'app_home_docs_click',
+        },
+      ],
     },
     {
       type: 'context',

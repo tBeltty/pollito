@@ -233,10 +233,10 @@ export const es: MessageCatalog = {
   'home.button.manageHistory': 'Elegir votaciones para eliminar',
   'home.button.clearClosed': 'Limpiar votaciones cerradas',
   'home.button.viewResults': 'Ver resultados',
-  'home.stat.active': '*Votaciones activas:*\n{count}',
-  'home.stat.quorums': '*Quórums alcanzados:*\n{count}',
-  'home.stat.closed': '*Votaciones cerradas:*\n{count}',
-  'home.stat.participation': '*Participación promedio:*\n{pct}%',
+  'home.stat.active': '*{count}*\nVotaciones activas',
+  'home.stat.quorums': '*{count}*\nQuórums alcanzados',
+  'home.stat.closed': '*{count}*\nVotaciones cerradas',
+  'home.stat.participation': '*{pct}%*\nParticipación promedio',
   'home.templates.intro': '*Plantillas rápidas*\nInicia una votación recurrente con un solo clic.',
   'home.templates.emptyManager':
     '*Plantillas rápidas*\nTodavía no hay plantillas compartidas. Como administrador, puedes crear plantillas para que el equipo las lance en un clic.',
@@ -247,10 +247,10 @@ export const es: MessageCatalog = {
   'home.recent.header': 'Votaciones recientes',
   'home.recent.empty':
     '_Todavía no hay votaciones. Escribe `/pollito` en cualquier canal o pulsa "Nueva votación" arriba._',
-  'home.recent.row':
-    '*{question}*\nCanal: <#{channelId}> • {votes, plural, one {*#* voto} other {*#* votos}} • *{status}*{role}',
-  'home.role.creator': ' • *Creada por ti*',
-  'home.role.participant': ' • _Participante_',
+  'home.recent.meta':
+    '<#{channelId}> • {votes, plural, one {# voto} other {# votos}} • {status}{role}',
+  'home.role.creator': ' • La creaste tú',
+  'home.role.participant': ' • Participante',
   'home.delete.confirmTitle': '¿Eliminar esta votación?',
   'home.delete.confirmBody':
     'Esto eliminará de forma permanente el registro de App Home y de las estadísticas del espacio.',
