@@ -32,7 +32,7 @@ export const es: MessageCatalog = {
   'poll.ballot.public': 'Voto público',
   'poll.choice.multiple': 'Opción múltiple',
   'poll.choice.single': 'Opción única',
-  'poll.context.status': '{mascot} *Estado:* {status} • *Tipo:* {ballot} • {choice}',
+  'poll.context.status': '*Estado:* {status} • *Tipo:* {ballot} • {choice}',
   'poll.option.votes': '{count, plural, one {*#* voto} other {*#* votos}}',
   'poll.option.moreVoters': '+{count} más',
   'poll.vote.button': 'Votar {number}',
@@ -61,9 +61,9 @@ export const es: MessageCatalog = {
   'poll.fallback.creating': 'Creando votación: {question}...',
 
   // ── Anuncios de cierre ─────────────────────────────────────────────────
-  'closure.title.quorum': '🎉 *Quórum alcanzado. Votación cerrada*',
-  'closure.title.closed': '🔒 *Votación cerrada por quien la creó*',
-  'closure.title.expired': '⏰ *Votación cerrada. Tiempo agotado*',
+  'closure.title.quorum': '*Quórum alcanzado. Votación cerrada*',
+  'closure.title.closed': '*Votación cerrada por quien la creó*',
+  'closure.title.expired': '*Votación cerrada. Tiempo agotado*',
   'closure.body.quorum':
     '*{question}* alcanzó el quórum objetivo con {count, plural, one {*#* participante} other {*#* participantes}}.',
   'closure.body.closed':
@@ -79,9 +79,9 @@ export const es: MessageCatalog = {
 
   // ── Recordatorios y notificaciones ───────────────────────────────────
   'nudge.dm':
-    '👋 <@{creatorId}> espera tu voto en *{question}* en <#{channelId}>.',
+    '<@{creatorId}> espera tu voto en *{question}* en <#{channelId}>.',
   'nudge.sent':
-    '📬 Se enviaron recordatorios privados a {count, plural, one {# compañero} other {# compañeros}}.',
+    'Se enviaron recordatorios privados a {count, plural, one {# compañero} other {# compañeros}}.',
   'nudge.nonePending': '¡No hay votos pendientes! Todo el equipo ya emitió su voto.',
   'nudge.disabled': 'Los recordatorios están desactivados en este espacio de trabajo.',
   'nudge.channelTooLarge': 'Los recordatorios no están disponibles en canales de más de {max} miembros.',
@@ -90,9 +90,9 @@ export const es: MessageCatalog = {
   'vote.recorded': 'Tu voto ha sido registrado.',
   'vote.recordedAnonymous': 'Tu voto anónimo ha sido registrado.',
   'huddle.reminder.fallback':
-    '🗳️ El Huddle terminó y *{question}* sigue abierta. <{permalink}|Votar en el hilo>',
+    'El Huddle terminó y *{question}* sigue abierta. <{permalink}|Votar en el hilo>',
   'huddle.reminder.body':
-    '🗳️ *El Huddle terminó.*\n*<{permalink}|{question}>* sigue abierta para votar en el hilo.',
+    '*El Huddle terminó.*\n*<{permalink}|{question}>* sigue abierta para votar en el hilo.',
   'huddle.reminder.button': 'Ir a la votación',
 
   // ── Respuestas a comandos de barra ─────────────────────────────────────
@@ -366,9 +366,9 @@ export const es: MessageCatalog = {
   'cp.submit.createTemplate': 'Crear plantilla',
   'cp.huddle.inChannel': ' en <#{channelId}>',
   'cp.huddle.bannerActive':
-    '🎧 *Destino: Hilo del Huddle activo*{inChannel}\nEsta votación se publicará directamente dentro del Huddle en curso.',
+    '*Destino: Hilo del Huddle activo*{inChannel}\nEsta votación se publicará directamente dentro del Huddle en curso.',
   'cp.huddle.bannerPending':
-    '🎧 *Destino: Hilo del Huddle*{inChannel}\nPollito detectará el Huddle al lanzar la votación, o puedes pegar el enlace del mensaje abajo.',
+    '*Destino: Hilo del Huddle*{inChannel}\nPollito detectará el Huddle al lanzar la votación, o puedes pegar el enlace del mensaje abajo.',
   'cp.channel.placeholder': 'Elige un canal',
   'cp.channel.label': 'Canal',
   'cp.channel.labelTemplate': 'Canal por defecto (opcional)',

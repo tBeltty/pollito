@@ -86,29 +86,21 @@ describe('Poll Message Block Kit Builder (pollMessage.ts)', () => {
     expect(serialized).toContain('Anonymous ballot');
   });
 
-  it('transitions Pollito mascot micro-expressions accurately (🐣 -> 🧐 -> 🎉 / ⏰)', () => {
-    // 0 votes active -> 🐣
+  it('transitions poll status context accurately across lifecycle states', () => {
+    // 0 votes active -> Active
     const newPoll = createMockPoll({ status: 'ACTIVE', participations: [] });
     const newBlocks = buildPollMessageBlocks(newPoll);
-    expect(JSON.stringify(newBlocks)).toContain('🐣 *Status:*');
+    expect(JSON.stringify(newBlocks)).toContain('*Status:* Poll active');
 
-    // >0 votes active -> 🧐
-    const activeVotingPoll = createMockPoll({
-      status: 'ACTIVE',
-      participations: [{ voterId: 'U_1' }],
-    });
-    const activeBlocks = buildPollMessageBlocks(activeVotingPoll);
-    expect(JSON.stringify(activeBlocks)).toContain('🧐 *Status:*');
-
-    // QUORUM_REACHED -> 🎉
+    // QUORUM_REACHED
     const quorumPoll = createMockPoll({
       status: 'QUORUM_REACHED',
       participations: [{ voterId: 'U_1' }],
     });
     const quorumBlocks = buildPollMessageBlocks(quorumPoll);
-    expect(JSON.stringify(quorumBlocks)).toContain('🎉 *Status:*');
+    expect(JSON.stringify(quorumBlocks)).toContain('*Status:* Quorum reached');
 
-    // TIME_EXPIRED and CLOSED -> ⏰
+    // TIME_EXPIRED and CLOSED
     const expiredPoll = createMockPoll({
       status: 'TIME_EXPIRED',
       participations: [{ voterId: 'U_1' }],
@@ -117,8 +109,8 @@ describe('Poll Message Block Kit Builder (pollMessage.ts)', () => {
       status: 'CLOSED',
       participations: [{ voterId: 'U_1' }],
     });
-    expect(JSON.stringify(buildPollMessageBlocks(expiredPoll))).toContain('⏰ *Status:*');
-    expect(JSON.stringify(buildPollMessageBlocks(closedPoll))).toContain('⏰ *Status:*');
+    expect(JSON.stringify(buildPollMessageBlocks(expiredPoll))).toContain('*Status:* Time limit reached • Closed');
+    expect(JSON.stringify(buildPollMessageBlocks(closedPoll))).toContain('*Status:* Poll closed');
   });
 
   it('truncates header text over 150 characters safely to 150 characters', () => {
