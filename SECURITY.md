@@ -10,8 +10,8 @@ Only the latest release running in production receives active security updates a
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-| < 0.1.0 | :x:                |
+| 0.2.x   | :white_check_mark: |
+| < 0.2.0 | :x:                |
 
 ---
 
@@ -31,8 +31,8 @@ If you discover a potential security vulnerability in Pollito, please report it 
 
 ### Response & Remediation Commitment
 
-- **Initial Acknowledgment**: Within 24 hours of report receipt.
-- **Triage & Assessment**: Within 72 hours with an initial severity classification.
+- **Initial Acknowledgment**: Within 3 business days of report receipt.
+- **Triage & Assessment**: Within 7 days, with an initial severity classification.
 - **Patch Release**: Critical security fixes will be deployed to production via our continuous deployment pipeline immediately upon verification.
 - **Credit**: We will gladly credit your responsible disclosure in our release notes and changelog once the fix is deployed.
 
@@ -44,5 +44,5 @@ Auditors and security reviewers can verify the following invariants directly wit
 
 1. **Double-Urn Cryptographic Privacy**: In anonymous polls, user IDs are never linked to their selected options in the database. Tokens are derived using `HKDF-SHA256` salted hashes, ensuring mathematical secrecy while preventing duplicate voting.
 2. **Zero Third-Party AI / LLM Telemetry**: Pollito does not transmit poll questions, responses, channel names, or user data to external AI models (OpenAI, Anthropic, etc.). Execution is 100% deterministic and local.
-3. **Data Minimization**: Stored records retain only operational parameters (poll questions, option text, vote counts, quorum targets, and closure timestamps). No general channel message history is accessed or stored.
-4. **Least-Privilege Scopes**: The application requests only the minimum set of Slack scopes required to interact with channels and calculate quorum.
+3. **Data Minimization**: Stored records retain only operational parameters (poll questions, option text, vote counts, quorum targets, and closure timestamps). Pollito listens to channel message events and reads recent channel history only to detect Huddle threads. It keeps the thread timestamp of an active Huddle in memory and does not store message content.
+4. **Least-Privilege Scopes**: The application requests the Slack scopes its features need: posting and updating poll messages, reading channel membership to calculate quorum, sending reminders, and reading messages to detect Huddles.
