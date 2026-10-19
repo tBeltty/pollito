@@ -214,7 +214,7 @@
 
   async function load() {
     try {
-      const response = await fetch('/status.json', { cache: 'no-store' });
+      const response = await fetch('status.json', { cache: 'no-store' });
       if (!response.ok) throw new Error(String(response.status));
       data = await response.json();
       failed = false;

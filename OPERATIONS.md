@@ -249,7 +249,7 @@ La suite valida:
 
 ---
 
-## 7. Página de estado pública (`status.tbelt.online`)
+## 7. Página de estado pública (`pollito.tbelt.online/status`)
 
 La página es estática (`public/status/`) y lee un único archivo, `status.json`, que genera una sonda local cada minuto. Nada interno llega al exterior: el JSON solo contiene estado, porcentajes de disponibilidad, segundos desde el último arranque, tiempo de respuesta medio y marcas de tiempo de reinicios y caídas.
 
@@ -260,25 +260,26 @@ flowchart LR
     Probe -->|pm2 jlist: hora de arranque| Bot
     Probe --> Hist["data/status/history.json (privado)"]
     Probe --> Json["data/status/status.json (público)"]
-    Json --> Nginx["nginx: /status.json"]
+    Json --> Nginx["nginx: /status/status.json"]
     Nginx --> Page["public/status (HTML, CSS, JS)"]
 ```
 
 ### Puesta en marcha (una sola vez, requiere acciones fuera del repositorio)
 
-1. **DNS**: crear en Cloudflare un registro `status` (A/AAAA o CNAME) hacia el mismo destino que `pollito.tbelt.online`, con proxy activado.
-2. **nginx**: copiar `deploy/nginx/status.tbelt.online.conf` a `/etc/nginx/sites-available/`, enlazarlo en `sites-enabled`, y ejecutar `nginx -t && systemctl reload nginx`. Luego `certbot --nginx -d status.tbelt.online` para el certificado.
-3. **Sonda**: tras el siguiente despliegue existe `dist/status/probe.js`. Añadir al crontab del usuario que ejecuta PM2 (necesita `pm2 jlist`):
+No hacen falta DNS ni certificado nuevos: la página cuelga del dominio de Pollito.
+
+1. **nginx**: pegar el bloque de `deploy/nginx/pollito-status-location.conf` dentro del `server` de `/etc/nginx/sites-enabled/pollito.tbelt.online.conf` y ejecutar `nginx -t && systemctl reload nginx`.
+2. **Sonda**: tras el siguiente despliegue existe `dist/status/probe.js`. Añadir al crontab del usuario que ejecuta PM2 (necesita `pm2 jlist`):
 
 ```bash
 * * * * * cd /home/jhonatan/pollito && /usr/bin/node dist/status/probe.js >> /home/jhonatan/pollito/data/status/probe.log 2>&1
 ```
 
-4. **Verificar**: `cat data/status/status.json` debe mostrar `"state":"operational"` y `curl -fsS https://status.tbelt.online/status.json` debe devolver lo mismo.
+3. **Verificar**: `cat data/status/status.json` debe mostrar `"state":"operational"` y `curl -fsS https://pollito.tbelt.online/status/status.json` debe devolver lo mismo. La página está en `https://pollito.tbelt.online/status/`.
 
 ### Comportamiento
 
-* Si la sonda deja de ejecutarse, la página muestra "Las actualizaciones se están retrasando" a partir de 5 minutos, en vez de un falso "todo bien".
-* Si el bot cae, la sonda lo detecta (falla `/healthz`) y registra una caída con su duración. Si el servidor entero cae, la página también cae, porque vive en el mismo VPS. Para cubrir ese caso habría que alojarla fuera (por ejemplo, Cloudflare Pages).
+* Si la sonda deja de ejecutarse, la página muestra "Status updates are delayed" a partir de 5 minutos, en vez de un falso "todo bien".
+* Si el bot cae, la sonda lo detecta (falla `/healthz`) y registra una caída con su duración. Si el servidor entero se reinicia, los minutos sin muestras se cuentan como caída. Si el VPS completo está apagado, la página también cae, porque vive en él. Para cubrir ese caso habría que alojarla fuera (por ejemplo, Cloudflare Pages con un subdominio `status`).
 * Variables opcionales de la sonda: `STATUS_HEALTH_URL`, `STATUS_PM2_NAME` y `STATUS_DATA_DIR`.
-* Los reinicios se detectan por cambio en la hora de arranque del proceso. Se cuentan los de después de la primera ejecución de la sonda.
+* Los reinicios se detectan por cambio en la hora de arranque del proceso. Se cuentan los posteriores a la primera ejecución de la sonda.
