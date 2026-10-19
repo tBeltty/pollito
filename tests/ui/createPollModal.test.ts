@@ -112,8 +112,8 @@ describe('Modal & App Home Views', () => {
       options: ['Clear', 'Blocked'],
     });
     expect(templateCreateModal.callback_id).toBe('create_template_modal_submit');
-    expect(templateCreateModal.title.text).toBe('New Workspace Template');
-    expect(templateCreateModal.submit?.text).toBe('Create Template');
+    expect(templateCreateModal.title.text).toBe('New workspace template');
+    expect(templateCreateModal.submit?.text).toBe('Create template');
     expect(
       templateCreateModal.blocks.some((b: any) => b.block_id === 'template_share_block')
     ).toBe(true);
@@ -135,7 +135,7 @@ describe('Modal & App Home Views', () => {
     });
 
     expect(modal.callback_id).toBe('edit_template_modal_submit');
-    expect(modal.title.text).toBe('Edit Poll Template');
+    expect(modal.title.text).toBe('Edit poll template');
     expect(JSON.parse(modal.private_metadata!)).toEqual({
       channelId: 'C_PRESET',
       threadTs: '1700000100.000200',
@@ -420,8 +420,8 @@ describe('Modal & App Home Views', () => {
       { tab: 'mine', confirmDeleteId: 'tpl_1' }
     );
     const tplJson = JSON.stringify(templatesModal);
-    expect(tplJson).toContain('My Templates (1)');
-    expect(tplJson).toContain('Workspace Templates (1)');
+    expect(tplJson).toContain('My templates (1)');
+    expect(tplJson).toContain('Workspace templates (1)');
     expect(tplJson).toContain('confirm_delete_template');
 
     const readOnlySettings = buildSettingsModalView({
@@ -445,7 +445,7 @@ describe('Modal & App Home Views', () => {
       allowVoterChoiceNudges: true,
       managerUserIds: ['U_MGR'],
     });
-    expect(editableSettings.submit?.text).toBe('Save Settings');
+    expect(editableSettings.submit?.text).toBe('Save settings');
     expect(JSON.stringify(editableSettings)).toContain('concurrency_checkboxes');
 
     const guideModal = buildGuideModalView();
