@@ -8,7 +8,7 @@
 ## Verification & Testing
 - [ ] `pnpm build` compiles cleanly with strict TypeScript checks.
 - [ ] `pnpm test` passes with 0 failures across all unit and integration suites.
-- [ ] Anti-AI Slop linter passes (`tests/copy/antiSlop.test.ts`).
+- [ ] Copy style gate passes (`tests/copy/copyStyle.test.ts`).
 - [ ] No sensitive credentials, tokens (`.env`), or secrets included in staged changes.
 
 ## Conventional Commit Type
