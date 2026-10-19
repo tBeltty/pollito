@@ -9,6 +9,7 @@ import {
 } from '../utils/huddleDiscovery.js';
 import { publishHomeTab } from './events.js';
 import { normalizeLocale } from '../../i18n/index.js';
+import { LocalizedError } from '../../i18n/errors.js';
 
 export const createPollSubmissionSchema = z.object({
   selectedChannel: z.string().min(1, 'Please select a channel for this poll'),
@@ -260,7 +261,7 @@ export function registerViewHandlers(app: App) {
       });
 
       if (!placeholder.ts) {
-        throw new Error('Failed to reserve message timestamp in channel.');
+        throw new LocalizedError('poll.create.reserveFailed');
       }
 
       // 4. Persist in database

@@ -14,6 +14,7 @@ import {
   parseHuddleThreadInput,
 } from '../utils/huddleDiscovery.js';
 import { getPollTranslator, getRequestTranslator } from '../utils/locale.js';
+import { NUDGE_COOLDOWN_HOURS } from '../../config/limits.js';
 
 export function registerCommandHandlers(app: App) {
   app.command('/pollito', async ({ command, ack, client }) => {
@@ -311,7 +312,7 @@ export function registerCommandHandlers(app: App) {
         const recentNudge = await prisma.nudgeLog.findFirst({
           where: {
             pollId: poll.id,
-            sentAt: { gte: new Date(Date.now() - 4 * 60 * 60 * 1000) },
+            sentAt: { gte: new Date(Date.now() - NUDGE_COOLDOWN_HOURS * 60 * 60 * 1000) },
           },
         });
 
@@ -319,7 +320,7 @@ export function registerCommandHandlers(app: App) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: t('nudge.cooldown'),
+            text: t('nudge.cooldown', { hours: NUDGE_COOLDOWN_HOURS }),
           });
           return;
         }

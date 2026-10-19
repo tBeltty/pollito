@@ -434,7 +434,7 @@ describe('Modal & App Home Views', () => {
       managerUserIds: ['U_MGR'],
     });
     expect(readOnlySettings.submit).toBeUndefined();
-    expect(JSON.stringify(readOnlySettings)).toContain('Read-Only View');
+    expect(JSON.stringify(readOnlySettings)).toContain('Read-only view');
 
     const editableSettings = buildSettingsModalView({
       canEdit: true,

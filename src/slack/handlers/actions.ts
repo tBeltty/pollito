@@ -25,6 +25,8 @@ import {
   getEligibleChannelMembers,
 } from '../utils/channelMembers.js';
 import { getPollTranslator, getRequestTranslator } from '../utils/locale.js';
+import { LocalizedError, describeError } from '../../i18n/errors.js';
+import { NUDGE_COOLDOWN_HOURS } from '../../config/limits.js';
 
 export function registerActionHandlers(app: App) {
   // Handle option vote buttons (matches vote_option_*)
@@ -311,39 +313,39 @@ export function registerActionHandlers(app: App) {
       });
 
       if (!poll) {
-        throw new Error('Poll not found');
+        throw new LocalizedError('error.pollNotFound');
       }
 
       if (poll.status !== 'ACTIVE') {
-        throw new Error('This poll is closed and no longer accepting votes');
+        throw new LocalizedError('error.pollClosed');
       }
 
       if (poll.creatorId !== blockAction.user.id) {
-        throw new Error('Only the poll creator can send nudges for this poll');
+        throw new LocalizedError('error.nudgeCreatorOnly');
       }
 
       const settings = await PollService.getWorkspaceSettings(poll.workspaceId);
       if (!settings.allowVoterChoiceNudges) {
-        throw new Error('Smart Nudges are disabled in this workspace.');
+        throw new LocalizedError('nudge.disabled');
       }
 
       const members = await getEligibleChannelMembers(client, poll.channelId);
       const channelMemberCount = members.length > 0 ? members.length : poll.eligibleVoterCount;
       if (channelMemberCount > settings.maxNudgeChannelMembers) {
-        throw new Error(
-          `Smart Nudges are disabled for channels with more than ${settings.maxNudgeChannelMembers} members.`
-        );
+        throw new LocalizedError('nudge.channelTooLarge', {
+          max: settings.maxNudgeChannelMembers,
+        });
       }
 
       const recentNudge = await prisma.nudgeLog.findFirst({
         where: {
           pollId,
-          sentAt: { gte: new Date(Date.now() - 4 * 60 * 60 * 1000) },
+          sentAt: { gte: new Date(Date.now() - NUDGE_COOLDOWN_HOURS * 60 * 60 * 1000) },
         },
       });
 
       if (recentNudge) {
-        throw new Error('A reminder was already sent within the last 4 hours');
+        throw new LocalizedError('nudge.cooldown', { hours: NUDGE_COOLDOWN_HOURS });
       }
 
       const nonVoters = await PollService.getNonVoters(pollId, members);
@@ -407,8 +409,11 @@ export function registerActionHandlers(app: App) {
         }
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'An error occurred while sending reminders.';
+      const errorTranslator = await getRequestTranslator(client, {
+        userId: blockAction.user.id,
+        workspaceId: blockAction.team?.id ?? '',
+      });
+      const errorMessage = describeError(error, errorTranslator, 'error.generic.nudge');
 
       if (blockAction.channel?.id) {
         try {
@@ -606,7 +611,7 @@ export function registerActionHandlers(app: App) {
       ]);
 
       if (!poll) {
-        throw new Error('Poll not found.');
+        throw new LocalizedError('error.pollNotFound');
       }
 
       const viewer = await PollService.getReportViewer(
@@ -615,9 +620,7 @@ export function registerActionHandlers(app: App) {
         workspaceId || poll.workspaceId
       );
       if (poll.creatorId !== userId && !viewer.isManager) {
-        throw new Error(
-          'Only the poll creator or a workspace admin can view detailed results for this poll.'
-        );
+        throw new LocalizedError('error.detailsForbidden');
       }
 
       await client.views.open({
@@ -625,8 +628,8 @@ export function registerActionHandlers(app: App) {
         view: buildPollDetailModalView(poll, translator),
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Could not open poll details.';
+      const errorTranslator = await getRequestTranslator(client, { userId, workspaceId });
+      const errorMessage = describeError(error, errorTranslator, 'error.generic.details');
       if (blockAction.channel?.id) {
         try {
           await client.chat.postEphemeral({

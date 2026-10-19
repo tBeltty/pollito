@@ -31,10 +31,10 @@ export const en = {
   'poll.option.votes': '{count, plural, one {*#* vote} other {*#* votes}}',
   'poll.option.moreVoters': '+{count} more',
   'poll.vote.button': 'Vote {number}',
-  'poll.nudge.button': 'Nudge Non-Voters',
+  'poll.nudge.button': 'Remind non-voters',
   'poll.nudge.confirmTitle': 'Send reminder to non-voters?',
   'poll.nudge.confirmBody':
-    'Pollito will send a private DM reminder to eligible members in this channel who have not voted yet. Only the poll creator can trigger reminders (4-hour cooldown applies).',
+    'Pollito will send a private DM to members of this channel who have not voted yet. Only the poll creator can send reminders, and each poll allows one every {hours, plural, one {hour} other {# hours}}.',
   'poll.nudge.confirmSubmit': 'Send Reminders',
   'poll.close.button': 'Close Poll',
   'poll.close.confirmTitle': 'Close this poll now?',
@@ -56,9 +56,9 @@ export const en = {
   'poll.fallback.creating': 'Creating poll: {question}...',
 
   // ── Closure announcements ─────────────────────────────────────────────
-  'closure.title.quorum': '🎉 *Quorum Reached — Poll Closed*',
+  'closure.title.quorum': '🎉 *Quorum reached. Poll closed*',
   'closure.title.closed': '🔒 *Poll Closed by Creator*',
-  'closure.title.expired': '⏰ *Poll Closed — Time Expired*',
+  'closure.title.expired': '⏰ *Poll closed. Time expired*',
   'closure.body.quorum':
     '*{question}* reached its target quorum with {count, plural, one {*#* participant} other {*#* participants}}.',
   'closure.body.closed':
@@ -74,20 +74,20 @@ export const en = {
 
   // ── Reminders and notifications ───────────────────────────────────────
   'nudge.dm':
-    '👋 Friendly reminder from <@{creatorId}>: Your vote is still needed on *{question}* in <#{channelId}>.',
+    '👋 <@{creatorId}> would like your vote on *{question}* in <#{channelId}>.',
   'nudge.sent':
     '📬 Sent private reminders to {count, plural, one {# teammate} other {# teammates}}.',
   'nudge.nonePending': 'No pending votes found. Everyone has already cast their ballot!',
-  'nudge.disabled': 'Smart Nudges are disabled in this workspace.',
-  'nudge.channelTooLarge': 'Smart Nudges are disabled for channels with more than {max} members.',
-  'nudge.cooldown': 'A reminder was already sent within the last 4 hours.',
+  'nudge.disabled': 'Reminders are turned off in this workspace.',
+  'nudge.channelTooLarge': 'Reminders are not available in channels with more than {max} members.',
+  'nudge.cooldown': 'A reminder was already sent in the last {hours, plural, one {hour} other {# hours}}.',
   'nudge.noPoll': 'No active poll found in this channel that you created.',
   'vote.recorded': 'Your vote has been recorded.',
   'vote.recordedAnonymous': 'Your anonymous vote has been recorded.',
   'huddle.reminder.fallback':
-    '🗳️ *Remember to vote:* The Huddle has ended, and *{question}* is still open! <{permalink}|View poll in Huddle thread>',
+    '🗳️ The Huddle ended and *{question}* is still open for votes. <{permalink}|Vote in the thread>',
   'huddle.reminder.body':
-    '🗳️ *Remember to vote!*\nThe Huddle has ended, and *<{permalink}|{question}>* is still open for voting in the Huddle thread.',
+    '🗳️ *The Huddle has ended.*\n*<{permalink}|{question}>* is still open for votes in the Huddle thread.',
   'huddle.reminder.button': 'Jump to Poll',
 
   // ── Slash command replies ─────────────────────────────────────────────
@@ -102,17 +102,17 @@ export const en = {
   'command.pollClosed': 'Poll closed successfully: *{question}*',
 
   // ── Errors surfaced to people ─────────────────────────────────────────
-  'error.workspaceIdMissing': 'Workspace ID is missing.',
+  'error.workspaceIdMissing': 'Something went wrong. Try again.',
   'error.activePollInChannel':
     'An active poll is already running in this channel. Close it first or select another channel.',
   'error.pollNotFound': 'Poll not found.',
-  'error.pollClosed': 'This poll is closed and no longer accepting votes',
-  'error.invalidOption': 'Invalid poll option',
-  'error.alreadyVoted': 'You have already voted in this poll',
-  'error.alreadyVotedOption': 'You have already voted for this option',
-  'error.voteRetriesExhausted': 'Failed to cast vote after maximum retry attempts',
-  'error.closeCreatorOnly': 'Only the poll creator can manually close this poll',
-  'error.nudgeCreatorOnly': 'Only the poll creator can send nudges for this poll',
+  'error.pollClosed': 'This poll is closed and no longer accepting votes.',
+  'error.invalidOption': 'Invalid poll option.',
+  'error.alreadyVoted': 'You have already voted in this poll.',
+  'error.alreadyVotedOption': 'You have already voted for this option.',
+  'error.voteRetriesExhausted': 'Couldn\'t record your vote. Try again in a moment.',
+  'error.closeCreatorOnly': 'Only the poll creator can manually close this poll.',
+  'error.nudgeCreatorOnly': 'Only the poll creator can send reminders for this poll.',
   'error.detailsForbidden':
     'Only the poll creator or a workspace admin can view detailed results for this poll.',
   'error.pollDeleteForbidden':
@@ -130,11 +130,11 @@ export const en = {
   'error.generic.nudge': 'An error occurred while sending reminders.',
   'error.generic.details': 'Could not open poll details.',
   'error.generic.command': 'An error occurred processing the command.',
-  'error.unknownReason': 'Unknown error',
+  'error.unknownReason': 'Something went wrong',
   'poll.create.notInChannel':
     'Pollito is not in <#{channelId}>. Please invite the bot by typing `/invite @Pollito` in that channel, then launch your poll.',
   'poll.create.failed': 'Could not create poll: {reason}.',
-  'poll.create.reserveFailed': 'Failed to reserve message timestamp in channel.',
+  'poll.create.reserveFailed': 'Couldn\'t post the poll in the channel. Try again.',
 
   // ── Form validation ───────────────────────────────────────────────────
   'validation.channelRequired': 'Please select a channel for this poll',
@@ -143,7 +143,7 @@ export const en = {
   'validation.optionRequired': 'Option {number} is required',
   'validation.optionMax': 'Option {number} must not exceed {max} characters',
   'validation.quorumInteger': 'Quorum target must be an integer between 51 and 100',
-  'validation.quorumMin': 'Quorum requires a strict majority (51% to 100%)',
+  'validation.quorumMin': 'Quorum must be more than half (51% to 100%)',
   'validation.quorumMax': 'Quorum target must be between 51 and 100',
   'validation.invalidHuddleLink':
     'Invalid Slack thread link or timestamp. Paste a Slack message URL (.../archives/C.../p1234567890123456) or thread_ts (1234567890.123456).',
@@ -161,9 +161,9 @@ export const en = {
   'guide.step1':
     '*1. Launch in Channel or Huddle Thread*\nOpen the interactive poll builder with `/pollito`, pass options inline for an instant poll, or use `/pollito huddle` to post directly inside an active Slack Huddle thread.',
   'guide.step2':
-    '*2. Double-Urn Secret Ballots & Quorum Auto-Closing*\nAnonymous polls separate voter participation records from ballot choices so individual selections cannot be traced. Set a quorum threshold (minimum 51%) to close the poll automatically once enough channel members vote, or choose "No Quorum Required" for casual polls.',
+    '*2. Anonymous polls and quorum*\nIn anonymous polls nobody can see who voted for what. Set a quorum of 51% or more to close the poll as soon as enough channel members have voted, or choose "No quorum required" for casual polls.',
   'guide.step3':
-    '*3. Creator Nudges & Role-Scoped Analytics*\nOnly the poll creator can send private DM reminders to non-voters (available in channels up to 50 members with a 4-hour cooldown). Creators see full results for their own polls, while Workspace Admins and Bot Managers can inspect workspace-wide analytics.',
+    '*3. Reminders and results*\nOnly the poll creator can send private reminders to non-voters, in channels under the size limit set in Settings, with one reminder every {hours, plural, one {hour} other {# hours}}. Creators see full results for their own polls. Workspace admins and Pollito managers can see results for the whole workspace.',
   'guide.header.commands': 'Slash Commands Reference',
   'guide.cmd.builder': '• `/pollito`: Open the interactive poll builder for the current channel',
   'guide.cmd.instant': '• `/pollito "Question" "Option 1" "Option 2"`: Launch an instant poll in the channel',
@@ -173,23 +173,23 @@ export const en = {
     '• `/pollito huddle "Question" "Option 1" "Option 2"`: Launch an instant poll inside the active Huddle thread',
   'guide.cmd.close': '• `/pollito close [poll-id]`: Close an active poll you created',
   'guide.cmd.nudge':
-    '• `/pollito nudge [poll-id]`: Send private DM reminders to non-voters (channels up to 50 members)',
+    '• `/pollito nudge [poll-id]`: Send private reminders to non-voters',
   'guide.cmd.report': '• `/pollito report`: View your poll results and analytics report',
 
   // ── Analytics and poll detail modals ──────────────────────────────────
   'analytics.title': 'Poll Results & Analytics',
   'analytics.scope.personal':
-    'Your poll results and participation metrics for the *last {days, plural, one {day} other {# days}}*. Only polls you created appear here. Workspace-wide analytics are visible to workspace admins and bot managers.',
+    'Your poll results and participation metrics for the *last {days, plural, one {day} other {# days}}*. Only polls you created appear here. Workspace-wide analytics are visible to workspace admins and Pollito managers.',
   'analytics.scope.workspace':
     'Workspace-wide poll results and participation metrics for the *last {days, plural, one {day} other {# days}}*.',
   'analytics.metric.quorum':
-    '*Quorum Achievement*\n*{rate}%* ({count} reached quorum)',
+    '*Reached quorum*\n*{rate}%* of polls ({count})',
   'analytics.metric.participation':
     '*Avg. Participation*\n*{pct}%* across eligible members',
   'analytics.metric.ballots':
-    '*Total Ballots Cast*\n{votes, plural, one {*#* vote} other {*#* votes}} across {polls, plural, one {*#* poll} other {*#* polls}}',
+    '*Votes cast*\n{votes, plural, one {*#* vote} other {*#* votes}} across {polls, plural, one {*#* poll} other {*#* polls}}',
   'analytics.metric.privacy':
-    '*Privacy Split*\n*{publicCount}* Public • *{anonymousCount}* Anonymous',
+    '*Public and anonymous*\n*{publicCount}* public • *{anonymousCount}* anonymous',
   'analytics.export.button': 'Customize & Export CSV',
   'analytics.recent.header': 'Recent Poll Results',
   'analytics.empty': 'No polls recorded in this timeframe.',
@@ -202,7 +202,7 @@ export const en = {
     'Channel: <#{channelId}> • *{status}* • *{mode}* • {participants, plural, one {*#* participant} other {*#* participants}} • {outcome}',
   'detail.title': 'Poll Results Breakdown',
   'detail.fallbackQuestion': 'Poll Results',
-  'detail.mode.anonymous': 'Anonymous (Double-Urn)',
+  'detail.mode.anonymous': 'Anonymous',
   'detail.field.channel': '*Channel*\n<#{channelId}>',
   'detail.field.status': '*Status & Outcome*\n{status} • {outcome}',
   'detail.field.ballot': '*Ballot Mode*\n{mode} • {choice}',
@@ -236,7 +236,7 @@ export const en = {
   'home.templates.emptyManager':
     '*Quick Templates*\nNo workspace templates yet. As an admin, you can create quick templates for your team to launch in one click.',
   'home.templates.emptyMember':
-    '*Quick Templates*\nNo templates published by workspace admins yet. Open the *Templates* menu above to view or create personal templates.',
+    '*Quick Templates*\nNo templates have been shared with the workspace yet. Open *Templates* above to create your own.',
   'home.templates.add': '+ Add Template',
   'home.templates.addWorkspace': '+ Add Workspace Template',
   'home.recent.header': 'Recent Polls',
@@ -308,10 +308,10 @@ export const en = {
   'settings.title': 'Workspace Settings',
   'settings.submit': 'Save Settings',
   'settings.readOnly.body':
-    '*Read-Only View*\nWorkspace settings can only be modified by Slack Admins and designated Bot Managers.',
+    '*Read-only view*\nWorkspace settings can only be changed by Slack admins and Pollito managers.',
   'settings.value.concurrencyMultiple': 'Multiple active polls allowed',
   'settings.value.concurrencySingle': 'Only 1 active poll per channel',
-  'settings.value.privacyAnonymous': 'Anonymous Double-Urn',
+  'settings.value.privacyAnonymous': 'Anonymous',
   'settings.value.privacyPublic': 'Public',
   'settings.value.quorumNone': 'No quorum',
   'settings.value.nudgesEnabled': 'Enabled (up to {max} channel members)',
@@ -321,27 +321,27 @@ export const en = {
   'settings.field.concurrency': '*Channel Concurrency*\n{value}',
   'settings.field.privacy': '*Default Privacy*\n{value}',
   'settings.field.quorum': '*Default Quorum*\n{value}',
-  'settings.field.nudges': '*Smart Nudges*\n{value}',
-  'settings.field.managers': '*Delegated Bot Managers*\n{value}',
+  'settings.field.nudges': '*Reminders*\n{value}',
+  'settings.field.managers': '*Pollito managers*\n{value}',
   'settings.field.locale': '*Workspace Language*\n{value}',
   'settings.option.concurrency': '*Allow multiple active polls in one channel*',
   'settings.option.concurrencyHint': 'Unchecked by default: one active poll per channel.',
-  'settings.option.anonymous': '*Default to Anonymous Voting (Double-Urn)*',
-  'settings.option.nudges': '*Enable Smart Nudges for Poll Creators*',
+  'settings.option.anonymous': '*Default to anonymous voting*',
+  'settings.option.nudges': '*Let poll creators send reminders to non-voters*',
   'settings.quorum.none': 'No quorum required',
-  'settings.quorum.51': '51% — Simple Majority (Half + 1)',
-  'settings.quorum.66': '66% — Two-Thirds Supermajority',
-  'settings.quorum.70': '70% — Standard Team Consensus',
-  'settings.quorum.75': '75% — High Consensus',
-  'settings.quorum.80': '80% — Strong Supermajority',
-  'settings.quorum.100': '100% — Unanimous',
+  'settings.quorum.51': '51% (majority)',
+  'settings.quorum.66': '66% (two-thirds)',
+  'settings.quorum.70': '70% (team consensus)',
+  'settings.quorum.75': '75% (high consensus)',
+  'settings.quorum.80': '80% (strong majority)',
+  'settings.quorum.100': '100% (unanimous)',
   'settings.label.concurrency': 'Channel Concurrency',
-  'settings.label.privacy': 'Default Privacy & Nudges',
+  'settings.label.privacy': 'Default privacy and reminders',
   'settings.label.quorum': 'Default Quorum Threshold',
-  'settings.label.maxNudge': 'Max Channel Size for Smart Nudges',
+  'settings.label.maxNudge': 'Max channel size for reminders',
   'settings.hint.maxNudge':
-    'Channels larger than this member limit will not show the Nudge Non-Voters button.',
-  'settings.label.managers': 'Designated Bot Managers',
+    'Channels larger than this member limit will not show the Remind non-voters button.',
+  'settings.label.managers': 'Pollito managers',
   'settings.placeholder.managers': 'Select teammates who can manage workspace settings',
   'settings.label.locale': 'Workspace Language',
   'settings.hint.locale':
@@ -377,16 +377,17 @@ export const en = {
   'cp.option.placeholder3': 'Third option (optional)',
   'cp.option.placeholder4': 'Fourth option (optional)',
   'cp.settings.label': 'Privacy Settings',
-  'cp.settings.anonymous': '*Anonymous Voting (Double-Urn Secret Ballot)*',
+  'cp.settings.anonymous': '*Anonymous voting*',
+  'cp.settings.anonymousHint': 'Nobody can see who voted for what.',
   'cp.settings.multiple': '*Multiple Choice*',
   'cp.settings.multipleHint': 'Allow teammates to select more than one option.',
-  'cp.settings.noQuorum': '*No Quorum Required*',
+  'cp.settings.noQuorum': '*No quorum required*',
   'cp.settings.noQuorumHint': 'No participation threshold. Closes manually or on deadline.',
   'cp.settings.forwardHuddle': '*Remind in Channel When Huddle Ends*',
   'cp.settings.forwardHuddleHint': 'Posts a vote reminder link in the channel when the Huddle ends.',
   'cp.quorum.label': 'Target Quorum Percentage (%)',
   'cp.quorum.hint':
-    'Minimum 51% (simple majority: half + 1). Leave blank or check "No Quorum Required" above for casual polls.',
+    'Minimum 51% (more than half). Leave blank or check "No quorum required" above for casual polls.',
   'cp.duration.none': 'No time limit (Manual / Quorum only)',
   'cp.duration.15m': '15 minutes (Quick Standup)',
   'cp.duration.1h': '1 hour',

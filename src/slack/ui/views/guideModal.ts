@@ -1,5 +1,6 @@
 import type { ModalView } from '@slack/web-api';
 import { defaultTranslator, type Translator } from '../../../i18n/index.js';
+import { NUDGE_COOLDOWN_HOURS } from '../../../config/limits.js';
 
 export function buildGuideModalView(translator: Translator = defaultTranslator): ModalView {
   const { t } = translator;
@@ -34,7 +35,7 @@ export function buildGuideModalView(translator: Translator = defaultTranslator):
       },
       {
         type: 'section',
-        text: { type: 'mrkdwn', text: t('guide.step3') },
+        text: { type: 'mrkdwn', text: t('guide.step3', { hours: NUDGE_COOLDOWN_HOURS }) },
       },
       {
         type: 'divider',
