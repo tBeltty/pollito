@@ -1,155 +1,425 @@
-import type {
-  AllMiddlewareArgs,
-  App,
-  SlackCommandMiddlewareArgs,
-} from "@slack/bolt";
-import { buildCreatePollModalView } from "../ui/views/createPollModal.js";
-import { buildAnalyticsModalView } from "../ui/views/analyticsModal.js";
-import { PollService } from "../../services/pollService.js";
-import { UpdateQueue } from "../../services/updateQueue.js";
-import { buildPollMessageBlocks } from "../ui/views/pollMessage.js";
-import { prisma } from "../../db/prisma.js";
+import type { AllMiddlewareArgs, App, SlackCommandMiddlewareArgs } from '@slack/bolt';
+import { buildCreatePollModalView } from '../ui/views/createPollModal.js';
+import { buildAnalyticsModalView } from '../ui/views/analyticsModal.js';
+import { PollService } from '../../services/pollService.js';
+import { UpdateQueue } from '../../services/updateQueue.js';
+import { buildPollMessageBlocks } from '../ui/views/pollMessage.js';
+import { prisma } from '../../db/prisma.js';
 import {
   formatPollClosureSummary,
   getEligibleChannelMembers,
-} from "../utils/channelMembers.js";
+} from '../utils/channelMembers.js';
 import {
   findActiveHuddleThread,
   parseHuddleThreadInput,
-} from "../utils/huddleDiscovery.js";
-import { getPollTranslator, getRequestTranslator } from "../utils/locale.js";
-import { NUDGE_COOLDOWN_HOURS } from "../../config/limits.js";
+} from '../utils/huddleDiscovery.js';
+import { getPollTranslator, getRequestTranslator } from '../utils/locale.js';
+import { NUDGE_COOLDOWN_HOURS } from '../../config/limits.js';
 
 /**
  * Slack autocompletes only top-level command names, so each subcommand is also registered as
  * `/pollito-<name>`. Typing `/pollito` then lists them all as clickable suggestions.
  */
-const SUBCOMMAND_ALIASES = ["huddle", "report", "close", "nudge"] as const;
+const SUBCOMMAND_ALIASES = ['huddle', 'report', 'close', 'nudge'] as const;
 
 export function registerCommandHandlers(app: App) {
-  for (const name of SUBCOMMAND_ALIASES) {
-    app.command(`/pollito-${name}`, async (args) => {
-      const text = `${name} ${args.command.text}`.trim();
-      await handlePollitoCommand({
-        ...args,
-        command: { ...args.command, text },
-      });
+  const handlePollitoCommand = async ({
+    command,
+    ack,
+    client,
+  }: SlackCommandMiddlewareArgs & AllMiddlewareArgs) => {
+    await ack();
+
+    const translator = await getRequestTranslator(client, {
+      userId: command.user_id,
+      workspaceId: command.team_id,
     });
-  }
-  app.command("/pollito", handlePollitoCommand);
-}
+    const { t } = translator;
 
-async function handlePollitoCommand({
-  command,
-  ack,
-  client,
-}: SlackCommandMiddlewareArgs & AllMiddlewareArgs) {
-  await ack();
+    try {
+      const text = command.text.trim();
+      const lowerText = text.toLowerCase();
 
-  const translator = await getRequestTranslator(client, {
-    userId: command.user_id,
-    workspaceId: command.team_id,
-  });
-  const { t } = translator;
-
-  try {
-    const text = command.text.trim();
-    const lowerText = text.toLowerCase();
-
-    // 1. If text is empty, open creation modal
-    if (!text) {
-      await client.views.open({
-        trigger_id: command.trigger_id,
-        view: buildCreatePollModalView({
-          channelId: command.channel_id,
-          translator,
-        }),
-      });
-      return;
-    }
-
-    // 2. Help command
-    if (lowerText === "help") {
-      await client.chat.postEphemeral({
-        channel: command.channel_id,
-        user: command.user_id,
-        text: t("command.help"),
-      });
-      return;
-    }
-
-    // 3. Huddle command: /pollito huddle or /pollito huddle "Question" "Opt 1" "Opt 2"
-    if (lowerText === "huddle" || lowerText.startsWith("huddle ")) {
-      try {
-        await PollService.assertCanCreatePollInChannel(
-          command.team_id,
-          command.channel_id,
-        );
-      } catch (err: any) {
-        await client.chat.postEphemeral({
-          channel: command.channel_id,
-          user: command.user_id,
-          text: err?.message || t("error.activePollInChannel"),
+      // 1. If text is empty, open creation modal
+      if (!text) {
+        await client.views.open({
+          trigger_id: command.trigger_id,
+          view: buildCreatePollModalView({
+            channelId: command.channel_id,
+            translator,
+          }),
         });
         return;
       }
 
-      const huddleRest = text.slice(6).trim();
-      const leadingPart = huddleRest.split('"')[0]?.trim() || "";
-      const firstToken = leadingPart.split(/\s+/)[0] || "";
-      const parsedLinkTs = firstToken
-        ? parseHuddleThreadInput(firstToken)
-        : null;
+      // 2. Help command
+      if (lowerText === 'help') {
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: t('command.help'),
+        });
+        return;
+      }
 
-      const explicitThreadTs =
-        (command as any).thread_ts || (command as any).threadTs || null;
-      const huddleThreadTs =
-        explicitThreadTs ||
-        parsedLinkTs ||
-        (await findActiveHuddleThread(client, command.channel_id));
-
-      const huddleMatches = [...huddleRest.matchAll(/"([^"]+)"/g)].map(
-        (m) => m[1],
-      );
-
-      if (huddleMatches.length >= 3) {
-        if (!huddleThreadTs) {
+      // 3. Huddle command: /pollito huddle or /pollito huddle "Question" "Opt 1" "Opt 2"
+      if (lowerText === 'huddle' || lowerText.startsWith('huddle ')) {
+        try {
+          await PollService.assertCanCreatePollInChannel(command.team_id, command.channel_id);
+        } catch (err: any) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: t("command.noHuddle"),
+            text: err?.message || t('error.activePollInChannel'),
           });
           return;
         }
 
-        const question = huddleMatches[0];
-        const options = huddleMatches.slice(1, 7);
+        const huddleRest = text.slice(6).trim();
+        const leadingPart = huddleRest.split('"')[0]?.trim() || '';
+        const firstToken = leadingPart.split(/\s+/)[0] || '';
+        const parsedLinkTs = firstToken
+          ? parseHuddleThreadInput(firstToken)
+          : null;
 
+        const explicitThreadTs =
+          (command as any).thread_ts || (command as any).threadTs || null;
+        const huddleThreadTs =
+          explicitThreadTs ||
+          parsedLinkTs ||
+          (await findActiveHuddleThread(client, command.channel_id));
+
+        const huddleMatches = [...huddleRest.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+
+        if (huddleMatches.length >= 3) {
+          if (!huddleThreadTs) {
+            await client.chat.postEphemeral({
+              channel: command.channel_id,
+              user: command.user_id,
+              text: t('command.noHuddle'),
+            });
+            return;
+          }
+
+          const question = huddleMatches[0];
+          const options = huddleMatches.slice(1, 7);
+
+          try {
+            await client.conversations.join({ channel: command.channel_id });
+          } catch {
+            // Safe to ignore
+          }
+
+          const members = await getEligibleChannelMembers(client, command.channel_id);
+          const memberCount = members.length > 0 ? members.length : 10;
+
+          let placeholder;
+          try {
+            placeholder = await client.chat.postMessage({
+              channel: command.channel_id,
+              thread_ts: huddleThreadTs,
+              text: t('poll.fallback.creating', { question }),
+            });
+          } catch (error: any) {
+            if (error?.data?.error === 'not_in_channel') {
+              await client.chat.postEphemeral({
+                channel: command.channel_id,
+                user: command.user_id,
+                text: t('command.inviteBot', { command: '`/pollito huddle`' }),
+              });
+              return;
+            }
+            throw error;
+          }
+
+          if (!placeholder?.ts) return;
+
+          const settings = await PollService.getWorkspaceSettings(command.team_id);
+
+          const poll = await PollService.createPoll({
+            workspaceId: command.team_id,
+            channelId: command.channel_id,
+            messageTs: placeholder.ts,
+            threadTs: huddleThreadTs,
+            creatorId: command.user_id,
+            question,
+            options,
+            isAnonymous: settings.defaultAnonymous,
+            quorumType:
+              (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'PERCENTAGE',
+            quorumTarget: settings.defaultQuorumPct,
+            eligibleVoterCount: memberCount,
+            forwardToChannelOnHuddleEnd: true,
+            locale: translator.locale,
+          });
+
+          const pollTranslator = getPollTranslator(poll);
+          const blocks = buildPollMessageBlocks(
+            {
+              ...poll,
+              participations: [],
+            },
+            {
+              maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
+              allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+              translator: pollTranslator,
+            }
+          );
+
+          await client.chat.update({
+            channel: command.channel_id,
+            ts: placeholder.ts,
+            text: pollTranslator.t('poll.fallback.active', { question }),
+            blocks,
+          });
+          return;
+        }
+
+        await client.views.open({
+          trigger_id: command.trigger_id,
+          view: buildCreatePollModalView({
+            channelId: command.channel_id,
+            threadTs: huddleThreadTs,
+            huddleMode: true,
+            translator,
+          }),
+        });
+        return;
+      }
+
+      // 4. Report command: /pollito report
+      if (lowerText === 'report' || lowerText.startsWith('report ')) {
+        const viewer = await PollService.getReportViewer(
+          client,
+          command.user_id,
+          command.team_id
+        );
+        const stats = await PollService.getPollAnalyticsStats(command.team_id, viewer, 30);
+
+        if (command.trigger_id && client.views?.open) {
+          try {
+            await client.views.open({
+              trigger_id: command.trigger_id,
+              view: buildAnalyticsModalView(stats, 30, translator),
+            });
+          } catch (modalErr) {
+            console.error('Failed to open analytics modal from /pollito report:', modalErr);
+          }
+        }
+
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: t('command.report.summary', {
+            scope: stats.scope,
+            total: stats.totalPolls,
+            active: stats.totalActive,
+            quorums: stats.totalQuorumsReached,
+            avg: stats.avgParticipationPct,
+          }),
+        });
+        return;
+      }
+
+      // 5. Close command: /pollito close [poll-id]
+      if (lowerText.startsWith('close')) {
+        const argId = text.slice(5).trim();
+        const whereClause: any = {
+          channelId: command.channel_id,
+          creatorId: command.user_id,
+          status: 'ACTIVE',
+        };
+        if (argId) {
+          whereClause.OR = [
+            { id: argId },
+            { id: { endsWith: argId } },
+          ];
+        }
+
+        const poll = await prisma.poll.findFirst({
+          where: whereClause,
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (!poll) {
+          await client.chat.postEphemeral({
+            channel: command.channel_id,
+            user: command.user_id,
+            text: t('nudge.noPoll'),
+          });
+          return;
+        }
+
+        const closedPoll = await PollService.closePoll(poll.id, command.user_id, 'CLOSED');
+        await UpdateQueue.flushNow(closedPoll.id, closedPoll.channelId, closedPoll.messageTs, client);
+
+        const pollTranslator = getPollTranslator(closedPoll);
+        await client.chat.postMessage({
+          channel: closedPoll.channelId,
+          thread_ts: closedPoll.threadTs || closedPoll.messageTs,
+          text: formatPollClosureSummary(closedPoll, 'CLOSED', { translator: pollTranslator }),
+        });
+
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: t('command.pollClosed', { question: closedPoll.question }),
+        });
+        return;
+      }
+
+      // 6. Nudge command: /pollito nudge [poll-id]
+      if (lowerText.startsWith('nudge')) {
+        const argId = text.slice(5).trim();
+        const whereClause: any = {
+          channelId: command.channel_id,
+          creatorId: command.user_id,
+          status: 'ACTIVE',
+        };
+        if (argId) {
+          whereClause.OR = [
+            { id: argId },
+            { id: { endsWith: argId } },
+          ];
+        }
+
+        const poll = await prisma.poll.findFirst({
+          where: whereClause,
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (!poll) {
+          await client.chat.postEphemeral({
+            channel: command.channel_id,
+            user: command.user_id,
+            text: t('nudge.noPoll'),
+          });
+          return;
+        }
+
+        const settings = await PollService.getWorkspaceSettings(command.team_id);
+        if (!settings.allowVoterChoiceNudges) {
+          await client.chat.postEphemeral({
+            channel: command.channel_id,
+            user: command.user_id,
+            text: t('nudge.disabled'),
+          });
+          return;
+        }
+
+        const members = await getEligibleChannelMembers(client, poll.channelId);
+        const channelMemberCount =
+          members.length > 0 ? members.length : poll.eligibleVoterCount;
+        if (channelMemberCount > settings.maxNudgeChannelMembers) {
+          await client.chat.postEphemeral({
+            channel: command.channel_id,
+            user: command.user_id,
+            text: t('nudge.channelTooLarge', { max: settings.maxNudgeChannelMembers }),
+          });
+          return;
+        }
+
+        const recentNudge = await prisma.nudgeLog.findFirst({
+          where: {
+            pollId: poll.id,
+            sentAt: { gte: new Date(Date.now() - NUDGE_COOLDOWN_HOURS * 60 * 60 * 1000) },
+          },
+        });
+
+        if (recentNudge) {
+          await client.chat.postEphemeral({
+            channel: command.channel_id,
+            user: command.user_id,
+            text: t('nudge.cooldown', { hours: NUDGE_COOLDOWN_HOURS }),
+          });
+          return;
+        }
+
+        const nonVoters = await PollService.getNonVoters(poll.id, members);
+        const recipients = nonVoters.slice(0, settings.maxNudgeChannelMembers);
+
+        let sentCount = 0;
+        for (const recipientId of recipients) {
+          try {
+            const recipientTranslator = await getRequestTranslator(client, {
+              userId: recipientId,
+              workspaceId: command.team_id,
+            });
+            await client.chat.postMessage({
+              channel: recipientId,
+              text: recipientTranslator.t('nudge.dm', {
+                creatorId: poll.creatorId,
+                question: poll.question,
+                channelId: poll.channelId,
+              }),
+            });
+            await prisma.nudgeLog.create({
+              data: {
+                pollId: poll.id,
+                recipientId,
+              },
+            });
+            sentCount++;
+          } catch (err) {
+            console.error(`Failed to nudge user ${recipientId}:`, err);
+          }
+        }
+
+        const confirmationText =
+          sentCount === 0
+            ? t('nudge.nonePending')
+            : t('nudge.sent', { count: sentCount });
+
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: confirmationText,
+        });
+        return;
+      }
+
+      // 7. Quick poll syntax: /pollito "Question" "Option 1" "Option 2"
+      const matches = [...text.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+
+      if (matches.length >= 3) {
+        try {
+          await PollService.assertCanCreatePollInChannel(command.team_id, command.channel_id);
+        } catch (err: any) {
+          await client.chat.postEphemeral({
+            channel: command.channel_id,
+            user: command.user_id,
+            text: err?.message || t('error.activePollInChannel'),
+          });
+          return;
+        }
+
+        const question = matches[0];
+        const options = matches.slice(1, 7); // Up to 6 options
+
+        // Auto-join if public channel
         try {
           await client.conversations.join({ channel: command.channel_id });
         } catch {
-          // Safe to ignore
+          // Safe to ignore if already in channel or private channel
         }
 
-        const members = await getEligibleChannelMembers(
-          client,
-          command.channel_id,
-        );
+        // Fetch channel members for quorum calculation excluding bot
+        const members = await getEligibleChannelMembers(client, command.channel_id);
         const memberCount = members.length > 0 ? members.length : 10;
 
+        // Initial placeholder message to reserve ts
         let placeholder;
         try {
           placeholder = await client.chat.postMessage({
             channel: command.channel_id,
-            thread_ts: huddleThreadTs,
-            text: t("poll.fallback.creating", { question }),
+            text: t('poll.fallback.creating', { question }),
           });
         } catch (error: any) {
-          if (error?.data?.error === "not_in_channel") {
+          if (error?.data?.error === 'not_in_channel') {
             await client.chat.postEphemeral({
               channel: command.channel_id,
               user: command.user_id,
-              text: t("command.inviteBot", { command: "`/pollito huddle`" }),
+              text: t('command.inviteBot', { command: '`/pollito`' }),
             });
             return;
           }
@@ -158,25 +428,19 @@ async function handlePollitoCommand({
 
         if (!placeholder?.ts) return;
 
-        const settings = await PollService.getWorkspaceSettings(
-          command.team_id,
-        );
+        const settings = await PollService.getWorkspaceSettings(command.team_id);
 
         const poll = await PollService.createPoll({
           workspaceId: command.team_id,
           channelId: command.channel_id,
           messageTs: placeholder.ts,
-          threadTs: huddleThreadTs,
           creatorId: command.user_id,
           question,
           options,
-          isAnonymous: settings.defaultAnonymous,
-          quorumType:
-            (settings.defaultQuorumType as "PERCENTAGE" | "NONE") ||
-            "PERCENTAGE",
-          quorumTarget: settings.defaultQuorumPct,
+          isAnonymous: false,
+          quorumType: 'PERCENTAGE',
+          quorumTarget: 70,
           eligibleVoterCount: memberCount,
-          forwardToChannelOnHuddleEnd: true,
           locale: translator.locale,
         });
 
@@ -190,351 +454,46 @@ async function handlePollitoCommand({
             maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
             allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
             translator: pollTranslator,
-          },
+          }
         );
 
         await client.chat.update({
           channel: command.channel_id,
           ts: placeholder.ts,
-          text: pollTranslator.t("poll.fallback.active", { question }),
+          text: pollTranslator.t('poll.fallback.active', { question }),
           blocks,
         });
         return;
       }
 
+      // Fallback for unrecognized syntax: open modal
       await client.views.open({
         trigger_id: command.trigger_id,
         view: buildCreatePollModalView({
           channelId: command.channel_id,
-          threadTs: huddleThreadTs,
-          huddleMode: true,
           translator,
         }),
       });
-      return;
-    }
-
-    // 4. Report command: /pollito report
-    if (lowerText === "report" || lowerText.startsWith("report ")) {
-      const viewer = await PollService.getReportViewer(
-        client,
-        command.user_id,
-        command.team_id,
-      );
-      const stats = await PollService.getPollAnalyticsStats(
-        command.team_id,
-        viewer,
-        30,
-      );
-
-      if (command.trigger_id && client.views?.open) {
-        try {
-          await client.views.open({
-            trigger_id: command.trigger_id,
-            view: buildAnalyticsModalView(stats, 30, translator),
-          });
-        } catch (modalErr) {
-          console.error(
-            "Failed to open analytics modal from /pollito report:",
-            modalErr,
-          );
-        }
-      }
-
-      await client.chat.postEphemeral({
-        channel: command.channel_id,
-        user: command.user_id,
-        text: t("command.report.summary", {
-          scope: stats.scope,
-          total: stats.totalPolls,
-          active: stats.totalActive,
-          quorums: stats.totalQuorumsReached,
-          avg: stats.avgParticipationPct,
-        }),
-      });
-      return;
-    }
-
-    // 5. Close command: /pollito close [poll-id]
-    if (lowerText.startsWith("close")) {
-      const argId = text.slice(5).trim();
-      const whereClause: any = {
-        channelId: command.channel_id,
-        creatorId: command.user_id,
-        status: "ACTIVE",
-      };
-      if (argId) {
-        whereClause.OR = [{ id: argId }, { id: { endsWith: argId } }];
-      }
-
-      const poll = await prisma.poll.findFirst({
-        where: whereClause,
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (!poll) {
-        await client.chat.postEphemeral({
-          channel: command.channel_id,
-          user: command.user_id,
-          text: t("nudge.noPoll"),
-        });
-        return;
-      }
-
-      const closedPoll = await PollService.closePoll(
-        poll.id,
-        command.user_id,
-        "CLOSED",
-      );
-      await UpdateQueue.flushNow(
-        closedPoll.id,
-        closedPoll.channelId,
-        closedPoll.messageTs,
-        client,
-      );
-
-      const pollTranslator = getPollTranslator(closedPoll);
-      await client.chat.postMessage({
-        channel: closedPoll.channelId,
-        thread_ts: closedPoll.threadTs || closedPoll.messageTs,
-        text: formatPollClosureSummary(closedPoll, "CLOSED", {
-          translator: pollTranslator,
-        }),
-      });
-
-      await client.chat.postEphemeral({
-        channel: command.channel_id,
-        user: command.user_id,
-        text: t("command.pollClosed", { question: closedPoll.question }),
-      });
-      return;
-    }
-
-    // 6. Nudge command: /pollito nudge [poll-id]
-    if (lowerText.startsWith("nudge")) {
-      const argId = text.slice(5).trim();
-      const whereClause: any = {
-        channelId: command.channel_id,
-        creatorId: command.user_id,
-        status: "ACTIVE",
-      };
-      if (argId) {
-        whereClause.OR = [{ id: argId }, { id: { endsWith: argId } }];
-      }
-
-      const poll = await prisma.poll.findFirst({
-        where: whereClause,
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (!poll) {
-        await client.chat.postEphemeral({
-          channel: command.channel_id,
-          user: command.user_id,
-          text: t("nudge.noPoll"),
-        });
-        return;
-      }
-
-      const settings = await PollService.getWorkspaceSettings(command.team_id);
-      if (!settings.allowVoterChoiceNudges) {
-        await client.chat.postEphemeral({
-          channel: command.channel_id,
-          user: command.user_id,
-          text: t("nudge.disabled"),
-        });
-        return;
-      }
-
-      const members = await getEligibleChannelMembers(client, poll.channelId);
-      const channelMemberCount =
-        members.length > 0 ? members.length : poll.eligibleVoterCount;
-      if (channelMemberCount > settings.maxNudgeChannelMembers) {
-        await client.chat.postEphemeral({
-          channel: command.channel_id,
-          user: command.user_id,
-          text: t("nudge.channelTooLarge", {
-            max: settings.maxNudgeChannelMembers,
-          }),
-        });
-        return;
-      }
-
-      const recentNudge = await prisma.nudgeLog.findFirst({
-        where: {
-          pollId: poll.id,
-          sentAt: {
-            gte: new Date(Date.now() - NUDGE_COOLDOWN_HOURS * 60 * 60 * 1000),
-          },
-        },
-      });
-
-      if (recentNudge) {
-        await client.chat.postEphemeral({
-          channel: command.channel_id,
-          user: command.user_id,
-          text: t("nudge.cooldown", { hours: NUDGE_COOLDOWN_HOURS }),
-        });
-        return;
-      }
-
-      const nonVoters = await PollService.getNonVoters(poll.id, members);
-      const recipients = nonVoters.slice(0, settings.maxNudgeChannelMembers);
-
-      let sentCount = 0;
-      for (const recipientId of recipients) {
-        try {
-          const recipientTranslator = await getRequestTranslator(client, {
-            userId: recipientId,
-            workspaceId: command.team_id,
-          });
-          await client.chat.postMessage({
-            channel: recipientId,
-            text: recipientTranslator.t("nudge.dm", {
-              creatorId: poll.creatorId,
-              question: poll.question,
-              channelId: poll.channelId,
-            }),
-          });
-          await prisma.nudgeLog.create({
-            data: {
-              pollId: poll.id,
-              recipientId,
-            },
-          });
-          sentCount++;
-        } catch (err) {
-          console.error(`Failed to nudge user ${recipientId}:`, err);
-        }
-      }
-
-      const confirmationText =
-        sentCount === 0
-          ? t("nudge.nonePending")
-          : t("nudge.sent", { count: sentCount });
-
-      await client.chat.postEphemeral({
-        channel: command.channel_id,
-        user: command.user_id,
-        text: confirmationText,
-      });
-      return;
-    }
-
-    // 7. Quick poll syntax: /pollito "Question" "Option 1" "Option 2"
-    const matches = [...text.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-
-    if (matches.length >= 3) {
+    } catch (error) {
+      console.error('Error handling /pollito command:', error);
+      const msg = error instanceof Error ? error.message : t('error.generic.command');
       try {
-        await PollService.assertCanCreatePollInChannel(
-          command.team_id,
-          command.channel_id,
-        );
-      } catch (err: any) {
         await client.chat.postEphemeral({
           channel: command.channel_id,
           user: command.user_id,
-          text: err?.message || t("error.activePollInChannel"),
+          text: msg,
         });
-        return;
-      }
-
-      const question = matches[0];
-      const options = matches.slice(1, 7); // Up to 6 options
-
-      // Auto-join if public channel
-      try {
-        await client.conversations.join({ channel: command.channel_id });
       } catch {
-        // Safe to ignore if already in channel or private channel
+        // ignore
       }
-
-      // Fetch channel members for quorum calculation excluding bot
-      const members = await getEligibleChannelMembers(
-        client,
-        command.channel_id,
-      );
-      const memberCount = members.length > 0 ? members.length : 10;
-
-      // Initial placeholder message to reserve ts
-      let placeholder;
-      try {
-        placeholder = await client.chat.postMessage({
-          channel: command.channel_id,
-          text: t("poll.fallback.creating", { question }),
-        });
-      } catch (error: any) {
-        if (error?.data?.error === "not_in_channel") {
-          await client.chat.postEphemeral({
-            channel: command.channel_id,
-            user: command.user_id,
-            text: t("command.inviteBot", { command: "`/pollito`" }),
-          });
-          return;
-        }
-        throw error;
-      }
-
-      if (!placeholder?.ts) return;
-
-      const settings = await PollService.getWorkspaceSettings(command.team_id);
-
-      const poll = await PollService.createPoll({
-        workspaceId: command.team_id,
-        channelId: command.channel_id,
-        messageTs: placeholder.ts,
-        creatorId: command.user_id,
-        question,
-        options,
-        isAnonymous: false,
-        quorumType: "PERCENTAGE",
-        quorumTarget: 70,
-        eligibleVoterCount: memberCount,
-        locale: translator.locale,
-      });
-
-      const pollTranslator = getPollTranslator(poll);
-      const blocks = buildPollMessageBlocks(
-        {
-          ...poll,
-          participations: [],
-        },
-        {
-          maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
-          allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
-          translator: pollTranslator,
-        },
-      );
-
-      await client.chat.update({
-        channel: command.channel_id,
-        ts: placeholder.ts,
-        text: pollTranslator.t("poll.fallback.active", { question }),
-        blocks,
-      });
-      return;
     }
+  };
 
-    // Fallback for unrecognized syntax: open modal
-    await client.views.open({
-      trigger_id: command.trigger_id,
-      view: buildCreatePollModalView({
-        channelId: command.channel_id,
-        translator,
-      }),
+  for (const name of SUBCOMMAND_ALIASES) {
+    app.command(`/pollito-${name}`, async (args) => {
+      const text = `${name} ${args.command.text}`.trim();
+      await handlePollitoCommand({ ...args, command: { ...args.command, text } });
     });
-  } catch (error) {
-    console.error("Error handling /pollito command:", error);
-    const msg =
-      error instanceof Error ? error.message : t("error.generic.command");
-    try {
-      await client.chat.postEphemeral({
-        channel: command.channel_id,
-        user: command.user_id,
-        text: msg,
-      });
-    } catch {
-      // ignore
-    }
   }
+  app.command('/pollito', handlePollitoCommand);
 }
