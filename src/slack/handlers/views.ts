@@ -169,9 +169,14 @@ export function registerViewHandlers(app: App) {
       (!threadTsFromMeta ||
         (channelIdFromMeta && validated.selectedChannel !== channelIdFromMeta))
     ) {
+      const workspaceId = body.team?.id ?? '';
+      const botToken = workspaceId
+        ? await PollService.resolveWorkspaceBotToken(workspaceId)
+        : undefined;
       threadTsFromMeta = await findActiveHuddleThread(
         client,
-        validated.selectedChannel
+        validated.selectedChannel,
+        botToken
       );
       if (!threadTsFromMeta) {
         await ack({

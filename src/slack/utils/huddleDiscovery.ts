@@ -73,10 +73,7 @@ export function isHuddleMessage(msg: any): boolean {
     return false;
   }
 
-  if (msg.bot_id || msg.app_id || msg.subtype === 'bot_message') {
-    return false;
-  }
-
+  // 1. Unambiguous Slack Huddle structures provided by Slack API
   const subtype = String(msg.subtype ?? '').toLowerCase();
   if (HUDDLE_SUBTYPES.has(subtype)) {
     return true;
@@ -86,6 +83,12 @@ export function isHuddleMessage(msg: any): boolean {
     return true;
   }
 
+  // 2. Reject third-party bot messages mentioning the word "huddle" in free text
+  if (msg.bot_id || msg.app_id || msg.subtype === 'bot_message') {
+    return false;
+  }
+
+  // 3. Fallback text patterns for user messages
   const text = String(msg.text ?? '');
   if (HUDDLE_ACTION_PATTERNS.some((pattern) => pattern.test(text))) {
     return true;
@@ -231,7 +234,11 @@ export async function findChannelHuddles(
     });
     messages = Array.isArray(response?.messages) ? response.messages : [];
     historyLoaded = true;
-  } catch {
+  } catch (err: any) {
+    console.warn(
+      `[HuddleDiscovery] conversations.history failed for channel ${channelId}:`,
+      err?.data?.error || err?.message || err
+    );
     const fallbackToken = process.env.SLACK_HUDDLE_DISCOVERY_TOKEN?.trim();
     if (fallbackToken && fallbackToken !== token) {
       try {

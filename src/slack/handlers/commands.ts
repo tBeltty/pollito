@@ -84,10 +84,13 @@ export function registerCommandHandlers(app: App) {
 
         const explicitThreadTs =
           (command as any).thread_ts || (command as any).threadTs || null;
+        const botToken = command.team_id
+          ? await PollService.resolveWorkspaceBotToken(command.team_id)
+          : undefined;
         const huddleThreadTs =
           explicitThreadTs ||
           parsedLinkTs ||
-          (await findActiveHuddleThread(client, command.channel_id));
+          (await findActiveHuddleThread(client, command.channel_id, botToken));
 
         const huddleMatches = [...huddleRest.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 
