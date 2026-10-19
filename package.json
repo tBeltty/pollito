@@ -22,7 +22,7 @@
     "secret-ballot"
   ],
   "author": "TBelt Online",
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE",
   "dependencies": {
     "@prisma/client": "^6.4.0",
     "@slack/bolt": "^4.2.1",
