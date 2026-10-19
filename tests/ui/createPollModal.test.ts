@@ -236,8 +236,8 @@ describe('Modal & App Home Views', () => {
     expect(serialized).toContain('open_templates_modal');
     expect(serialized).toContain('open_guide_modal');
     expect(serialized).toContain('open_settings_modal');
-    expect(serialized).toContain('You are the creator');
-    expect(serialized).toContain('_Participant_');
+    expect(serialized).toContain('You created this');
+    expect(serialized).toContain('Participant');
 
     // Creator on small channel gets Nudge Non-Voters with confirm dialog
     const smallPollActions = home.blocks.find(

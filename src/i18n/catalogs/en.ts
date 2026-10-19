@@ -228,10 +228,10 @@ export const en = {
   'home.button.manageHistory': 'Select polls to delete',
   'home.button.clearClosed': 'Clear closed polls',
   'home.button.viewResults': 'View results',
-  'home.stat.active': '*Active Polls:*\n{count}',
-  'home.stat.quorums': '*Quorums Reached:*\n{count}',
-  'home.stat.closed': '*Closed Polls:*\n{count}',
-  'home.stat.participation': '*Average participation:*\n{pct}%',
+  'home.stat.active': '*{count}*\nActive polls',
+  'home.stat.quorums': '*{count}*\nQuorums reached',
+  'home.stat.closed': '*{count}*\nClosed polls',
+  'home.stat.participation': '*{pct}%*\nAverage participation',
   'home.templates.intro': '*Quick Templates*\nLaunch a pre-configured team poll in one click.',
   'home.templates.emptyManager':
     '*Quick Templates*\nNo workspace templates yet. As an admin, you can create quick templates for your team to launch in one click.',
@@ -242,10 +242,10 @@ export const en = {
   'home.recent.header': 'Recent polls',
   'home.recent.empty':
     '_No polls yet. Type `/pollito` in any channel or click "Launch New Poll" above._',
-  'home.recent.row':
-    '*{question}*\nChannel: <#{channelId}> • {votes, plural, one {*#* vote} other {*#* votes}} • *{status}*{role}',
-  'home.role.creator': ' • *You are the creator*',
-  'home.role.participant': ' • _Participant_',
+  'home.recent.meta':
+    '<#{channelId}> • {votes, plural, one {# vote} other {# votes}} • {status}{role}',
+  'home.role.creator': ' • You created this',
+  'home.role.participant': ' • Participant',
   'home.delete.confirmTitle': 'Delete this poll?',
   'home.delete.confirmBody':
     'This permanently removes the poll record from App Home and workspace analytics.',
