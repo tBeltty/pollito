@@ -64,3 +64,15 @@ When drafting Spanish copy for marketing (`marketing/`), target niches (`docs/TA
 - **NEVER voseo. Always tuteo**: Use `tú`/`tu` conjugations (sube, tienes, puedes, elige), never `vos` (subí, tenés, podés, elegí).
 - **Translate meaning, never words**: Translate the *intent* in natural target-language idiom. Literal word-for-word calques corrupt nuance.
 - **Pan-regional Spanish**: Avoid hyper-regional slang or peninsular-only terms ("móvil", "céntimo", "apetecer"). Use neutral terminology ("teléfono", "centavos", "reunión").
+
+---
+
+## 4. Pre-Submission Checklist
+
+Before committing any Slack notification copy, marketing text, or documentation:
+- [ ] Does it state the actual time remaining, topic, or command within the first 10 words?
+- [ ] Is it free of binary contrasts (*"not X, but Y"*), colon reveals, and corporate buzzwords?
+- [ ] Does every Slack message exist in both the English and Spanish catalogs?
+- [ ] If Spanish is used in marketing/docs, is it 100% tuteo with zero voseo?
+- [ ] Are all protected tokens (`/pollito`, votes, Slack user/channel IDs) preserved accurately?
+- [ ] Does it sound like a focused teammate speaking directly to a peer?
