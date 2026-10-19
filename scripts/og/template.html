@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@500;800&display=swap');
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: #0f172a;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 64px 64px;
+    color: #fff;
+    position: relative;
+  }
+  .frame {
+    position: absolute; inset: 32px;
+    border-radius: 36px;
+    border: 2px solid rgba(139,92,246,0.55);
+    box-shadow: 0 0 90px 8px rgba(139,92,246,0.35), inset 0 0 70px rgba(139,92,246,0.12);
+  }
+  .copy { position: absolute; left: 96px; top: 0; bottom: 0; width: 560px; display: flex; flex-direction: column; justify-content: center; gap: 28px; }
+  .brand { display: flex; align-items: center; gap: 16px; font-weight: 800; font-size: 34px; letter-spacing: -0.02em; }
+  .brand img { width: 56px; height: 56px; }
+  h1 { font-size: 70px; line-height: 1.04; font-weight: 800; letter-spacing: -0.03em; text-wrap: balance; }
+  p { font-size: 30px; font-weight: 500; color: #94a3b8; }
+  .art { position: absolute; right: 64px; top: 50%; transform: translateY(-50%); width: 500px; }
+  .art img { width: 100%; display: block; }
+</style>
+</head>
+<body>
+  <div class="frame"></div>
+  <div class="copy">
+    <div class="brand"><img src="file://{{ROOT}}/public/assets/plates/pollito-nav-logo.png" alt="">Pollito</div>
+    <h1>{{H1}}</h1>
+    <p>{{SUB}}</p>
+  </div>
+  <div class="art"><img src="file://{{ROOT}}/public/assets/plates/mascot-pollito-stage.png" alt=""></div>
+</body>
+</html>
