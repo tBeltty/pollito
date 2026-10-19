@@ -25,7 +25,7 @@
   <meta name="twitter:image:alt" content="Pollito, Slack app for team polls that close at quorum">
   <meta name="theme-color" content="#0f172a">
   <link rel="apple-touch-icon" href="https://pollito.tbelt.online/assets/plates/pollito-avatar-512.png">
-  <link rel="stylesheet" href="styles.css?v=17">
+  <link rel="stylesheet" href="styles.css?v=23">
   <link rel="icon" type="image/png" href="assets/plates/pollito-nav-logo.png?v=4">
 </head>
 <body>
@@ -77,7 +77,23 @@
           </div>
 
           <div class="hero-visual-stage">
-            <img src="assets/plates/mascot-pollito-stage.png?v=5" alt="Pollito mascot with spectacles beside a Slack poll card" width="1400" height="980">
+            <div class="hero-art" role="img" aria-label="Pollito mascot next to a Slack poll showing 70% and 30%">
+              <div class="art-card" aria-hidden="true">
+                <div class="art-head"><img src="assets/icons/slack.svg" alt="" width="20" height="20"><span>Poll</span></div>
+                <div class="art-body">
+                  <div class="art-row"><span class="art-label art-label-long"></span><span class="art-pct art-pct-a">70%</span></div>
+                  <div class="art-track"><span class="art-fill art-fill-a"></span></div>
+                  <div class="art-row"><span class="art-label"></span><span class="art-pct art-pct-b">30%</span></div>
+                  <div class="art-track"><span class="art-fill art-fill-b"></span></div>
+                  <div class="art-quorum"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span>83% voted · quorum 75%</span></div>
+                  <span class="art-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>Anonymous voting</span>
+                </div>
+              </div>
+              <picture>
+                <source srcset="assets/plates/mascot-pollito.webp?v=1" type="image/webp">
+                <img class="art-mascot" src="assets/plates/mascot-pollito.png?v=1" alt="" width="992" height="995">
+              </picture>
+            </div>
           </div>
         </div>
       </section>

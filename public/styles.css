@@ -345,15 +345,145 @@ body {
   pointer-events: none;
 }
 
-.hero-visual-stage img {
+/* Hero artwork: the mascot over a poll card built in HTML. Everything scales with the width of
+   .hero-art (cqw), and the artwork shrinks to fit the stage so the frame never overflows. */
+.hero-visual-stage {
+  container-type: size;
+}
+
+.hero-art {
+  position: relative;
+  aspect-ratio: 10 / 7;
+  width: min(100cqw, 100cqh * 10 / 7);
+  container-type: inline-size;
+}
+
+.art-card {
   position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 100%;
-  height: 100%;
-  max-height: 22.5rem;
-  object-fit: contain;
+  inset: 5% 3% auto auto;
+  width: 53%;
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+  background: #1a1d21;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 2.4cqw;
+  box-shadow: 0 2cqw 5cqw -1cqw rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  color: #f8f8f8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.art-head {
+  display: flex;
+  align-items: center;
+  gap: 1.6cqw;
+  padding: 3.2cqw 3.6cqw;
+  font-size: 3.6cqw;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.art-head img {
+  width: 4.4cqw;
+  height: 4.4cqw;
+}
+
+.art-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.8cqw;
+  padding: 3.2cqw 3.6cqw;
+}
+
+.art-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2cqw;
+}
+
+.art-label {
   display: block;
+  inline-size: 38%;
+  block-size: 3.4cqw;
+  border-radius: 1cqw;
+  background: #3a3d44;
+}
+
+.art-label-long { inline-size: 62%; }
+
+.art-pct {
+  font-size: 3.4cqw;
+  font-weight: 700;
+}
+
+.art-pct-a { color: #a78bfa; }
+.art-pct-b { color: #f5b73b; }
+
+.art-track {
+  block-size: 1.6cqw;
+  border-radius: 1cqw;
+  background: #2b2e34;
+  overflow: hidden;
+  margin-block-end: 1.4cqw;
+}
+
+.art-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: 1cqw;
+}
+
+.art-fill-a { inline-size: 70%; background: linear-gradient(90deg, #7c3aed, #8b5cf6); }
+.art-fill-b { inline-size: 30%; background: linear-gradient(90deg, #f59e0b, #f5b73b); }
+
+.art-quorum {
+  display: flex;
+  align-items: center;
+  gap: 1.4cqw;
+  margin-block-start: 0.6cqw;
+  margin-inline-start: 8cqw;
+  font-size: 2.3cqw;
+  white-space: nowrap;
+  color: #34d399;
+}
+
+.art-quorum svg {
+  inline-size: 2.6cqw;
+  block-size: 2.6cqw;
+  flex: none;
+}
+
+.art-pill {
+  align-self: flex-start;
+  margin-inline-start: 8cqw;
+  display: inline-flex;
+  align-items: center;
+  gap: 1cqw;
+  margin-block-start: 0.8cqw;
+  padding: 1.2cqw 2.2cqw;
+  border-radius: 999px;
+  background: #2b2e34;
+  font-size: 2.4cqw;
+  white-space: nowrap;
+  color: #d1d5db;
+}
+
+.art-pill svg {
+  inline-size: 2.8cqw;
+  block-size: 2.8cqw;
+}
+
+.art-mascot {
+  position: absolute;
+  inset: auto auto 0 0;
+  width: 50%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 1.6cqw 2.4cqw rgba(0, 0, 0, 0.45));
 }
 
 /* Interactive Poll Simulator (1:1 Slack Experience) */
@@ -992,9 +1122,6 @@ body {
   }
   .hero-visual-stage {
     padding-right: clamp(0.75rem, 2.5vw, 2.5rem);
-  }
-  .hero-visual-stage img {
-    max-height: min(30rem, calc(100dvh - 11.25rem));
   }
 }
 
