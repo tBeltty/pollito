@@ -87,10 +87,13 @@ export function registerActionHandlers(app: App) {
         ? voterTranslator.t('vote.recordedAnonymous')
         : voterTranslator.t('vote.recorded');
 
+      const targetThreadTs = result.poll.threadTs || messageTs;
+
       await client.chat.postEphemeral({
         channel: channelId,
         user: voterId,
         text: noticeText,
+        ...(targetThreadTs ? { thread_ts: targetThreadTs } : {}),
       });
     } catch (error) {
       const errorMessage =
@@ -98,10 +101,13 @@ export function registerActionHandlers(app: App) {
 
       if (blockAction.channel?.id) {
         try {
+          const targetThreadTs =
+            (blockAction.message as any)?.thread_ts || (blockAction.message as any)?.ts;
           await client.chat.postEphemeral({
             channel: blockAction.channel.id,
             user: blockAction.user.id,
             text: errorMessage,
+            ...(targetThreadTs ? { thread_ts: targetThreadTs } : {}),
           });
         } catch {
           // Ignore ephemeral failures

@@ -54,16 +54,6 @@ export function buildPollMessageBlocks(
     allowNudges &&
     (poll.eligibleVoterCount <= 0 || poll.eligibleVoterCount <= maxNudgeMembers);
 
-  // Determine Pollito mascot micro-expression
-  let mascot = '🐣';
-  if (poll.status === 'QUORUM_REACHED') {
-    mascot = '🎉';
-  } else if (poll.status === 'TIME_EXPIRED' || poll.status === 'CLOSED') {
-    mascot = '⏰';
-  } else if (totalVotes > 0) {
-    mascot = '🧐';
-  }
-
   // Determine status text
   let statusText = t('poll.status.active');
 
@@ -99,7 +89,6 @@ export function buildPollMessageBlocks(
         {
           type: 'mrkdwn',
           text: t('poll.context.status', {
-            mascot,
             status: statusText,
             ballot: ballotLabel,
             choice: choiceLabel,

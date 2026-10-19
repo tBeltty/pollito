@@ -27,7 +27,7 @@ export const en = {
   'poll.ballot.public': 'Public vote',
   'poll.choice.multiple': 'Multiple choice',
   'poll.choice.single': 'Single choice',
-  'poll.context.status': '{mascot} *Status:* {status} • *Type:* {ballot} • {choice}',
+  'poll.context.status': '*Status:* {status} • *Type:* {ballot} • {choice}',
   'poll.option.votes': '{count, plural, one {*#* vote} other {*#* votes}}',
   'poll.option.moreVoters': '+{count} more',
   'poll.vote.button': 'Vote {number}',
@@ -56,9 +56,9 @@ export const en = {
   'poll.fallback.creating': 'Creating poll: {question}...',
 
   // ── Closure announcements ─────────────────────────────────────────────
-  'closure.title.quorum': '🎉 *Quorum reached. Poll closed*',
-  'closure.title.closed': '🔒 *Poll closed by its creator*',
-  'closure.title.expired': '⏰ *Poll closed. Time expired*',
+  'closure.title.quorum': '*Quorum reached. Poll closed*',
+  'closure.title.closed': '*Poll closed by its creator*',
+  'closure.title.expired': '*Poll closed. Time expired*',
   'closure.body.quorum':
     '*{question}* reached its target quorum with {count, plural, one {*#* participant} other {*#* participants}}.',
   'closure.body.closed':
@@ -74,9 +74,9 @@ export const en = {
 
   // ── Reminders and notifications ───────────────────────────────────────
   'nudge.dm':
-    '👋 <@{creatorId}> would like your vote on *{question}* in <#{channelId}>.',
+    '<@{creatorId}> would like your vote on *{question}* in <#{channelId}>.',
   'nudge.sent':
-    '📬 Sent private reminders to {count, plural, one {# teammate} other {# teammates}}.',
+    'Sent private reminders to {count, plural, one {# teammate} other {# teammates}}.',
   'nudge.nonePending': 'No pending votes found. Everyone has already cast their ballot!',
   'nudge.disabled': 'Reminders are turned off in this workspace.',
   'nudge.channelTooLarge': 'Reminders are not available in channels with more than {max} members.',
@@ -85,9 +85,9 @@ export const en = {
   'vote.recorded': 'Your vote has been recorded.',
   'vote.recordedAnonymous': 'Your anonymous vote has been recorded.',
   'huddle.reminder.fallback':
-    '🗳️ The Huddle ended and *{question}* is still open for votes. <{permalink}|Vote in the thread>',
+    'The Huddle ended and *{question}* is still open for votes. <{permalink}|Vote in the thread>',
   'huddle.reminder.body':
-    '🗳️ *The Huddle has ended.*\n*<{permalink}|{question}>* is still open for votes in the Huddle thread.',
+    '*The Huddle has ended.*\n*<{permalink}|{question}>* is still open for votes in the Huddle thread.',
   'huddle.reminder.button': 'Jump to poll',
 
   // ── Slash command replies ─────────────────────────────────────────────
@@ -361,9 +361,9 @@ export const en = {
   'cp.submit.createTemplate': 'Create template',
   'cp.huddle.inChannel': ' in <#{channelId}>',
   'cp.huddle.bannerActive':
-    '🎧 *Target: Active Huddle Thread*{inChannel}\nThis poll will be posted directly inside the live Huddle thread.',
+    '*Target: Active Huddle Thread*{inChannel}\nThis poll will be posted directly inside the live Huddle thread.',
   'cp.huddle.bannerPending':
-    '🎧 *Target: Huddle Thread*{inChannel}\nPollito will auto-detect the active Huddle on launch, or you can paste the Huddle message link below.',
+    '*Target: Huddle Thread*{inChannel}\nPollito will auto-detect the active Huddle on launch, or you can paste the Huddle message link below.',
   'cp.channel.placeholder': 'Choose channel',
   'cp.channel.label': 'Channel',
   'cp.channel.labelTemplate': 'Default channel (optional)',

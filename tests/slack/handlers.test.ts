@@ -98,7 +98,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
 
     it('formats QUORUM_REACHED summary with winning option and vote counts', () => {
       const summary = formatPollClosureSummary(mockPoll, 'QUORUM_REACHED');
-      expect(summary).toContain('🎉 *Quorum reached. Poll closed*');
+      expect(summary).toContain('*Quorum reached. Poll closed*');
       expect(summary).toContain('*Sprint Retro Date*');
       expect(summary).toContain('*3* participants');
       expect(summary).toContain('Winner: *Thursday 2pm* (5 votes)');
@@ -106,7 +106,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
 
     it('formats CLOSED summary with winning option when votes cast', () => {
       const summary = formatPollClosureSummary(mockPoll, 'CLOSED');
-      expect(summary).toContain('🔒 *Poll closed by its creator*');
+      expect(summary).toContain('*Poll closed by its creator*');
       expect(summary).toContain('*3* total participants');
       expect(summary).toContain('Winner: *Thursday 2pm* (5 votes)');
     });
@@ -118,13 +118,13 @@ describe('Slack Handlers & Channel Member Governance', () => {
         participations: [],
       };
       const summary = formatPollClosureSummary(emptyPoll, 'CLOSED');
-      expect(summary).toContain('🔒 *Poll closed by its creator*');
+      expect(summary).toContain('*Poll closed by its creator*');
       expect(summary).toContain('was closed with 0 votes cast.');
     });
 
     it('formats TIME_EXPIRED summary', () => {
       const summary = formatPollClosureSummary(mockPoll, 'TIME_EXPIRED');
-      expect(summary).toContain('⏰ *Poll closed. Time expired*');
+      expect(summary).toContain('*Poll closed. Time expired*');
       expect(summary).toContain('Winner: *Thursday 2pm* (5 votes)');
     });
 
@@ -213,7 +213,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
         expect.objectContaining({
           channel: 'C_DEV_1',
           thread_ts: '1700000000.000100',
-          text: expect.stringContaining('🎉 *Quorum reached. Poll closed*'),
+          text: expect.stringContaining('*Quorum reached. Poll closed*'),
         })
       );
       expect(postEphemeralSpy).toHaveBeenCalledWith(
@@ -221,6 +221,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
           channel: 'C_DEV_1',
           user: 'U_VOTER_1',
           text: expect.stringContaining('recorded'),
+          thread_ts: '1700000000.000100',
         })
       );
 
@@ -284,7 +285,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
         expect.objectContaining({
           channel: 'C_DEV_2',
           thread_ts: '1700000000.000200',
-          text: expect.stringContaining('🔒 *Poll closed by its creator*'),
+          text: expect.stringContaining('*Poll closed by its creator*'),
         })
       );
 
@@ -588,7 +589,7 @@ describe('Slack Handlers & Channel Member Governance', () => {
         expect.objectContaining({
           channel: 'C_COMMAND_1',
           thread_ts: '1700000000.000400',
-          text: expect.stringContaining('🔒 *Poll closed by its creator*'),
+          text: expect.stringContaining('*Poll closed by its creator*'),
         })
       );
       expect(postEphemeralSpy).toHaveBeenCalledWith(
