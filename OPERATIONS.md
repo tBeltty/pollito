@@ -140,7 +140,7 @@ ssh mi-vps "nginx -t && systemctl reload nginx"
 
 ## 4. Pipeline de CI/CD en GitHub Actions
 
-El flujo de integración y despliegue continuo está definido en [`.github/workflows/ci.yml`](file:///Users/jhonatan/Documents/pollito/.github/workflows/ci.yml).
+El flujo de integración y despliegue continuo está definido en [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ### Fases del Pipeline
 
@@ -182,7 +182,7 @@ gh run watch <run_id>
 
 ## 5. Configuración de Slack App (`manifest.json`)
 
-El archivo [`manifest.json`](file:///Users/jhonatan/Documents/pollito/manifest.json) define las capacidades y permisos requeridos por Pollito:
+El archivo [`manifest.json`](manifest.json) define las capacidades y permisos requeridos por Pollito:
 
 ### Bot Scopes Requeridos
 * **`commands`**: Registra y escucha el comando de barra `/pollito`.
@@ -203,7 +203,7 @@ El archivo [`manifest.json`](file:///Users/jhonatan/Documents/pollito/manifest.j
 
 ## 6. Base de Datos y Modelo de Datos (Prisma + SQLite)
 
-El esquema reside en [`prisma/schema.prisma`](file:///Users/jhonatan/Documents/pollito/prisma/schema.prisma) y la base de datos de producción se almacena en `/home/jhonatan/pollito/prisma/pollito.db`.
+El esquema reside en [`prisma/schema.prisma`](prisma/schema.prisma) y la base de datos de producción se almacena en `/home/jhonatan/pollito/prisma/pollito.db`.
 
 ### Modelos Principales
 * **`Workspace`**: Registro del workspace de Slack (`id = T...`), token cifrado (`AES-256-GCM`) y fecha de instalación.

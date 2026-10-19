@@ -50,7 +50,7 @@ Unlike market leaders (Simple Poll, Polly) that enforce punitive per-seat pricin
 
 ## Evidence on Hand
 
-- Comprehensive product specification in [`pollito_product_brief.md`](file:///Users/jhonatan/Documents/pollito/pollito_product_brief.md).
+- Comprehensive product specification in [`pollito_product_brief.md`](pollito_product_brief.md).
 - Verified DNS zone control on `tbelt.online` via Cloudflare API.
 - Architecture and engineering patterns proven in production Bolt architectures.
 
