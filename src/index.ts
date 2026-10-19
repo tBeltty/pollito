@@ -252,7 +252,7 @@ const customRoutes = [
 </head>
 <body>
   <div class="card">
-    <img src="/assets/plates/pollito-nav-logo.png?v=4" alt="Pollito" class="mascot">
+    <img src="/assets/plates/pollito-nav-logo.png?v=5" alt="Pollito" class="mascot">
     <h1>Pollito Installed!</h1>
     <p>Pollito is now ready in your Slack workspace. Head back to Slack and run <strong>/pollito</strong> in any channel to create your first poll.</p>
     <a href="slack://open" class="btn">Open Slack</a>
