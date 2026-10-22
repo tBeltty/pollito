@@ -367,12 +367,28 @@ export function buildAppHomeView(
           : t('status.closed');
 
       const isCreator = Boolean(currentUserId && p.creatorId === currentUserId);
-      const canManagePoll = !currentUserId || isCreator || isManager;
+      const canManagePoll = currentUserId ? isCreator || Boolean(isManager) : true;
       const roleBadge = currentUserId
         ? isCreator
           ? t('home.role.creator')
           : t('home.role.participant')
         : '';
+
+      const isClosedPoll =
+        p.status === 'QUORUM_REACHED' ||
+        p.status === 'CLOSED' ||
+        p.status === 'TIME_EXPIRED';
+      const maxVotes = isClosedPoll
+        ? p.options.reduce((max, o) => Math.max(max, o.voteCount), 0)
+        : 0;
+      const topOptions =
+        isClosedPoll && maxVotes > 0
+          ? p.options.filter((o) => o.voteCount === maxVotes)
+          : [];
+      const winnerSuffix =
+        topOptions.length === 1
+          ? ` • ${t('analytics.outcome.winner', { option: topOptions[0].text, votes: maxVotes })}`
+          : '';
 
       recentPollBlocks.push(
         { type: 'section', text: { type: 'mrkdwn', text: `*${p.question}*` } },
@@ -381,12 +397,12 @@ export function buildAppHomeView(
           elements: [
             {
               type: 'mrkdwn',
-              text: t('home.recent.meta', {
+              text: `${t('home.recent.meta', {
                 channelId: p.channelId,
                 votes,
                 status: statusLabel,
                 role: roleBadge,
-              }),
+              })}${winnerSuffix}`,
             },
           ],
         }

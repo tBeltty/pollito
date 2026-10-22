@@ -240,7 +240,7 @@ export class PollService {
     if (!workspaceId) {
       return {
         defaultAnonymous: false,
-        defaultQuorumType: 'PERCENTAGE',
+        defaultQuorumType: 'NONE',
         defaultQuorumPct: 70,
         allowVoterChoiceNudges: true,
         maxNudgeChannelMembers: DEFAULT_MAX_NUDGE_MEMBERS,
@@ -261,7 +261,7 @@ export class PollService {
     return {
       defaultAnonymous: record?.defaultAnonymous ?? false,
       defaultQuorumType:
-        record?.defaultQuorumType === 'NONE' ? 'NONE' : 'PERCENTAGE',
+        record?.defaultQuorumType === 'PERCENTAGE' ? 'PERCENTAGE' : 'NONE',
       defaultQuorumPct: Math.max(
         MIN_QUORUM_PERCENTAGE,
         Math.min(100, record?.defaultQuorumPct ?? 70)

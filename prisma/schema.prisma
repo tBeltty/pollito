@@ -25,7 +25,7 @@ model WorkspaceSettings {
   workspaceId              String    @unique
   workspace                Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   defaultAnonymous         Boolean   @default(false)
-  defaultQuorumType        String    @default("PERCENTAGE") // PERCENTAGE | NONE
+  defaultQuorumType        String    @default("NONE") // PERCENTAGE | NONE
   defaultQuorumPct         Int       @default(70)
   allowVoterChoiceNudges   Boolean   @default(true)
   maxNudgeChannelMembers   Int       @default(50)

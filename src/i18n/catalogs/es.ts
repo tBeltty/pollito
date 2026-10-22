@@ -17,14 +17,14 @@ export const es: MessageCatalog = {
   'common.anonymous': 'Anónima',
   'common.untitledPoll': 'Votación sin título',
 
-  'status.quorumReached': 'Quórum alcanzado',
+  'status.quorumReached': '🎉 Quórum alcanzado',
   'status.active': 'Activa',
   'status.timeExpired': 'Tiempo agotado',
   'status.closed': 'Cerrada',
 
   // ── Tarjeta de mensaje de votación ─────────────────────────────────────
   'poll.status.active': 'Votación activa',
-  'poll.status.quorumReached': 'Quórum alcanzado • Cerrada',
+  'poll.status.quorumReached': '🎉 Quórum alcanzado • Cerrada',
   'poll.status.timeExpired': 'Límite de tiempo alcanzado • Cerrada',
   'poll.status.closed': 'Votación cerrada',
   'poll.status.approachingQuorum': 'Cerca del quórum objetivo',
@@ -54,14 +54,16 @@ export const es: MessageCatalog = {
     'Quórum objetivo: {target, plural, one {# voto} other {# votos}} ({votes}/{target} alcanzado)',
   'poll.footer.closes': 'Cierra: {date}',
   'poll.footer.closed': 'Cerrada: {date}',
-  'poll.footer.meta': 'Creada por <@{creatorId}> • ID: {pollId}',
+  'poll.footer.meta': 'Creada por <@{creatorId}>',
+  'poll.creatorControls.caption':
+    '🔒 *Controles de creador* para *{question}* • Solo visibles para ti.',
   'poll.fallback.active': 'Votación: {question}',
   'poll.fallback.closed': '[Cerrada] Votación: {question}',
   'poll.fallback.launching': 'Iniciando votación: {question}...',
   'poll.fallback.creating': 'Creando votación: {question}...',
 
   // ── Anuncios de cierre ─────────────────────────────────────────────────
-  'closure.title.quorum': '*Quórum alcanzado. Votación cerrada*',
+  'closure.title.quorum': '🎉 *Quórum alcanzado. Votación cerrada*',
   'closure.title.closed': '*Votación cerrada por quien la creó*',
   'closure.title.expired': '*Votación cerrada. Tiempo agotado*',
   'closure.body.quorum':
@@ -73,7 +75,7 @@ export const es: MessageCatalog = {
     '*{question}* concluyó con {count, plural, one {*#* participante en total} other {*#* participantes en total}}.',
   'closure.body.expiredEmpty': '*{question}* concluyó sin votos registrados.',
   'closure.outcome.winner':
-    'Ganadora: *{option}* ({votes, plural, one {# voto} other {# votos}}).',
+    '🏆 Ganadora: *{option}* ({votes, plural, one {# voto} other {# votos}}).',
   'closure.outcome.tie':
     'Resultado: Empate entre {options} ({votes, plural, one {# voto} other {# votos}} cada una).',
 
@@ -94,6 +96,17 @@ export const es: MessageCatalog = {
   'huddle.reminder.body':
     '*El Huddle terminó.*\n*<{permalink}|{question}>* sigue abierta para votar en el hilo.',
   'huddle.reminder.button': 'Ir a la votación',
+  'huddle.standby.fallback':
+    'Pollito está listo en este hilo de Huddle. Pulsa para lanzar una votación aquí.',
+  'huddle.standby.body':
+    '*¿Necesitas una votación rápida en este Huddle?*\nLanza una votación directamente dentro de este hilo.',
+  'huddle.standby.button': 'Crear votación en el hilo',
+  'thread.prompt.fallback':
+    'Pulsa para configurar y lanzar una votación en este hilo.',
+  'thread.prompt.body':
+    '*Lanza una votación en este hilo*\nSlack no permite comandos de barra dentro de los hilos. Usa el botón de abajo para abrir el creador fijado a este hilo, o responde con `@Pollito "Pregunta" "Opción 1" "Opción 2"`.',
+  'thread.prompt.button': 'Crear votación en el hilo',
+
 
   // ── Respuestas a comandos de barra ─────────────────────────────────────
   'command.help':
@@ -202,7 +215,7 @@ export const es: MessageCatalog = {
   'analytics.outcome.tiedLead': 'Empate en cabeza: {options} ({votes})',
   'analytics.outcome.leading': 'En cabeza: *{option}* ({votes})',
   'analytics.outcome.tie': 'Empate: {options} ({votes})',
-  'analytics.outcome.winner': 'Ganadora: *{option}* ({votes})',
+  'analytics.outcome.winner': '🏆 Ganadora: *{option}* ({votes})',
   'analytics.poll.summary':
     'Canal: <#{channelId}> • *{status}* • *{mode}* • {participants, plural, one {*#* participante} other {*#* participantes}} • {outcome}',
   'detail.title': 'Desglose de resultados',
@@ -386,13 +399,14 @@ export const es: MessageCatalog = {
   'cp.settings.anonymousHint': 'Nadie puede ver quién votó por qué.',
   'cp.settings.multiple': '*Opción múltiple*',
   'cp.settings.multipleHint': 'Permite al equipo elegir más de una opción.',
-  'cp.settings.noQuorum': '*Sin quórum requerido*',
-  'cp.settings.noQuorumHint': 'Sin umbral de participación. Se cierra a mano o al vencer el plazo.',
+  'cp.settings.requireQuorum': '*Requerir quórum*',
+  'cp.settings.requireQuorumHint':
+    'Cierra la votación de forma automática al alcanzar el porcentaje de participación.',
   'cp.settings.forwardHuddle': '*Recordar en el canal cuando termine el Huddle*',
   'cp.settings.forwardHuddleHint': 'Publica un enlace de recordatorio en el canal si la votación sigue abierta al terminar el Huddle.',
   'cp.quorum.label': 'Porcentaje de quórum objetivo (%)',
   'cp.quorum.hint':
-    'Mínimo 51% (más de la mitad). Déjalo en blanco o marca "Sin quórum requerido" para votaciones informales.',
+    'Mínimo 51% (más de la mitad). Aplica si "Requerir quórum" está marcado.',
   'cp.duration.none': 'Sin límite de tiempo (manual o por quórum)',
   'cp.duration.15m': '15 minutos (Standup rápido)',
   'cp.duration.1h': '1 hora',

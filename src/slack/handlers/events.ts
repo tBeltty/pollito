@@ -4,11 +4,17 @@ import { PollService } from '../../services/pollService.js';
 import { ENV_MANAGED_TOKEN } from '../../utils/crypto.js';
 import { buildAppHomeView } from '../ui/views/appHome.js';
 import {
+  buildPollCreatorControlsBlocks,
+  buildPollMessageBlocks,
+} from '../ui/views/pollMessage.js';
+import { getEligibleChannelMembers } from '../utils/channelMembers.js';
+import {
   recordHuddleMessageEvent,
   isHuddleMessage,
   isHuddleEnded,
   notifyMainChannelOnHuddleEnd,
 } from '../utils/huddleDiscovery.js';
+import { getPollTranslator, getRequestTranslator } from '../utils/locale.js';
 
 export async function publishHomeTab(
   client: any,
@@ -31,7 +37,6 @@ export async function publishHomeTab(
     PollService.resolveWorkspaceBotToken(workspaceId),
   ]);
 
-  const { getRequestTranslator } = await import('../utils/locale.js');
   const [stats, translator] = await Promise.all([
     PollService.getPollAnalyticsStats(workspaceId, viewer, 30),
     getRequestTranslator(client, { userId, workspaceId }),
@@ -61,28 +66,261 @@ export async function publishHomeTab(
   });
 }
 
+const greetedHuddleThreads = new Set<string>();
+const processedThreadTriggers = new Set<string>();
+
+export function clearGreetedHuddleThreads(): void {
+  greetedHuddleThreads.clear();
+  processedThreadTriggers.clear();
+}
+
+async function handleInThreadPollitoTrigger(
+  event: any,
+  body: any,
+  client: any
+): Promise<void> {
+  if (!event || typeof event !== 'object') return;
+  if (isHuddleMessage(event)) return;
+  if (event.bot_id || event.app_id || event.subtype === 'bot_message') return;
+  if (event.subtype && event.subtype !== 'thread_broadcast') return;
+
+  const channelId = String(event.channel || '').trim();
+  const userId = String(event.user || '').trim();
+  if (!channelId || !userId) return;
+
+  const rawText = String(event.text ?? '').trim();
+  if (!rawText) return;
+
+  const isAppMention =
+    event.type === 'app_mention' ||
+    /^<@[A-Z0-9]+>/i.test(rawText) ||
+    /^@pollito\b/i.test(rawText);
+
+  const isKeywordTrigger =
+    /^\/?pollito(?:-huddle)?(?:\s+huddle)?(?:\s*$|(?=\s+"))/i.test(rawText);
+
+  if (!isAppMention && !isKeywordTrigger) {
+    return;
+  }
+
+  const threadTs = String(event.thread_ts || event.ts || '').trim();
+  if (!threadTs) return;
+
+  const dedupKey = `${channelId}:${String(event.ts || threadTs)}`;
+  if (processedThreadTriggers.has(dedupKey)) {
+    return;
+  }
+  processedThreadTriggers.add(dedupKey);
+
+  const workspaceId = String(
+    body?.team_id || body?.team?.id || event.team || ''
+  ).trim();
+
+  const translator = await getRequestTranslator(client, {
+    userId,
+    workspaceId: workspaceId || undefined,
+  });
+  const { t } = translator;
+
+  const matches = [...rawText.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+
+  if (matches.length >= 3 && workspaceId) {
+    try {
+      await PollService.assertCanCreatePollInChannel(workspaceId, channelId);
+    } catch (err: any) {
+      await client.chat?.postEphemeral?.({
+        channel: channelId,
+        user: userId,
+        thread_ts: threadTs,
+        text: err?.message || t('error.activePollInChannel'),
+      });
+      return;
+    }
+
+    const question = matches[0];
+    const options = matches.slice(1, 7);
+
+    try {
+      await client.conversations?.join?.({ channel: channelId });
+    } catch {
+      // Safe to ignore
+    }
+
+    const members = await getEligibleChannelMembers(client, channelId);
+    const memberCount = members.length > 0 ? members.length : 10;
+
+    const placeholder = await client.chat?.postMessage?.({
+      channel: channelId,
+      thread_ts: threadTs,
+      text: t('poll.fallback.creating', { question }),
+    });
+
+    if (!placeholder?.ts) return;
+
+    const settings = await PollService.getWorkspaceSettings(workspaceId);
+
+    const poll = await PollService.createPoll({
+      workspaceId,
+      channelId,
+      messageTs: placeholder.ts,
+      threadTs,
+      creatorId: userId,
+      question,
+      options,
+      isAnonymous: settings.defaultAnonymous,
+      quorumType:
+        (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'NONE',
+      quorumTarget: settings.defaultQuorumPct,
+      eligibleVoterCount: memberCount,
+      forwardToChannelOnHuddleEnd: true,
+      locale: translator.locale,
+    });
+
+    const pollTranslator = getPollTranslator(poll);
+    const blocks = buildPollMessageBlocks(
+      {
+        ...poll,
+        participations: [],
+      },
+      {
+        maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
+        allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+        translator: pollTranslator,
+      }
+    );
+
+    await client.chat?.update?.({
+      channel: channelId,
+      ts: placeholder.ts,
+      text: pollTranslator.t('poll.fallback.active', { question }),
+      blocks,
+    });
+
+    try {
+      await client.chat?.postEphemeral?.({
+        channel: channelId,
+        user: userId,
+        thread_ts: threadTs,
+        text: pollTranslator.t('poll.creatorControls.caption', { question }),
+        blocks: buildPollCreatorControlsBlocks(poll, {
+          maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
+          allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+          translator: pollTranslator,
+        }),
+      });
+    } catch {
+      // Non-fatal if ephemeral creator controls cannot be posted
+    }
+    return;
+  }
+
+  // Prompt with an interactive button in the thread to open the modal locked to this threadTs
+  await client.chat?.postMessage?.({
+    channel: channelId,
+    thread_ts: threadTs,
+    text: t('thread.prompt.fallback'),
+    blocks: [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: t('thread.prompt.body'),
+        },
+        accessory: {
+          type: 'button',
+          action_id: 'open_huddle_poll_modal_action',
+          style: 'primary',
+          text: {
+            type: 'plain_text',
+            text: t('thread.prompt.button'),
+          },
+          value: JSON.stringify({ channelId, threadTs }),
+        },
+      },
+    ],
+  });
+}
+
 export function registerEventHandlers(app: App) {
-  // Track Huddle thread root timestamps and detect Huddle closure from message events
+  // Track Huddle thread root timestamps, post Huddle standby card, detect Huddle closure, and handle in-thread triggers
   if (typeof (app as any).event === 'function') {
-    app.event('message', async ({ event, client }: any) => {
+    app.event('message', async ({ event, body, client }: any) => {
       try {
         recordHuddleMessageEvent(event);
 
-        if (
-          isHuddleMessage(event) &&
-          isHuddleEnded(event) &&
-          (event as any).channel
-        ) {
-          const channelId = (event as any).channel;
-          const pendingPolls =
-            await PollService.getActiveHuddlePollsPendingReminder(channelId);
+        const msg = event?.message || event;
+        const channelId = String(event?.channel || msg?.channel || '').trim();
 
-          for (const poll of pendingPolls) {
-            await notifyMainChannelOnHuddleEnd(client, poll);
+        if (isHuddleMessage(event) && channelId) {
+          const rootTs = String(msg?.thread_ts || msg?.ts || event?.ts || '').trim();
+          const huddleKey = `${channelId}:${rootTs}`;
+
+          if (isHuddleEnded(event)) {
+            if (rootTs) {
+              greetedHuddleThreads.delete(huddleKey);
+            }
+            const pendingPolls =
+              await PollService.getActiveHuddlePollsPendingReminder(channelId);
+
+            for (const poll of pendingPolls) {
+              await notifyMainChannelOnHuddleEnd(client, poll);
+            }
+          } else if (rootTs && !greetedHuddleThreads.has(huddleKey)) {
+            greetedHuddleThreads.add(huddleKey);
+
+            const workspaceId = String(
+              body?.team_id || body?.team?.id || event?.team || ''
+            ).trim();
+            const userId = String(msg?.user || event?.user || '').trim();
+            const translator = await getRequestTranslator(client, {
+              userId: userId || undefined,
+              workspaceId: workspaceId || undefined,
+            });
+            const { t } = translator;
+
+            await client.chat?.postMessage?.({
+              channel: channelId,
+              thread_ts: rootTs,
+              text: t('huddle.standby.fallback'),
+              blocks: [
+                {
+                  type: 'section',
+                  text: {
+                    type: 'mrkdwn',
+                    text: t('huddle.standby.body'),
+                  },
+                  accessory: {
+                    type: 'button',
+                    action_id: 'open_huddle_poll_modal_action',
+                    style: 'primary',
+                    text: {
+                      type: 'plain_text',
+                      text: t('huddle.standby.button'),
+                    },
+                    value: JSON.stringify({ channelId, threadTs: rootTs }),
+                  },
+                },
+              ],
+            });
           }
+          return;
         }
+
+        await handleInThreadPollitoTrigger(event, body, client);
       } catch {
-        // ignore non-critical huddle cache errors
+        // ignore non-critical huddle cache or thread trigger errors
+      }
+    });
+
+    app.event('app_mention', async ({ event, body, client }: any) => {
+      try {
+        await handleInThreadPollitoTrigger(
+          { ...event, type: 'app_mention' },
+          body,
+          client
+        );
+      } catch {
+        // ignore non-critical mention errors
       }
     });
   }

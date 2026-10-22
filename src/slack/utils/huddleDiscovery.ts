@@ -32,6 +32,22 @@ export function getCachedActiveHuddleThread(channelId: string): string | null {
   return liveActiveHuddleByChannel.get(channelId) ?? null;
 }
 
+export function getMostRecentCachedActiveHuddle(): {
+  channelId: string;
+  threadTs: string;
+} | null {
+  let latest: { channelId: string; threadTs: string } | null = null;
+  for (const [channelId, threadTs] of liveActiveHuddleByChannel.entries()) {
+    latest = { channelId, threadTs };
+  }
+  return latest;
+}
+
+export function clearCachedActiveHuddles(): void {
+  liveActiveHuddleByChannel.clear();
+}
+
+
 const HUDDLE_SUBTYPES = new Set([
   'huddle_thread',
   'sh_room_created',

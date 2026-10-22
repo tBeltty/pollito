@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildPollCreatorControlsBlocks,
   buildPollMessageBlocks,
   renderProgressBar,
   type PollWithDetails,
@@ -98,7 +99,7 @@ describe('Poll Message Block Kit Builder (pollMessage.ts)', () => {
       participations: [{ voterId: 'U_1' }],
     });
     const quorumBlocks = buildPollMessageBlocks(quorumPoll);
-    expect(JSON.stringify(quorumBlocks)).toContain('*Status:* Quorum reached');
+    expect(JSON.stringify(quorumBlocks)).toContain('*Status:* 🎉 Quorum reached');
 
     // TIME_EXPIRED and CLOSED
     const expiredPoll = createMockPoll({
@@ -124,9 +125,22 @@ describe('Poll Message Block Kit Builder (pollMessage.ts)', () => {
     expect(headerBlock.text.text).toBe('Q'.repeat(150));
   });
 
-  it('renders poll_nudge_click and poll_close_click buttons with confirm dialogs on active polls (<= 50 members) and removes them on closed polls', () => {
+  it('hides poll_close_click and poll_nudge_click on public poll cards by default and omits poll ID from footer', () => {
     const activePoll = createMockPoll({ status: 'ACTIVE', eligibleVoterCount: 25 });
-    const activeBlocks = buildPollMessageBlocks(activePoll);
+    const publicBlocks = buildPollMessageBlocks(activePoll);
+    const publicActions = publicBlocks.find((b: any) => b.type === 'actions');
+
+    expect(publicActions).toBeUndefined();
+    const serialized = JSON.stringify(publicBlocks);
+    expect(serialized).not.toContain('poll_close_click');
+    expect(serialized).not.toContain('poll_nudge_click');
+    expect(serialized).toContain('Created by <@U_CREATOR>');
+    expect(serialized).not.toContain('ID: 987654');
+  });
+
+  it('renders poll_nudge_click and poll_close_click buttons with confirm dialogs in creator controls and when showCreatorActions is true (<= 50 members) and removes them on closed polls', () => {
+    const activePoll = createMockPoll({ status: 'ACTIVE', eligibleVoterCount: 25 });
+    const activeBlocks = buildPollMessageBlocks(activePoll, { showCreatorActions: true });
     const activeActions = activeBlocks.find((b: any) => b.type === 'actions') as any;
 
     expect(activeActions).toBeDefined();
@@ -141,12 +155,19 @@ describe('Poll Message Block Kit Builder (pollMessage.ts)', () => {
     expect(closeBtn.confirm).toBeDefined();
     expect(closeBtn.confirm.title.text).toBe('Close this poll now?');
 
-    expect(JSON.stringify(activeBlocks)).toContain('ID: 987654');
+    const creatorControls = buildPollCreatorControlsBlocks(activePoll);
+    const creatorActions = creatorControls.find((b: any) => b.type === 'actions') as any;
+    expect(creatorActions).toBeDefined();
+    expect(creatorActions.elements.map((e: any) => e.action_id)).toEqual([
+      'poll_nudge_click',
+      'poll_close_click',
+    ]);
 
     const closedPoll = createMockPoll({ status: 'CLOSED' });
-    const closedBlocks = buildPollMessageBlocks(closedPoll);
+    const closedBlocks = buildPollMessageBlocks(closedPoll, { showCreatorActions: true });
     const closedActions = closedBlocks.find((b: any) => b.type === 'actions');
     expect(closedActions).toBeUndefined();
+    expect(buildPollCreatorControlsBlocks(closedPoll)).toEqual([]);
   });
 
   it('omits poll_nudge_click when eligibleVoterCount exceeds maxNudgeChannelMembers (default 50)', () => {
@@ -154,7 +175,7 @@ describe('Poll Message Block Kit Builder (pollMessage.ts)', () => {
       status: 'ACTIVE',
       eligibleVoterCount: 1000,
     });
-    const blocks = buildPollMessageBlocks(largeChannelPoll);
+    const blocks = buildPollCreatorControlsBlocks(largeChannelPoll);
     const activeActions = blocks.find((b: any) => b.type === 'actions') as any;
 
     expect(activeActions).toBeDefined();
