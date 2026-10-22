@@ -61,7 +61,15 @@ describe('Modal & App Home Views', () => {
     const optionValues = settingsBlock.element.options.map((o: any) => o.value);
     expect(optionValues).toContain('is_anonymous');
     expect(optionValues).toContain('allow_multiple_votes');
-    expect(optionValues).toContain('no_quorum');
+    expect(optionValues).toContain('require_quorum');
+    expect(settingsBlock.element.initial_options).toBeUndefined();
+
+    const percentageModal = buildCreatePollModalView({ quorumType: 'PERCENTAGE' });
+    const percentageSettings = percentageModal.blocks.find(
+      (b: any) => b.block_id === 'settings_block'
+    ) as any;
+    const initialValues = percentageSettings.element.initial_options.map((o: any) => o.value);
+    expect(initialValues).toContain('require_quorum');
 
     const quorumBlock = modal.blocks.find(
       (b: any) => b.block_id === 'quorum_block'
@@ -145,7 +153,11 @@ describe('Modal & App Home Views', () => {
     const settingsBlock = modal.blocks.find(
       (b: any) => b.block_id === 'settings_block'
     ) as any;
-    expect(settingsBlock.element.initial_options).toHaveLength(3);
+    expect(settingsBlock.element.initial_options).toHaveLength(2);
+    const presetOptionValues = settingsBlock.element.initial_options.map((o: any) => o.value);
+    expect(presetOptionValues).toContain('is_anonymous');
+    expect(presetOptionValues).toContain('allow_multiple_votes');
+    expect(presetOptionValues).not.toContain('require_quorum');
 
     const quorumBlock = modal.blocks.find(
       (b: any) => b.block_id === 'quorum_block'

@@ -27,8 +27,10 @@ import {
 import { getPollTranslator, getRequestTranslator } from '../utils/locale.js';
 import { LocalizedError, describeError } from '../../i18n/errors.js';
 import { NUDGE_COOLDOWN_HOURS } from '../../config/limits.js';
+import { registerShortcutHandlers } from './commands.js';
 
 export function registerActionHandlers(app: App) {
+  registerShortcutHandlers(app);
   // Handle option vote buttons (matches vote_option_*)
   app.action(/^vote_option_/, async ({ action, ack, body, client }) => {
     await ack();
@@ -278,6 +280,53 @@ export function registerActionHandlers(app: App) {
     await ack();
   });
 
+  // Handle Huddle standby card & in-thread prompt button to open modal locked to threadTs
+  app.action('open_huddle_poll_modal_action', async ({ action, ack, body, client }) => {
+    await ack();
+
+    const blockAction = body as BlockAction;
+    if (!blockAction?.trigger_id) return;
+
+    let channelId = blockAction.channel?.id ?? '';
+    let threadTs: string | null =
+      String(
+        (blockAction.message as any)?.thread_ts || (blockAction.message as any)?.ts || ''
+      ).trim() || null;
+
+    const rawVal = (action as { value?: string })?.value;
+    if (rawVal) {
+      try {
+        const parsed = JSON.parse(rawVal) as {
+          channelId?: string;
+          threadTs?: string | null;
+        };
+        if (parsed.channelId) channelId = parsed.channelId;
+        if (parsed.threadTs) threadTs = parsed.threadTs;
+      } catch {
+        // fallback to message context
+      }
+    }
+
+    try {
+      const translator = await getRequestTranslator(client, {
+        userId: blockAction.user?.id,
+        workspaceId: blockAction.team?.id,
+      });
+
+      await client.views.open({
+        trigger_id: blockAction.trigger_id,
+        view: buildCreatePollModalView({
+          channelId,
+          threadTs,
+          huddleMode: true,
+          translator,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to open Huddle poll modal from thread button:', error);
+    }
+  });
+
   // Handle Smart Nudge button click (matches poll_nudge_click)
   app.action(/^poll_nudge_click/, async ({ action, ack, body, client }) => {
     await ack();
@@ -445,7 +494,7 @@ export function registerActionHandlers(app: App) {
         view: buildCreatePollModalView({
           channelId: '',
           isAnonymous: settings.defaultAnonymous,
-          quorumType: (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'PERCENTAGE',
+          quorumType: (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'NONE',
           quorumTarget: settings.defaultQuorumPct,
           availableTemplates: templates.map((t: any) => ({
             id: t.id,

@@ -54,12 +54,12 @@ export function buildCreatePollModalView(
     value: 'allow_multiple_votes',
   };
 
-  const noQuorumOption: MrkdwnOption = {
+  const requireQuorumOption: MrkdwnOption = {
     text: {
       type: 'mrkdwn',
-      text: `${t('cp.settings.noQuorum')}\n${t('cp.settings.noQuorumHint')}`,
+      text: `${t('cp.settings.requireQuorum')}\n${t('cp.settings.requireQuorumHint')}`,
     },
-    value: 'no_quorum',
+    value: 'require_quorum',
   };
 
   const forwardOnHuddleEndOption: MrkdwnOption = {
@@ -77,8 +77,8 @@ export function buildCreatePollModalView(
   if (preset.allowMultipleVotes) {
     initialSettingsOptions.push(multipleChoiceOption);
   }
-  if (preset.quorumType === 'NONE') {
-    initialSettingsOptions.push(noQuorumOption);
+  if (preset.quorumType === 'PERCENTAGE') {
+    initialSettingsOptions.push(requireQuorumOption);
   }
   if (preset.forwardToChannelOnHuddleEnd ?? (Boolean(preset.huddleMode) && !isEditingTemplate)) {
     initialSettingsOptions.push(forwardOnHuddleEndOption);
@@ -240,7 +240,10 @@ export function buildCreatePollModalView(
       {
         type: 'input',
         block_id: 'channel_block',
-        optional: isEditingTemplate || isCreatingTemplate || isHuddleMode,
+        optional:
+          isEditingTemplate ||
+          isCreatingTemplate ||
+          (isHuddleMode && Boolean(channelId)),
         element: {
           type: 'conversations_select',
           action_id: 'channel_select',
@@ -253,7 +256,9 @@ export function buildCreatePollModalView(
             include: ['public', 'private'],
             exclude_bot_users: true,
           },
-          ...(channelId ? { initial_conversation: channelId } : {}),
+          ...(channelId
+            ? { initial_conversation: channelId }
+            : { default_to_current_conversation: true }),
         },
         label: {
           type: 'plain_text',
@@ -388,7 +393,7 @@ export function buildCreatePollModalView(
           options: [
             anonymousOption,
             multipleChoiceOption,
-            noQuorumOption,
+            requireQuorumOption,
             forwardOnHuddleEndOption,
           ],
           ...(initialSettingsOptions.length > 0

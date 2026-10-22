@@ -15,6 +15,26 @@
       "display_name": "Pollito",
       "always_online": true
     },
+    "shortcuts": [
+      {
+        "name": "Create a poll",
+        "type": "global",
+        "callback_id": "create_poll_shortcut",
+        "description": "Create a poll in this channel or active Huddle thread"
+      },
+      {
+        "name": "Create a Huddle poll",
+        "type": "global",
+        "callback_id": "create_huddle_poll_shortcut",
+        "description": "Launch a poll inside the active Huddle thread"
+      },
+      {
+        "name": "Create poll in thread",
+        "type": "message",
+        "callback_id": "create_poll_thread_shortcut",
+        "description": "Launch a Pollito poll inside this message or Huddle thread"
+      }
+    ],
     "slash_commands": [
       {
         "command": "/pollito",

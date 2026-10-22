@@ -28,8 +28,126 @@ export function renderProgressBar(percentage: number, totalSlots = 10): string {
 export interface PollMessageRenderOptions {
   maxNudgeChannelMembers?: number;
   allowVoterChoiceNudges?: boolean;
+  /** When true, includes creator-only action buttons (nudge / close) on the rendered card. Defaults to false for shared channel cards. */
+  showCreatorActions?: boolean;
   /** Translator for the card language. Defaults to English. */
   translator?: Translator;
+}
+
+function buildCreatorActionsBlock(
+  poll: Pick<PollWithDetails, 'id' | 'eligibleVoterCount'>,
+  options?: PollMessageRenderOptions
+): KnownBlock {
+  const translator = options?.translator ?? defaultTranslator;
+  const { t } = translator;
+  const maxNudgeMembers = options?.maxNudgeChannelMembers ?? 50;
+  const allowNudges = options?.allowVoterChoiceNudges ?? true;
+  const canOfferNudge =
+    allowNudges &&
+    (poll.eligibleVoterCount <= 0 || poll.eligibleVoterCount <= maxNudgeMembers);
+
+  const actionElements: any[] = [];
+
+  if (canOfferNudge) {
+    actionElements.push({
+      type: 'button',
+      text: {
+        type: 'plain_text',
+        text: t('poll.nudge.button'),
+        emoji: true,
+      },
+      action_id: 'poll_nudge_click',
+      value: JSON.stringify({ pollId: poll.id }),
+      confirm: {
+        title: {
+          type: 'plain_text',
+          text: t('poll.nudge.confirmTitle'),
+        },
+        text: {
+          type: 'mrkdwn',
+          text: t('poll.nudge.confirmBody', { hours: NUDGE_COOLDOWN_HOURS }),
+        },
+        confirm: {
+          type: 'plain_text',
+          text: t('poll.nudge.confirmSubmit'),
+        },
+        deny: {
+          type: 'plain_text',
+          text: t('common.cancel'),
+        },
+      },
+    });
+  }
+
+  actionElements.push({
+    type: 'button',
+    text: {
+      type: 'plain_text',
+      text: t('poll.close.button'),
+      emoji: true,
+    },
+    action_id: 'poll_close_click',
+    value: JSON.stringify({ pollId: poll.id }),
+    style: 'danger',
+    confirm: {
+      title: {
+        type: 'plain_text',
+        text: t('poll.close.confirmTitle'),
+      },
+      text: {
+        type: 'mrkdwn',
+        text: t('poll.close.confirmBody'),
+      },
+      confirm: {
+        type: 'plain_text',
+        text: t('poll.close.button'),
+      },
+      deny: {
+        type: 'plain_text',
+        text: t('poll.close.confirmDeny'),
+      },
+    },
+  });
+
+  return {
+    type: 'actions',
+    block_id: 'poll_creator_actions',
+    elements: actionElements,
+  };
+}
+
+/**
+ * Pure Block Kit builder for ephemeral creator-only controls ("Remind non-voters" and "Close poll").
+ * Sent via `chat.postEphemeral` to the poll creator so non-authorized channel members never see "Close poll".
+ */
+export function buildPollCreatorControlsBlocks(
+  poll: Pick<PollWithDetails, 'id' | 'question' | 'status' | 'eligibleVoterCount'>,
+  options?: PollMessageRenderOptions
+): (Block | KnownBlock)[] {
+  const isClosed =
+    poll.status === 'QUORUM_REACHED' ||
+    poll.status === 'CLOSED' ||
+    poll.status === 'TIME_EXPIRED';
+
+  if (isClosed) {
+    return [];
+  }
+
+  const translator = options?.translator ?? defaultTranslator;
+  const { t } = translator;
+
+  return [
+    {
+      type: 'context',
+      elements: [
+        {
+          type: 'mrkdwn',
+          text: t('poll.creatorControls.caption', { question: poll.question }),
+        },
+      ],
+    },
+    buildCreatorActionsBlock(poll, options),
+  ];
 }
 
 /**
@@ -47,12 +165,6 @@ export function buildPollMessageBlocks(
     poll.status === 'QUORUM_REACHED' ||
     poll.status === 'CLOSED' ||
     poll.status === 'TIME_EXPIRED';
-
-  const maxNudgeMembers = options?.maxNudgeChannelMembers ?? 50;
-  const allowNudges = options?.allowVoterChoiceNudges ?? true;
-  const canOfferNudge =
-    allowNudges &&
-    (poll.eligibleVoterCount <= 0 || poll.eligibleVoterCount <= maxNudgeMembers);
 
   // Determine status text
   let statusText = t('poll.status.active');
@@ -102,11 +214,21 @@ export function buildPollMessageBlocks(
   ];
 
   // Render each option row
+  const maxVotes = isClosed
+    ? poll.options.reduce((max, o) => Math.max(max, o.voteCount), 0)
+    : 0;
+  const topOptionIds =
+    isClosed && maxVotes > 0
+      ? poll.options.filter((o) => o.voteCount === maxVotes).map((o) => o.id)
+      : [];
+  const singleWinnerId = topOptionIds.length === 1 ? topOptionIds[0] : null;
+
   poll.options.forEach((option) => {
     const optionPct = totalVotes > 0 ? (option.voteCount / totalVotes) * 100 : 0;
     const bar = renderProgressBar(optionPct, 10);
+    const winnerMark = singleWinnerId === option.id ? ' 🏆' : '';
 
-    let optionText = `*${option.index + 1}. ${option.text}*\n\`${bar}\` • ${t('poll.option.votes', { count: option.voteCount })}`;
+    let optionText = `*${option.index + 1}. ${option.text}*${winnerMark}\n\`${bar}\` • ${t('poll.option.votes', { count: option.voteCount })}`;
 
     if (!poll.isAnonymous && poll.publicVotes && poll.publicVotes.length > 0) {
       const optionVoters = poll.publicVotes.filter((v) => v.optionId === option.id);
@@ -154,75 +276,8 @@ export function buildPollMessageBlocks(
     }
   });
 
-  if (!isClosed) {
-    const actionElements: any[] = [];
-
-    if (canOfferNudge) {
-      actionElements.push({
-        type: 'button',
-        text: {
-          type: 'plain_text',
-          text: t('poll.nudge.button'),
-          emoji: true,
-        },
-        action_id: 'poll_nudge_click',
-        value: JSON.stringify({ pollId: poll.id }),
-        confirm: {
-          title: {
-            type: 'plain_text',
-            text: t('poll.nudge.confirmTitle'),
-          },
-          text: {
-            type: 'mrkdwn',
-            text: t('poll.nudge.confirmBody', { hours: NUDGE_COOLDOWN_HOURS }),
-          },
-          confirm: {
-            type: 'plain_text',
-            text: t('poll.nudge.confirmSubmit'),
-          },
-          deny: {
-            type: 'plain_text',
-            text: t('common.cancel'),
-          },
-        },
-      });
-    }
-
-    actionElements.push({
-      type: 'button',
-      text: {
-        type: 'plain_text',
-        text: t('poll.close.button'),
-        emoji: true,
-      },
-      action_id: 'poll_close_click',
-      value: JSON.stringify({ pollId: poll.id }),
-      style: 'danger',
-      confirm: {
-        title: {
-          type: 'plain_text',
-          text: t('poll.close.confirmTitle'),
-        },
-        text: {
-          type: 'mrkdwn',
-          text: t('poll.close.confirmBody'),
-        },
-        confirm: {
-          type: 'plain_text',
-          text: t('poll.close.button'),
-        },
-        deny: {
-          type: 'plain_text',
-          text: t('poll.close.confirmDeny'),
-        },
-      },
-    });
-
-    blocks.push({
-      type: 'actions',
-      block_id: 'poll_creator_actions',
-      elements: actionElements,
-    });
+  if (!isClosed && options?.showCreatorActions === true) {
+    blocks.push(buildCreatorActionsBlock(poll, options));
   }
 
   // Footer telemetry block
@@ -266,7 +321,6 @@ export function buildPollMessageBlocks(
           type: 'mrkdwn',
           text: `${quorumReadout}${deadlineReadout} • ${t('poll.footer.meta', {
             creatorId: poll.creatorId,
-            pollId: poll.id.slice(-6),
           })}`,
         },
       ],

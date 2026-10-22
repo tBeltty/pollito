@@ -3,7 +3,10 @@ import { buildCreatePollModalView } from '../ui/views/createPollModal.js';
 import { buildAnalyticsModalView } from '../ui/views/analyticsModal.js';
 import { PollService } from '../../services/pollService.js';
 import { UpdateQueue } from '../../services/updateQueue.js';
-import { buildPollMessageBlocks } from '../ui/views/pollMessage.js';
+import {
+  buildPollCreatorControlsBlocks,
+  buildPollMessageBlocks,
+} from '../ui/views/pollMessage.js';
 import { prisma } from '../../db/prisma.js';
 import {
   formatPollClosureSummary,
@@ -11,6 +14,7 @@ import {
 } from '../utils/channelMembers.js';
 import {
   findActiveHuddleThread,
+  getMostRecentCachedActiveHuddle,
   parseHuddleThreadInput,
 } from '../utils/huddleDiscovery.js';
 import { getPollTranslator, getRequestTranslator } from '../utils/locale.js';
@@ -22,7 +26,144 @@ import { NUDGE_COOLDOWN_HOURS } from '../../config/limits.js';
  */
 const SUBCOMMAND_ALIASES = ['huddle', 'report', 'close', 'nudge'] as const;
 
+const registeredShortcutApps = new WeakSet<object>();
+
+export function registerShortcutHandlers(app: App) {
+  if (!app || typeof (app as any).shortcut !== 'function') {
+    return;
+  }
+  if (registeredShortcutApps.has(app)) {
+    return;
+  }
+  registeredShortcutApps.add(app);
+
+  // Message shortcut: invoked from any message "..." menu inside a thread or Huddle thread
+  app.shortcut('create_poll_thread_shortcut', async ({ shortcut, ack, body, client }: any) => {
+    await ack();
+    try {
+      const payload = shortcut || body;
+      const channelId = String(payload?.channel?.id || '').trim();
+      const message = payload?.message || {};
+      const threadTs = String(message.thread_ts || message.ts || '').trim() || null;
+      const userId = payload?.user?.id || body?.user?.id;
+      const workspaceId = payload?.team?.id || body?.team?.id;
+      const triggerId = payload?.trigger_id || body?.trigger_id;
+      if (!triggerId) return;
+
+      const translator = await getRequestTranslator(client, {
+        userId,
+        workspaceId,
+      });
+
+      await client.views.open({
+        trigger_id: triggerId,
+        view: buildCreatePollModalView({
+          channelId,
+          threadTs,
+          huddleMode: true,
+          translator,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to open thread poll modal from message shortcut:', error);
+    }
+  });
+
+  // Global shortcut: "Create a Huddle poll" (surfaces in `/` menu inside threads and Huddles)
+  app.shortcut('create_huddle_poll_shortcut', async ({ shortcut, ack, body, client }: any) => {
+    await ack();
+    try {
+      const payload = shortcut || body;
+      const userId = payload?.user?.id || body?.user?.id;
+      const workspaceId = payload?.team?.id || body?.team?.id;
+      const triggerId = payload?.trigger_id || body?.trigger_id;
+      if (!triggerId) return;
+
+      const translator = await getRequestTranslator(client, {
+        userId,
+        workspaceId,
+      });
+
+      let channelId = String(payload?.channel?.id || '').trim();
+      let threadTs: string | null =
+        String(payload?.message?.thread_ts || payload?.message?.ts || '').trim() || null;
+
+      if (channelId && !threadTs) {
+        const botToken = workspaceId
+          ? await PollService.resolveWorkspaceBotToken(workspaceId)
+          : undefined;
+        threadTs = await findActiveHuddleThread(client, channelId, botToken);
+      } else if (!channelId) {
+        const cachedHuddle = getMostRecentCachedActiveHuddle();
+        if (cachedHuddle) {
+          channelId = cachedHuddle.channelId;
+          threadTs = cachedHuddle.threadTs;
+        }
+      }
+
+      await client.views.open({
+        trigger_id: triggerId,
+        view: buildCreatePollModalView({
+          channelId,
+          threadTs,
+          huddleMode: true,
+          translator,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to open Huddle poll modal from global shortcut:', error);
+    }
+  });
+
+  // Global shortcut: "Create a poll" (surfaces in `/` menu inside threads and Huddles)
+  app.shortcut('create_poll_shortcut', async ({ shortcut, ack, body, client }: any) => {
+    await ack();
+    try {
+      const payload = shortcut || body;
+      const userId = payload?.user?.id || body?.user?.id;
+      const workspaceId = payload?.team?.id || body?.team?.id;
+      const triggerId = payload?.trigger_id || body?.trigger_id;
+      if (!triggerId) return;
+
+      const translator = await getRequestTranslator(client, {
+        userId,
+        workspaceId,
+      });
+
+      let channelId = String(payload?.channel?.id || '').trim();
+      let threadTs: string | null =
+        String(payload?.message?.thread_ts || payload?.message?.ts || '').trim() || null;
+
+      if (channelId && !threadTs) {
+        const botToken = workspaceId
+          ? await PollService.resolveWorkspaceBotToken(workspaceId)
+          : undefined;
+        threadTs = await findActiveHuddleThread(client, channelId, botToken);
+      } else if (!channelId) {
+        const cachedHuddle = getMostRecentCachedActiveHuddle();
+        if (cachedHuddle) {
+          channelId = cachedHuddle.channelId;
+          threadTs = cachedHuddle.threadTs;
+        }
+      }
+
+      await client.views.open({
+        trigger_id: triggerId,
+        view: buildCreatePollModalView({
+          channelId,
+          ...(threadTs ? { threadTs, huddleMode: true } : {}),
+          translator,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to open poll modal from global shortcut:', error);
+    }
+  });
+}
+
 export function registerCommandHandlers(app: App) {
+  registerShortcutHandlers(app);
+
   const handlePollitoCommand = async ({
     command,
     ack,
@@ -39,13 +180,23 @@ export function registerCommandHandlers(app: App) {
     try {
       const text = command.text.trim();
       const lowerText = text.toLowerCase();
+      const explicitThreadTs =
+        (command as any).thread_ts || (command as any).threadTs || null;
 
-      // 1. If text is empty, open creation modal
+      // 1. If text is empty, open creation modal (auto-detecting active Huddle thread if present)
       if (!text) {
+        const botToken = command.team_id
+          ? await PollService.resolveWorkspaceBotToken(command.team_id)
+          : undefined;
+        const activeHuddleTs =
+          explicitThreadTs ||
+          (await findActiveHuddleThread(client, command.channel_id, botToken));
+
         await client.views.open({
           trigger_id: command.trigger_id,
           view: buildCreatePollModalView({
             channelId: command.channel_id,
+            ...(activeHuddleTs ? { threadTs: activeHuddleTs, huddleMode: true } : {}),
             translator,
           }),
         });
@@ -82,8 +233,6 @@ export function registerCommandHandlers(app: App) {
           ? parseHuddleThreadInput(firstToken)
           : null;
 
-        const explicitThreadTs =
-          (command as any).thread_ts || (command as any).threadTs || null;
         const botToken = command.team_id
           ? await PollService.resolveWorkspaceBotToken(command.team_id)
           : undefined;
@@ -149,7 +298,7 @@ export function registerCommandHandlers(app: App) {
             options,
             isAnonymous: settings.defaultAnonymous,
             quorumType:
-              (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'PERCENTAGE',
+              (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'NONE',
             quorumTarget: settings.defaultQuorumPct,
             eligibleVoterCount: memberCount,
             forwardToChannelOnHuddleEnd: true,
@@ -175,6 +324,22 @@ export function registerCommandHandlers(app: App) {
             text: pollTranslator.t('poll.fallback.active', { question }),
             blocks,
           });
+
+          try {
+            await client.chat?.postEphemeral?.({
+              channel: command.channel_id,
+              user: command.user_id,
+              thread_ts: huddleThreadTs,
+              text: pollTranslator.t('poll.creatorControls.caption', { question }),
+              blocks: buildPollCreatorControlsBlocks(poll, {
+                maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
+                allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+                translator: pollTranslator,
+              }),
+            });
+          } catch {
+            // Non-fatal if ephemeral creator controls cannot be posted
+          }
           return;
         }
 
@@ -410,12 +575,20 @@ export function registerCommandHandlers(app: App) {
         const members = await getEligibleChannelMembers(client, command.channel_id);
         const memberCount = members.length > 0 ? members.length : 10;
 
+        const botToken = command.team_id
+          ? await PollService.resolveWorkspaceBotToken(command.team_id)
+          : undefined;
+        const targetThreadTs =
+          explicitThreadTs ||
+          (await findActiveHuddleThread(client, command.channel_id, botToken));
+
         // Initial placeholder message to reserve ts
         let placeholder;
         try {
           placeholder = await client.chat.postMessage({
             channel: command.channel_id,
             text: t('poll.fallback.creating', { question }),
+            ...(targetThreadTs ? { thread_ts: targetThreadTs } : {}),
           });
         } catch (error: any) {
           if (error?.data?.error === 'not_in_channel') {
@@ -437,12 +610,13 @@ export function registerCommandHandlers(app: App) {
           workspaceId: command.team_id,
           channelId: command.channel_id,
           messageTs: placeholder.ts,
+          ...(targetThreadTs ? { threadTs: targetThreadTs } : {}),
           creatorId: command.user_id,
           question,
           options,
           isAnonymous: false,
-          quorumType: 'PERCENTAGE',
-          quorumTarget: 70,
+          quorumType: (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'NONE',
+          quorumTarget: settings.defaultQuorumPct,
           eligibleVoterCount: memberCount,
           locale: translator.locale,
         });
@@ -466,14 +640,38 @@ export function registerCommandHandlers(app: App) {
           text: pollTranslator.t('poll.fallback.active', { question }),
           blocks,
         });
+
+        try {
+          await client.chat?.postEphemeral?.({
+            channel: command.channel_id,
+            user: command.user_id,
+            ...(targetThreadTs ? { thread_ts: targetThreadTs } : {}),
+            text: pollTranslator.t('poll.creatorControls.caption', { question }),
+            blocks: buildPollCreatorControlsBlocks(poll, {
+              maxNudgeChannelMembers: settings.maxNudgeChannelMembers,
+              allowVoterChoiceNudges: settings.allowVoterChoiceNudges,
+              translator: pollTranslator,
+            }),
+          });
+        } catch {
+          // Non-fatal if ephemeral creator controls cannot be posted
+        }
         return;
       }
 
       // Fallback for unrecognized syntax: open modal
+      const botToken = command.team_id
+        ? await PollService.resolveWorkspaceBotToken(command.team_id)
+        : undefined;
+      const activeHuddleTs =
+        explicitThreadTs ||
+        (await findActiveHuddleThread(client, command.channel_id, botToken));
+
       await client.views.open({
         trigger_id: command.trigger_id,
         view: buildCreatePollModalView({
           channelId: command.channel_id,
+          ...(activeHuddleTs ? { threadTs: activeHuddleTs, huddleMode: true } : {}),
           translator,
         }),
       });

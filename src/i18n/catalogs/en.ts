@@ -12,14 +12,14 @@ export const en = {
   'common.anonymous': 'Anonymous',
   'common.untitledPoll': 'Untitled poll',
 
-  'status.quorumReached': 'Quorum reached',
+  'status.quorumReached': '🎉 Quorum reached',
   'status.active': 'Active',
   'status.timeExpired': 'Time expired',
   'status.closed': 'Closed',
 
   // ── Poll message card ─────────────────────────────────────────────────
   'poll.status.active': 'Poll active',
-  'poll.status.quorumReached': 'Quorum reached • Closed',
+  'poll.status.quorumReached': '🎉 Quorum reached • Closed',
   'poll.status.timeExpired': 'Time limit reached • Closed',
   'poll.status.closed': 'Poll closed',
   'poll.status.approachingQuorum': 'Approaching quorum target',
@@ -49,14 +49,16 @@ export const en = {
     'Quorum target: {target, plural, one {# vote} other {# votes}} ({votes}/{target} reached)',
   'poll.footer.closes': 'Closes: {date}',
   'poll.footer.closed': 'Closed: {date}',
-  'poll.footer.meta': 'Created by <@{creatorId}> • ID: {pollId}',
+  'poll.footer.meta': 'Created by <@{creatorId}>',
+  'poll.creatorControls.caption':
+    '🔒 *Creator controls* for *{question}* • Only visible to you.',
   'poll.fallback.active': 'Poll: {question}',
   'poll.fallback.closed': '[Closed] Poll: {question}',
   'poll.fallback.launching': 'Launching poll: {question}...',
   'poll.fallback.creating': 'Creating poll: {question}...',
 
   // ── Closure announcements ─────────────────────────────────────────────
-  'closure.title.quorum': '*Quorum reached. Poll closed*',
+  'closure.title.quorum': '🎉 *Quorum reached. Poll closed*',
   'closure.title.closed': '*Poll closed by its creator*',
   'closure.title.expired': '*Poll closed. Time expired*',
   'closure.body.quorum':
@@ -68,7 +70,7 @@ export const en = {
     '*{question}* concluded with {count, plural, one {*#* total participant} other {*#* total participants}}.',
   'closure.body.expiredEmpty': '*{question}* concluded with 0 votes cast.',
   'closure.outcome.winner':
-    'Winner: *{option}* ({votes, plural, one {# vote} other {# votes}}).',
+    '🏆 Winner: *{option}* ({votes, plural, one {# vote} other {# votes}}).',
   'closure.outcome.tie':
     'Result: Tie between {options} ({votes, plural, one {# vote} other {# votes}} each).',
 
@@ -89,6 +91,17 @@ export const en = {
   'huddle.reminder.body':
     '*The Huddle has ended.*\n*<{permalink}|{question}>* is still open for votes in the Huddle thread.',
   'huddle.reminder.button': 'Jump to poll',
+  'huddle.standby.fallback':
+    'Pollito is ready in this Huddle thread. Click to launch a poll here.',
+  'huddle.standby.body':
+    '*Need a quick team vote in this Huddle?*\nLaunch a poll directly inside this thread.',
+  'huddle.standby.button': 'Create poll in thread',
+  'thread.prompt.fallback':
+    'Click to configure and launch a poll in this thread.',
+  'thread.prompt.body':
+    '*Launch a poll in this thread*\nSlack blocks slash commands inside threads. Use the button below to open the poll builder locked to this thread, or reply with `@Pollito "Question" "Option 1" "Option 2"`.',
+  'thread.prompt.button': 'Create poll in thread',
+
 
   // ── Slash command replies ─────────────────────────────────────────────
   'command.help':
@@ -197,7 +210,7 @@ export const en = {
   'analytics.outcome.tiedLead': 'Tied lead: {options} ({votes})',
   'analytics.outcome.leading': 'Leading: *{option}* ({votes})',
   'analytics.outcome.tie': 'Tie: {options} ({votes})',
-  'analytics.outcome.winner': 'Winner: *{option}* ({votes})',
+  'analytics.outcome.winner': '🏆 Winner: *{option}* ({votes})',
   'analytics.poll.summary':
     'Channel: <#{channelId}> • *{status}* • *{mode}* • {participants, plural, one {*#* participant} other {*#* participants}} • {outcome}',
   'detail.title': 'Poll results breakdown',
@@ -381,13 +394,14 @@ export const en = {
   'cp.settings.anonymousHint': 'Nobody can see who voted for what.',
   'cp.settings.multiple': '*Multiple choice*',
   'cp.settings.multipleHint': 'Allow teammates to select more than one option.',
-  'cp.settings.noQuorum': '*No quorum required*',
-  'cp.settings.noQuorumHint': 'No participation threshold. Closes manually or on deadline.',
+  'cp.settings.requireQuorum': '*Require quorum*',
+  'cp.settings.requireQuorumHint':
+    'Automatically close the poll when target participation is reached.',
   'cp.settings.forwardHuddle': '*Remind in channel when Huddle ends*',
   'cp.settings.forwardHuddleHint': 'Posts a vote reminder link in the channel when the Huddle ends.',
   'cp.quorum.label': 'Target quorum percentage (%)',
   'cp.quorum.hint':
-    'Minimum 51% (more than half). Leave blank or check "No quorum required" above for casual polls.',
+    'Minimum 51% (more than half). Applies when "Require quorum" is checked.',
   'cp.duration.none': 'No time limit (manual or quorum only)',
   'cp.duration.15m': '15 minutes (Quick Standup)',
   'cp.duration.1h': '1 hour',

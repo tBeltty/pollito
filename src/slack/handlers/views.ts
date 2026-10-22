@@ -1,7 +1,10 @@
 import type { App } from '@slack/bolt';
 import { z } from 'zod';
 import { PollService } from '../../services/pollService.js';
-import { buildPollMessageBlocks } from '../ui/views/pollMessage.js';
+import {
+  buildPollCreatorControlsBlocks,
+  buildPollMessageBlocks,
+} from '../ui/views/pollMessage.js';
 import { getEligibleChannelMembers } from '../utils/channelMembers.js';
 import {
   findActiveHuddleThread,
@@ -77,16 +80,18 @@ export function registerViewHandlers(app: App) {
     const selectedOptions = values.settings_block?.anonymous_checkbox?.selected_options ?? [];
     const isAnonymous = selectedOptions.some((o: any) => o.value === 'is_anonymous');
     const allowMultipleVotes = selectedOptions.some((o: any) => o.value === 'allow_multiple_votes');
-    const noQuorumChecked = selectedOptions.some((o: any) => o.value === 'no_quorum');
+    const requireQuorumChecked = selectedOptions.some((o: any) => o.value === 'require_quorum');
     const forwardToChannelOnHuddleEnd = selectedOptions.some((o: any) => o.value === 'forward_on_huddle_end');
 
     const rawQuorum = values.quorum_block?.quorum_input?.value?.trim() ?? '';
-    const quorumType: 'PERCENTAGE' | 'NONE' = noQuorumChecked ? 'NONE' : 'PERCENTAGE';
-    const parsedQuorum = noQuorumChecked
-      ? undefined
-      : rawQuorum === ''
+    const quorumType: 'PERCENTAGE' | 'NONE' = requireQuorumChecked ? 'PERCENTAGE' : 'NONE';
+    const parsedQuorum = requireQuorumChecked
+      ? rawQuorum === ''
         ? 70
-        : Number(rawQuorum);
+        : Number(rawQuorum)
+      : rawQuorum !== '' && rawQuorum !== '70'
+        ? Number(rawQuorum)
+        : undefined;
 
     const validationResult = createPollSubmissionSchema.safeParse({
       selectedChannel,
@@ -187,6 +192,18 @@ export function registerViewHandlers(app: App) {
           },
         });
         return;
+      }
+    } else if (!threadTsFromMeta) {
+      const botToken = workspaceId
+        ? await PollService.resolveWorkspaceBotToken(workspaceId)
+        : undefined;
+      const detectedHuddleTs = await findActiveHuddleThread(
+        client,
+        validated.selectedChannel,
+        botToken
+      );
+      if (detectedHuddleTs) {
+        threadTsFromMeta = detectedHuddleTs;
       }
     }
 
@@ -317,6 +334,24 @@ export function registerViewHandlers(app: App) {
         text: pollTranslator.t('poll.fallback.active', { question: validated.question }),
         blocks,
       });
+
+      try {
+        await client.chat?.postEphemeral?.({
+          channel: validated.selectedChannel,
+          user: body.user.id,
+          ...(threadTsFromMeta ? { thread_ts: threadTsFromMeta } : {}),
+          text: pollTranslator.t('poll.creatorControls.caption', {
+            question: validated.question,
+          }),
+          blocks: buildPollCreatorControlsBlocks(poll, {
+            maxNudgeChannelMembers: settings?.maxNudgeChannelMembers,
+            allowVoterChoiceNudges: settings?.allowVoterChoiceNudges,
+            translator: pollTranslator,
+          }),
+        });
+      } catch {
+        // Non-fatal if ephemeral creator controls cannot be posted
+      }
     } catch (error: any) {
       console.error('Failed to create poll from modal:', error);
       const isNotInChannel =
@@ -366,7 +401,7 @@ export function registerViewHandlers(app: App) {
     const selectedOptions = values.settings_block?.anonymous_checkbox?.selected_options ?? [];
     const isAnonymous = selectedOptions.some((o: any) => o.value === 'is_anonymous');
     const allowMultipleVotes = selectedOptions.some((o: any) => o.value === 'allow_multiple_votes');
-    const noQuorumChecked = selectedOptions.some((o: any) => o.value === 'no_quorum');
+    const requireQuorumChecked = selectedOptions.some((o: any) => o.value === 'require_quorum');
     const forwardToChannelOnHuddleEnd = selectedOptions.some((o: any) => o.value === 'forward_on_huddle_end');
 
     const shareSelected =
@@ -374,12 +409,14 @@ export function registerViewHandlers(app: App) {
     const isShared = shareSelected.some((o: any) => o.value === 'is_shared');
 
     const rawQuorum = values.quorum_block?.quorum_input?.value?.trim() ?? '';
-    const quorumType: 'PERCENTAGE' | 'NONE' = noQuorumChecked ? 'NONE' : 'PERCENTAGE';
-    const parsedQuorum = noQuorumChecked
-      ? undefined
-      : rawQuorum === ''
+    const quorumType: 'PERCENTAGE' | 'NONE' = requireQuorumChecked ? 'PERCENTAGE' : 'NONE';
+    const parsedQuorum = requireQuorumChecked
+      ? rawQuorum === ''
         ? 70
-        : Number(rawQuorum);
+        : Number(rawQuorum)
+      : rawQuorum !== '' && rawQuorum !== '70'
+        ? Number(rawQuorum)
+        : undefined;
 
     const validationResult = createPollSubmissionSchema.safeParse({
       selectedChannel,
@@ -483,7 +520,7 @@ export function registerViewHandlers(app: App) {
     const selectedOptions = values.settings_block?.anonymous_checkbox?.selected_options ?? [];
     const isAnonymous = selectedOptions.some((o: any) => o.value === 'is_anonymous');
     const allowMultipleVotes = selectedOptions.some((o: any) => o.value === 'allow_multiple_votes');
-    const noQuorumChecked = selectedOptions.some((o: any) => o.value === 'no_quorum');
+    const requireQuorumChecked = selectedOptions.some((o: any) => o.value === 'require_quorum');
     const forwardToChannelOnHuddleEnd = selectedOptions.some(
       (o: any) => o.value === 'forward_on_huddle_end'
     );
@@ -496,12 +533,14 @@ export function registerViewHandlers(app: App) {
         : Boolean(metadata.isShared);
 
     const rawQuorum = values.quorum_block?.quorum_input?.value?.trim() ?? '';
-    const quorumType: 'PERCENTAGE' | 'NONE' = noQuorumChecked ? 'NONE' : 'PERCENTAGE';
-    const parsedQuorum = noQuorumChecked
-      ? undefined
-      : rawQuorum === ''
+    const quorumType: 'PERCENTAGE' | 'NONE' = requireQuorumChecked ? 'PERCENTAGE' : 'NONE';
+    const parsedQuorum = requireQuorumChecked
+      ? rawQuorum === ''
         ? 70
-        : Number(rawQuorum);
+        : Number(rawQuorum)
+      : rawQuorum !== '' && rawQuorum !== '70'
+        ? Number(rawQuorum)
+        : undefined;
 
     const validationResult = createPollSubmissionSchema.safeParse({
       selectedChannel,
