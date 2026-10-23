@@ -91,6 +91,12 @@ export const en = {
   'huddle.reminder.body':
     '*The Huddle has ended.*\n*<{permalink}|{question}>* is still open for votes in the Huddle thread.',
   'huddle.reminder.button': 'Jump to poll',
+  'poll.staleReminder.fallback':
+    'Reminder: your poll "{question}" in <#{channelId}> has been active for over 24 hours.',
+  'poll.staleReminder.body':
+    '👋 Hi! Your poll *"{question}"* in <#{channelId}> has been open for more than 24 hours.\n\nIf your team is done voting, you can close it anytime to conclude results.',
+  'poll.staleReminder.jump': 'Jump to poll',
+  'poll.staleReminder.close': 'Close poll',
   'huddle.standby.fallback':
     'Pollito is ready in this Huddle thread. Click to launch a poll here.',
   'huddle.standby.body':
@@ -118,6 +124,8 @@ export const en = {
   'error.workspaceIdMissing': 'Something went wrong. Try again.',
   'error.activePollInChannel':
     'An active poll is already running in this channel. Close it first or select another channel.',
+  'error.activePollInThread':
+    'An active poll is already running in this thread. Close it first or launch in another thread.',
   'error.pollNotFound': 'Poll not found.',
   'error.pollClosed': 'This poll is closed and no longer accepting votes.',
   'error.invalidOption': 'Invalid poll option.',

@@ -29,6 +29,9 @@ export class PollTimerWorker {
       this.checkHuddleEndedPolls().catch((err) => {
         console.error('Error in checkHuddleEndedPolls tick:', err);
       });
+      this.checkStaleActivePolls().catch((err) => {
+        console.error('Error in checkStaleActivePolls tick:', err);
+      });
     }, this.intervalMs);
   }
 
@@ -127,6 +130,101 @@ export class PollTimerWorker {
       }
     } catch (err) {
       console.error('Error in checkHuddleEndedPolls:', err);
+    }
+  }
+
+  async checkStaleActivePolls(now = new Date()) {
+    try {
+      const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const stalePolls = await PollService.getStaleActivePollsPendingReminder(cutoff);
+      if (stalePolls.length === 0) return;
+
+      for (const poll of stalePolls) {
+        try {
+          const claimed = await PollService.claimStalePollReminder(poll.id);
+          if (!claimed) continue;
+
+          const token =
+            decryptToken(poll.workspace?.botToken ?? '', env.APP_SECRET_SALT) ??
+            env.SLACK_BOT_TOKEN;
+
+          const { getRequestTranslator } = await import('../slack/utils/locale.js');
+          const translator = await getRequestTranslator(this.app.client, {
+            userId: poll.creatorId,
+            workspaceId: poll.workspaceId,
+          });
+          const { t } = translator;
+
+          let permalink = '';
+          try {
+            const permRes = await this.app.client.chat?.getPermalink?.({
+              token,
+              channel: poll.channelId,
+              message_ts: poll.messageTs,
+            });
+            permalink = permRes?.permalink || '';
+          } catch {
+            // ignore
+          }
+
+          if (!permalink) {
+            const cleanedTs = poll.messageTs.replace('.', '');
+            permalink = `https://slack.com/archives/${poll.channelId}/p${cleanedTs}${
+              poll.threadTs ? `?thread_ts=${poll.threadTs}&cid=${poll.channelId}` : ''
+            }`;
+          }
+
+          await this.app.client.chat.postMessage({
+            token,
+            channel: poll.creatorId,
+            text: t('poll.staleReminder.fallback', {
+              question: poll.question,
+              channelId: poll.channelId,
+            }),
+            blocks: [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: t('poll.staleReminder.body', {
+                    question: poll.question,
+                    channelId: poll.channelId,
+                  }),
+                },
+              },
+              {
+                type: 'actions',
+                elements: [
+                  {
+                    type: 'button',
+                    text: {
+                      type: 'plain_text',
+                      text: t('poll.staleReminder.jump'),
+                      emoji: true,
+                    },
+                    url: permalink,
+                  },
+                  {
+                    type: 'button',
+                    action_id: 'poll_close_click',
+                    style: 'danger',
+                    text: {
+                      type: 'plain_text',
+                      text: t('poll.staleReminder.close'),
+                      emoji: true,
+                    },
+                    value: poll.id,
+                  },
+                ],
+              },
+            ],
+          });
+        } catch (pollErr) {
+          console.error(`Failed to send 24h stale reminder for poll ${poll.id}:`, pollErr);
+        }
+      }
+    } catch (err) {
+      console.error('Error in checkStaleActivePolls:', err);
     }
   }
 }

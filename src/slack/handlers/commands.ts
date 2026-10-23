@@ -215,17 +215,6 @@ export function registerCommandHandlers(app: App) {
 
       // 3. Huddle command: /pollito huddle or /pollito huddle "Question" "Opt 1" "Opt 2"
       if (lowerText === 'huddle' || lowerText.startsWith('huddle ')) {
-        try {
-          await PollService.assertCanCreatePollInChannel(command.team_id, command.channel_id);
-        } catch (err: any) {
-          await client.chat.postEphemeral({
-            channel: command.channel_id,
-            user: command.user_id,
-            text: err?.message || t('error.activePollInChannel'),
-          });
-          return;
-        }
-
         const huddleRest = text.slice(6).trim();
         const leadingPart = huddleRest.split('"')[0]?.trim() || '';
         const firstToken = leadingPart.split(/\s+/)[0] || '';
@@ -249,6 +238,21 @@ export function registerCommandHandlers(app: App) {
               channel: command.channel_id,
               user: command.user_id,
               text: t('command.noHuddle'),
+            });
+            return;
+          }
+
+          try {
+            await PollService.assertCanCreatePollInChannel(
+              command.team_id,
+              command.channel_id,
+              huddleThreadTs
+            );
+          } catch (err: any) {
+            await client.chat.postEphemeral({
+              channel: command.channel_id,
+              user: command.user_id,
+              text: err?.message || t('error.activePollInThread'),
             });
             return;
           }
@@ -296,6 +300,7 @@ export function registerCommandHandlers(app: App) {
             creatorId: command.user_id,
             question,
             options,
+            closesAt: new Date(Date.now() + 60 * 60 * 1000),
             isAnonymous: settings.defaultAnonymous,
             quorumType:
               (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'NONE',
@@ -550,13 +555,25 @@ export function registerCommandHandlers(app: App) {
       const matches = [...text.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 
       if (matches.length >= 3) {
+        const botToken = command.team_id
+          ? await PollService.resolveWorkspaceBotToken(command.team_id)
+          : undefined;
+        const targetThreadTs =
+          explicitThreadTs ||
+          (await findActiveHuddleThread(client, command.channel_id, botToken));
+
         try {
-          await PollService.assertCanCreatePollInChannel(command.team_id, command.channel_id);
+          await PollService.assertCanCreatePollInChannel(
+            command.team_id,
+            command.channel_id,
+            targetThreadTs
+          );
         } catch (err: any) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
-            text: err?.message || t('error.activePollInChannel'),
+            ...(targetThreadTs ? { thread_ts: targetThreadTs } : {}),
+            text: err?.message || (targetThreadTs ? t('error.activePollInThread') : t('error.activePollInChannel')),
           });
           return;
         }
@@ -574,13 +591,6 @@ export function registerCommandHandlers(app: App) {
         // Fetch channel members for quorum calculation excluding bot
         const members = await getEligibleChannelMembers(client, command.channel_id);
         const memberCount = members.length > 0 ? members.length : 10;
-
-        const botToken = command.team_id
-          ? await PollService.resolveWorkspaceBotToken(command.team_id)
-          : undefined;
-        const targetThreadTs =
-          explicitThreadTs ||
-          (await findActiveHuddleThread(client, command.channel_id, botToken));
 
         // Initial placeholder message to reserve ts
         let placeholder;
@@ -614,6 +624,7 @@ export function registerCommandHandlers(app: App) {
           creatorId: command.user_id,
           question,
           options,
+          closesAt: new Date(Date.now() + 60 * 60 * 1000),
           isAnonymous: false,
           quorumType: (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'NONE',
           quorumTarget: settings.defaultQuorumPct,

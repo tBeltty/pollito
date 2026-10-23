@@ -1,6 +1,6 @@
 {
   "name": "pollito",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Native Slack polling with live quorum auto-closing, double-urn secret ballots, and App Home analytics.",
   "main": "dist/index.js",
   "type": "module",
