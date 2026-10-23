@@ -621,16 +621,25 @@ export function registerViewHandlers(app: App) {
 
     const values = view.state.values;
     const concurrencySelected =
+      values.concurrency_settings_block?.concurrency_checkboxes?.selected_options ??
       values.concurrency_settings_block?.concurrency_checkbox?.selected_options ?? [];
     const allowMultipleActivePolls = concurrencySelected.some(
       (o: any) => o.value === 'allow_multiple_active_polls'
     );
 
     const privacySelected =
+      values.privacy_settings_block?.default_privacy_checkboxes?.selected_options ??
       values.privacy_settings_block?.privacy_nudge_checkbox?.selected_options ?? [];
     const defaultAnonymous = privacySelected.some((o: any) => o.value === 'default_anonymous');
     const allowVoterChoiceNudges = privacySelected.some(
-      (o: any) => o.value === 'allow_voter_choice_nudges'
+      (o: any) => o.value === 'allow_nudges' || o.value === 'allow_voter_choice_nudges'
+    );
+
+    const huddleSelected =
+      values.huddle_settings_block?.huddle_checkboxes?.selected_options ??
+      values.huddle_settings_block?.huddle_checkbox?.selected_options ?? [];
+    const autoPromptHuddlePoll = huddleSelected.some(
+      (o: any) => o.value === 'auto_prompt_huddle_poll'
     );
 
     const quorumOptionVal =
@@ -675,6 +684,7 @@ export function registerViewHandlers(app: App) {
         defaultQuorumType,
         defaultQuorumPct,
         allowVoterChoiceNudges,
+        autoPromptHuddlePoll,
         maxNudgeChannelMembers: parsedMaxNudge,
         managerUserIds,
         ...(selectedLocaleValue !== undefined ? { locale: localeToSave } : {}),

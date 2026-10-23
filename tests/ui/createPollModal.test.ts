@@ -170,6 +170,34 @@ describe('Modal & App Home Views', () => {
     expect(durationBlock.element.initial_option.value).toBe('7d');
   });
 
+  it('buildCreatePollModalView presents thread-locked destination labels and hints when threadTs is set', () => {
+    const threadModal = buildCreatePollModalView({
+      channelId: 'C_THREAD_123',
+      threadTs: '1700000200.000300',
+      huddleMode: true,
+    });
+
+    const bannerBlock = threadModal.blocks.find(
+      (b: any) => b.block_id === 'huddle_target_banner'
+    ) as any;
+    expect(bannerBlock).toBeDefined();
+    expect(bannerBlock.text.text).toContain('<#C_THREAD_123>');
+    expect(bannerBlock.text.text).toContain('Target: Active Huddle Thread');
+
+    const channelBlock = threadModal.blocks.find(
+      (b: any) => b.block_id === 'channel_block'
+    ) as any;
+    expect(channelBlock.label.text).toBe('Channel (Thread host)');
+    expect(channelBlock.hint.text).toContain('keeping the main channel quiet');
+
+    const threadBlock = threadModal.blocks.find(
+      (b: any) => b.block_id === 'huddle_thread_block'
+    ) as any;
+    expect(threadBlock.label.text).toBe('Thread ID (locked)');
+    expect(threadBlock.element.initial_value).toBe('1700000200.000300');
+    expect(threadBlock.hint.text).toContain('Linked to this thread');
+  });
+
   it('buildAppHomeView renders the top bar, role badges, and creator-only Nudge button on small channels', () => {
     const samplePolls: PollSummary[] = [
       {

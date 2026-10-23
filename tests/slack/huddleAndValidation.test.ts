@@ -338,7 +338,7 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
       expect(meta.huddleMode).toBe(true);
     });
 
-    it('posts an in-thread standby card on Huddle start and opens the modal locked to that channelId and threadTs when clicked', async () => {
+    it('stays quiet by default on Huddle start, and only posts standby card when autoPromptHuddlePoll is enabled', async () => {
       const eventHandlers: Map<string, Function> = new Map();
       const actionHandlers: Map<string | RegExp, Function> = new Map();
       const mockApp = {
@@ -365,7 +365,7 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
         },
       } as any;
 
-      // 1. Huddle starts in C_STANDBY_CH
+      // 1. By default (autoPromptHuddlePoll is false), Huddle starts in C_STANDBY_CH without unsolicited messages
       await messageHandler({
         event: {
           channel: 'C_STANDBY_CH',
@@ -377,11 +377,33 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
         client: mockClient,
       });
 
+      expect(postMessageSpy).not.toHaveBeenCalled();
+
+      // Clear greeted cache so second huddle can trigger after enabling setting
+      clearGreetedHuddleThreads();
+
+      // 2. Enable autoPromptHuddlePoll in workspace settings
+      await PollService.updateWorkspaceSettings(workspaceId, {
+        autoPromptHuddlePoll: true,
+      });
+
+      // 3. Second Huddle starts with autoPromptHuddlePoll enabled -> standby card is posted
+      await messageHandler({
+        event: {
+          channel: 'C_STANDBY_CH',
+          ts: '1700000000.007777',
+          subtype: 'huddle_thread',
+          text: 'A huddle started',
+        },
+        body: { team_id: workspaceId },
+        client: mockClient,
+      });
+
       expect(postMessageSpy).toHaveBeenCalledTimes(1);
       expect(postMessageSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           channel: 'C_STANDBY_CH',
-          thread_ts: '1700000000.006666',
+          thread_ts: '1700000000.007777',
         })
       );
 
@@ -389,7 +411,7 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
       expect(standbyBlocks[0].accessory.action_id).toBe('open_huddle_poll_modal_action');
       const buttonValue = standbyBlocks[0].accessory.value;
 
-      // 2. Clicking the standby button opens the modal locked to C_STANDBY_CH and 1700000000.006666
+      // 4. Clicking the standby button opens the modal locked to C_STANDBY_CH and 1700000000.007777
       await standbyActionHandler({
         action: { value: buttonValue },
         ack: vi.fn().mockResolvedValue(undefined),
@@ -398,7 +420,7 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
           user: { id: 'U_HUDDLE_CLICKER' },
           team: { id: workspaceId },
           channel: { id: 'C_STANDBY_CH' },
-          message: { thread_ts: '1700000000.006666' },
+          message: { thread_ts: '1700000000.007777' },
         },
         client: mockClient,
       });
@@ -407,7 +429,7 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
       const openedModal = viewsOpenSpy.mock.calls[0][0].view;
       expect(JSON.parse(openedModal.private_metadata)).toEqual({
         channelId: 'C_STANDBY_CH',
-        threadTs: '1700000000.006666',
+        threadTs: '1700000000.007777',
         huddleMode: true,
       });
     });
@@ -496,6 +518,52 @@ describe('Huddle Thread Discovery, Permalink Parsing & Modal Flow', () => {
         },
       });
       expect(inlinePoll?.threadTs).toBe('1700000000.007770');
+
+      // 3. Sharing a YouTube link, tagging another coworker, or chatting in a thread stays completely silent
+      postMessageSpy.mockClear();
+      updateSpy.mockClear();
+
+      // Normal YouTube link shared in thread
+      await messageHandler({
+        event: {
+          channel: 'C_THREAD_TRIGGER_CH',
+          user: 'U_THREAD_USER',
+          ts: '1700000000.007773',
+          thread_ts: '1700000000.007770',
+          text: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+        body: { team_id: workspaceId },
+        client: mockClient,
+      });
+
+      // Tagging another coworker in thread
+      await messageHandler({
+        event: {
+          channel: 'C_THREAD_TRIGGER_CH',
+          user: 'U_THREAD_USER',
+          ts: '1700000000.007774',
+          thread_ts: '1700000000.007770',
+          text: '<@U_COWORKER> check out this video https://youtu.be/dQw4w9WgXcQ',
+        },
+        body: { team_id: workspaceId },
+        client: mockClient,
+      });
+
+      // Normal chat in thread
+      await messageHandler({
+        event: {
+          channel: 'C_THREAD_TRIGGER_CH',
+          user: 'U_THREAD_USER',
+          ts: '1700000000.007775',
+          thread_ts: '1700000000.007770',
+          text: 'Thanks for sharing the video!',
+        },
+        body: { team_id: workspaceId },
+        client: mockClient,
+      });
+
+      expect(postMessageSpy).not.toHaveBeenCalled();
+      expect(updateSpy).not.toHaveBeenCalled();
     });
 
     it('opens the modal locked to the thread channelId and threadTs from create_poll_thread_shortcut and auto-detects active Huddle on submit from create_poll_shortcut', async () => {

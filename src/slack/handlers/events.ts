@@ -91,20 +91,40 @@ async function handleInThreadPollitoTrigger(
   const rawText = String(event.text ?? '').trim();
   if (!rawText) return;
 
-  const isAppMention =
-    event.type === 'app_mention' ||
-    /^<@[A-Z0-9]+>/i.test(rawText) ||
-    /^@pollito\b/i.test(rawText);
+  const threadTs = String(event.thread_ts || '').trim();
+  if (!threadTs) return;
+
+  let isBotMention = false;
+  if (event.type === 'app_mention') {
+    isBotMention = true;
+  } else if (/^@pollito\b/i.test(rawText)) {
+    isBotMention = true;
+  } else {
+    const mentionMatch = rawText.match(/^<@([A-Z0-9]+)>/i);
+    if (mentionMatch) {
+      const mentionedId = mentionMatch[1];
+      const authUser = body?.authorizations?.[0]?.user_id;
+      if (authUser && mentionedId === authUser) {
+        isBotMention = true;
+      } else {
+        try {
+          const auth = await client.auth?.test?.().catch(() => null);
+          if (auth?.user_id && auth.user_id === mentionedId) {
+            isBotMention = true;
+          }
+        } catch {
+          // ignore lookup errors
+        }
+      }
+    }
+  }
 
   const isKeywordTrigger =
     /^\/?pollito(?:-huddle)?(?:\s+huddle)?(?:\s*$|(?=\s+"))/i.test(rawText);
 
-  if (!isAppMention && !isKeywordTrigger) {
+  if (!isBotMention && !isKeywordTrigger) {
     return;
   }
-
-  const threadTs = String(event.thread_ts || event.ts || '').trim();
-  if (!threadTs) return;
 
   const dedupKey = `${channelId}:${String(event.ts || threadTs)}`;
   if (processedThreadTriggers.has(dedupKey)) {
@@ -269,39 +289,46 @@ export function registerEventHandlers(app: App) {
             greetedHuddleThreads.add(huddleKey);
 
             const workspaceId = String(
-              body?.team_id || body?.team?.id || event?.team || ''
+              body?.team_id || body?.team?.id || event?.team || event?.team_id || ''
             ).trim();
-            const userId = String(msg?.user || event?.user || '').trim();
-            const translator = await getRequestTranslator(client, {
-              userId: userId || undefined,
-              workspaceId: workspaceId || undefined,
-            });
-            const { t } = translator;
 
-            await client.chat?.postMessage?.({
-              channel: channelId,
-              thread_ts: rootTs,
-              text: t('huddle.standby.fallback'),
-              blocks: [
-                {
-                  type: 'section',
-                  text: {
-                    type: 'mrkdwn',
-                    text: t('huddle.standby.body'),
-                  },
-                  accessory: {
-                    type: 'button',
-                    action_id: 'open_huddle_poll_modal_action',
-                    style: 'primary',
+            const settings = workspaceId
+              ? await PollService.getWorkspaceSettings(workspaceId)
+              : null;
+
+            if (settings?.autoPromptHuddlePoll) {
+              const userId = String(msg?.user || event?.user || '').trim();
+              const translator = await getRequestTranslator(client, {
+                userId: userId || undefined,
+                workspaceId: workspaceId || undefined,
+              });
+              const { t } = translator;
+
+              await client.chat?.postMessage?.({
+                channel: channelId,
+                thread_ts: rootTs,
+                text: t('huddle.standby.fallback'),
+                blocks: [
+                  {
+                    type: 'section',
                     text: {
-                      type: 'plain_text',
-                      text: t('huddle.standby.button'),
+                      type: 'mrkdwn',
+                      text: t('huddle.standby.body'),
                     },
-                    value: JSON.stringify({ channelId, threadTs: rootTs }),
+                    accessory: {
+                      type: 'button',
+                      action_id: 'open_huddle_poll_modal_action',
+                      style: 'primary',
+                      text: {
+                        type: 'plain_text',
+                        text: t('huddle.standby.button'),
+                      },
+                      value: JSON.stringify({ channelId, threadTs: rootTs }),
+                    },
                   },
-                },
-              ],
-            });
+                ],
+              });
+            }
           }
           return;
         }

@@ -46,6 +46,7 @@ export interface WorkspaceSettingsData {
   allowVoterChoiceNudges: boolean;
   maxNudgeChannelMembers: number;
   allowMultipleActivePolls: boolean;
+  autoPromptHuddlePoll: boolean;
   managerUserIds: string[];
   /** Optional workspace language override; null/undefined means follow each user's Slack language. */
   locale?: Locale | null;
@@ -245,6 +246,7 @@ export class PollService {
         allowVoterChoiceNudges: true,
         maxNudgeChannelMembers: DEFAULT_MAX_NUDGE_MEMBERS,
         allowMultipleActivePolls: false,
+        autoPromptHuddlePoll: false,
         managerUserIds: [],
       };
     }
@@ -272,6 +274,7 @@ export class PollService {
           ? record.maxNudgeChannelMembers
           : DEFAULT_MAX_NUDGE_MEMBERS,
       allowMultipleActivePolls: record?.allowMultipleActivePolls ?? false,
+      autoPromptHuddlePoll: record?.autoPromptHuddlePoll ?? false,
       managerUserIds,
       ...(normalizeLocale(record?.locale) ? { locale: normalizeLocale(record?.locale)! } : {}),
     };
@@ -337,6 +340,9 @@ export class PollService {
     }
     if (typeof input.allowMultipleActivePolls === 'boolean') {
       updateData.allowMultipleActivePolls = input.allowMultipleActivePolls;
+    }
+    if (typeof input.autoPromptHuddlePoll === 'boolean') {
+      updateData.autoPromptHuddlePoll = input.autoPromptHuddlePoll;
     }
     if ('locale' in input) {
       updateData.locale = normalizeLocale(input.locale) ?? null;
