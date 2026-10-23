@@ -534,6 +534,25 @@ describe('PollService', () => {
       ).toBe(true);
     });
 
+    it('defaults autoPromptHuddlePoll to false and updates it via updateWorkspaceSettings', async () => {
+      const initialSettings = await PollService.getWorkspaceSettings(workspaceId);
+      expect(initialSettings.autoPromptHuddlePoll).toBe(false);
+
+      const updated = await PollService.updateWorkspaceSettings(workspaceId, {
+        autoPromptHuddlePoll: true,
+      });
+      expect(updated.autoPromptHuddlePoll).toBe(true);
+
+      const refetched = await PollService.getWorkspaceSettings(workspaceId);
+      expect(refetched.autoPromptHuddlePoll).toBe(true);
+
+      await PollService.updateWorkspaceSettings(workspaceId, {
+        autoPromptHuddlePoll: false,
+      });
+      const disabled = await PollService.getWorkspaceSettings(workspaceId);
+      expect(disabled.autoPromptHuddlePoll).toBe(false);
+    });
+
     it('scopes getPollAnalyticsStats to personal polls for standard members and all workspace polls for managers', async () => {
       const p1 = await PollService.createPoll({
         workspaceId,

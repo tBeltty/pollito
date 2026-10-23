@@ -13,6 +13,7 @@ export interface WorkspaceSettingsData {
   defaultQuorumPct: number;
   maxNudgeChannelMembers: number;
   allowVoterChoiceNudges: boolean;
+  autoPromptHuddlePoll?: boolean;
   managerUserIds: string[];
   /** Workspace language override. Undefined follows each user's Slack language. */
   locale?: Locale | null;
@@ -50,6 +51,9 @@ export function buildSettingsModalView(
     const nudgesLabel = options.allowVoterChoiceNudges
       ? t('settings.value.nudgesEnabled', { max: maxNudgeMembers })
       : t('settings.value.nudgesDisabled');
+    const huddlePromptLabel = options.autoPromptHuddlePoll
+      ? t('settings.value.huddlePromptEnabled')
+      : t('settings.value.huddlePromptDisabled');
     const managersLabel =
       options.managerUserIds && options.managerUserIds.length > 0
         ? activeTranslator.formatList(options.managerUserIds.map((id) => `<@${id}>`))
@@ -89,6 +93,7 @@ export function buildSettingsModalView(
             { type: 'mrkdwn', text: t('settings.field.privacy', { value: privacyLabel }) },
             { type: 'mrkdwn', text: t('settings.field.quorum', { value: quorumLabel }) },
             { type: 'mrkdwn', text: t('settings.field.nudges', { value: nudgesLabel }) },
+            { type: 'mrkdwn', text: t('settings.field.huddlePrompt', { value: huddlePromptLabel }) },
           ],
         },
         {
@@ -135,6 +140,18 @@ export function buildSettingsModalView(
       text: t('settings.option.nudges'),
     },
     value: 'allow_nudges',
+  };
+
+  const huddlePromptOption: MrkdwnOption = {
+    text: {
+      type: 'mrkdwn',
+      text: t('settings.option.huddlePrompt'),
+    },
+    description: {
+      type: 'plain_text',
+      text: t('settings.option.huddlePromptHint'),
+    },
+    value: 'auto_prompt_huddle_poll',
   };
 
   const initialPrivacyOptions: MrkdwnOption[] = [];
@@ -239,6 +256,23 @@ export function buildSettingsModalView(
         label: {
           type: 'plain_text',
           text: t('settings.label.privacy'),
+        },
+      },
+      {
+        type: 'input',
+        block_id: 'huddle_settings_block',
+        optional: true,
+        element: {
+          type: 'checkboxes',
+          action_id: 'huddle_checkboxes',
+          options: [huddlePromptOption],
+          ...(options.autoPromptHuddlePoll
+            ? { initial_options: [huddlePromptOption] }
+            : {}),
+        },
+        label: {
+          type: 'plain_text',
+          text: t('settings.label.huddle'),
         },
       },
       {

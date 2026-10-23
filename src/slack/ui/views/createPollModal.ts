@@ -262,9 +262,21 @@ export function buildCreatePollModalView(
         },
         label: {
           type: 'plain_text',
-          text: isCreatingTemplate ? t('cp.channel.labelTemplate') : t('cp.channel.label'),
+          text: isCreatingTemplate
+            ? t('cp.channel.labelTemplate')
+            : preset.threadTs
+              ? t('cp.channel.labelThread')
+              : t('cp.channel.label'),
           emoji: true,
         },
+        ...(preset.threadTs
+          ? {
+              hint: {
+                type: 'plain_text',
+                text: t('cp.channel.hintThreadLocked'),
+              },
+            }
+          : {}),
       },
       ...(isHuddleMode
         ? [
@@ -283,8 +295,18 @@ export function buildCreatePollModalView(
               },
               label: {
                 type: 'plain_text' as const,
-                text: t('cp.huddleThread.label'),
+                text: preset.threadTs
+                  ? t('cp.huddleThread.labelLocked')
+                  : t('cp.huddleThread.label'),
               },
+              ...(preset.threadTs
+                ? {
+                    hint: {
+                      type: 'plain_text',
+                      text: t('cp.huddleThread.hintLocked'),
+                    },
+                  }
+                : {}),
             },
           ]
         : []),

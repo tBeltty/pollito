@@ -30,6 +30,7 @@ model WorkspaceSettings {
   allowVoterChoiceNudges   Boolean   @default(true)
   maxNudgeChannelMembers   Int       @default(50)
   allowMultipleActivePolls Boolean   @default(false)
+  autoPromptHuddlePoll     Boolean   @default(false)
   managerUserIds           String?   // Comma-separated Slack user IDs for delegated Bot Managers
   locale                   String?   // Workspace language override (en | es); null follows each user's Slack language
   anonymousSalt            String    // Cryptographic salt for voter pseudonymization
