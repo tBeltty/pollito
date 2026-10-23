@@ -86,6 +86,13 @@ describe('Modal & App Home Views', () => {
     ) as any;
     const durationValues = durationBlock.element.options.map((o: any) => o.value);
     expect(durationValues).toContain('7d');
+    expect(durationBlock.element.initial_option.value).toBe('1h');
+
+    const noLimitModal = buildCreatePollModalView({ duration: 'none' });
+    const noLimitDurationBlock = noLimitModal.blocks.find(
+      (b: any) => b.block_id === 'duration_block'
+    ) as any;
+    expect(noLimitDurationBlock.element.initial_option.value).toBe('none');
 
     const saveTemplateBlock = modal.blocks.find(
       (b: any) => b.block_id === 'save_template_block'

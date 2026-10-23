@@ -146,13 +146,13 @@ async function handleInThreadPollitoTrigger(
 
   if (matches.length >= 3 && workspaceId) {
     try {
-      await PollService.assertCanCreatePollInChannel(workspaceId, channelId);
+      await PollService.assertCanCreatePollInChannel(workspaceId, channelId, threadTs);
     } catch (err: any) {
       await client.chat?.postEphemeral?.({
         channel: channelId,
         user: userId,
         thread_ts: threadTs,
-        text: err?.message || t('error.activePollInChannel'),
+        text: err?.message || (threadTs ? t('error.activePollInThread') : t('error.activePollInChannel')),
       });
       return;
     }
@@ -187,6 +187,7 @@ async function handleInThreadPollitoTrigger(
       creatorId: userId,
       question,
       options,
+      closesAt: new Date(Date.now() + 60 * 60 * 1000),
       isAnonymous: settings.defaultAnonymous,
       quorumType:
         (settings.defaultQuorumType as 'PERCENTAGE' | 'NONE') || 'NONE',

@@ -138,22 +138,6 @@ export function registerViewHandlers(app: App) {
       (body as any).user?.team_id ||
       '';
 
-    // Enforce Single Active Poll per Channel Policy before ack()
-    if (workspaceId && validated.selectedChannel) {
-      try {
-        await PollService.assertCanCreatePollInChannel(workspaceId, validated.selectedChannel);
-      } catch (err: any) {
-        await ack({
-          response_action: 'errors',
-          errors: {
-            channel_block:
-              err?.message || 'An active poll is already running in this channel.',
-          },
-        });
-        return;
-      }
-    }
-
     const customThreadRaw =
       values.huddle_thread_block?.huddle_thread_input?.value?.trim() ?? '';
     if (customThreadRaw) {
@@ -207,13 +191,33 @@ export function registerViewHandlers(app: App) {
       }
     }
 
+    // Enforce Single Active Poll per Channel/Thread Policy before ack()
+    if (workspaceId && validated.selectedChannel) {
+      try {
+        await PollService.assertCanCreatePollInChannel(
+          workspaceId,
+          validated.selectedChannel,
+          threadTsFromMeta
+        );
+      } catch (err: any) {
+        await ack({
+          response_action: 'errors',
+          errors: {
+            channel_block:
+              err?.message || 'An active poll is already running in this channel.',
+          },
+        });
+        return;
+      }
+    }
+
     await ack();
 
     const options = [validated.opt1, validated.opt2, validated.opt3, validated.opt4].filter(
       (opt): opt is string => Boolean(opt && opt.trim().length > 0)
     );
 
-    const durationValue = values.duration_block?.duration_select?.selected_option?.value ?? 'none';
+    const durationValue = values.duration_block?.duration_select?.selected_option?.value ?? '1h';
     let closesAt: Date | null = null;
     const now = Date.now();
     if (durationValue === '15m') {
@@ -451,7 +455,7 @@ export function registerViewHandlers(app: App) {
     const options = [validated.opt1, validated.opt2, validated.opt3, validated.opt4].filter(
       (opt): opt is string => Boolean(opt && opt.trim().length > 0)
     );
-    const durationValue = values.duration_block?.duration_select?.selected_option?.value ?? 'none';
+    const durationValue = values.duration_block?.duration_select?.selected_option?.value ?? '1h';
     const templateName =
       values.template_name_block?.template_name_input?.value?.trim() ||
       validated.question.slice(0, 75);
@@ -573,7 +577,7 @@ export function registerViewHandlers(app: App) {
     const options = [validated.opt1, validated.opt2, validated.opt3, validated.opt4].filter(
       (opt): opt is string => Boolean(opt && opt.trim().length > 0)
     );
-    const durationValue = values.duration_block?.duration_select?.selected_option?.value ?? 'none';
+    const durationValue = values.duration_block?.duration_select?.selected_option?.value ?? '1h';
     const workspaceId =
       body.team?.id ||
       (body as any).view?.team_id ||

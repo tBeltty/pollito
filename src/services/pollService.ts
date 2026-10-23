@@ -199,13 +199,20 @@ export class PollService {
   }
 
   /**
-   * Returns the currently active poll in a channel, if any.
+   * Returns the currently active poll in a channel or thread, if any.
+   * Differentiates main channel polls (threadTs: null) from specific thread polls.
    */
-  static async getActivePollInChannel(workspaceId: string, channelId: string) {
+  static async getActivePollInChannel(
+    workspaceId: string,
+    channelId: string,
+    threadTs?: string | null
+  ) {
+    const threadFilter = threadTs ? threadTs : null;
     return prisma.poll.findFirst({
       where: {
         workspaceId,
         channelId,
+        threadTs: threadFilter,
         status: 'ACTIVE',
       },
       orderBy: { createdAt: 'desc' },
@@ -213,21 +220,26 @@ export class PollService {
   }
 
   /**
-   * Verifies that a new poll can be launched in the target channel according to workspace concurrency policy.
+   * Verifies that a new poll can be launched in the target channel or thread according to workspace concurrency policy.
+   * A poll in a thread never blocks the main channel, and a poll in the main channel never blocks threads.
    */
   static async assertCanCreatePollInChannel(
     workspaceId: string,
-    channelId: string
+    channelId: string,
+    threadTs?: string | null
   ): Promise<void> {
     if (!workspaceId || !channelId) return;
     const settings = await this.getWorkspaceSettings(workspaceId);
     if (!settings.allowMultipleActivePolls) {
       const existingActive = await this.getActivePollInChannel(
         workspaceId,
-        channelId
+        channelId,
+        threadTs
       );
       if (existingActive) {
-        throw new LocalizedError('error.activePollInChannel');
+        throw new LocalizedError(
+          threadTs ? 'error.activePollInThread' : 'error.activePollInChannel'
+        );
       }
     }
   }
@@ -456,7 +468,7 @@ export class PollService {
     }
 
     if (enforceChannelConcurrency) {
-      await this.assertCanCreatePollInChannel(workspaceId, channelId);
+      await this.assertCanCreatePollInChannel(workspaceId, channelId, threadTs);
     }
 
     const normalizedQuorumTarget =
@@ -1351,6 +1363,45 @@ export class PollService {
       },
       data: {
         huddleEndReminderSent: true,
+      },
+    });
+    return res.count > 0;
+  }
+
+  /**
+   * Finds active polls older than the cutoff threshold (e.g. 24 hours) that have not received a stale reminder DM yet.
+   */
+  static async getStaleActivePollsPendingReminder(
+    cutoff: Date = new Date(Date.now() - 24 * 60 * 60 * 1000)
+  ) {
+    return prisma.poll.findMany({
+      where: {
+        status: 'ACTIVE',
+        staleReminderSent: false,
+        createdAt: {
+          lte: cutoff,
+        },
+      },
+      include: {
+        workspace: { select: { botToken: true } },
+        options: { orderBy: { index: 'asc' } },
+        participations: { select: { voterId: true } },
+      },
+      take: 20,
+    });
+  }
+
+  /**
+   * Atomically claims the 24-hour stale reminder for a poll to prevent duplicate DMs.
+   */
+  static async claimStalePollReminder(pollId: string): Promise<boolean> {
+    const res = await prisma.poll.updateMany({
+      where: {
+        id: pollId,
+        staleReminderSent: false,
+      },
+      data: {
+        staleReminderSent: true,
       },
     });
     return res.count > 0;

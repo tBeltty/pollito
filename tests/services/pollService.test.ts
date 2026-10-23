@@ -1067,5 +1067,204 @@ describe('PollService', () => {
       const afterClaimList = await PollService.getActiveHuddlePollsPendingReminder('C_HUDDLE_REMINDER_TEST');
       expect(afterClaimList.some((p) => p.id === huddlePoll.id)).toBe(false);
     });
+
+    it('differentiates threads from main channel for active poll concurrency', async () => {
+      const channelId = 'C_THREAD_DIFF_TEST';
+      const threadTs1 = '1700000000.111111';
+      const threadTs2 = '1700000000.222222';
+
+      // 1. Initially channel and threads can create polls
+      await expect(
+        PollService.assertCanCreatePollInChannel(workspaceId, channelId)
+      ).resolves.not.toThrow();
+      await expect(
+        PollService.assertCanCreatePollInChannel(workspaceId, channelId, threadTs1)
+      ).resolves.not.toThrow();
+
+      // 2. Create an active poll in the main channel
+      const mainPoll = await PollService.createPoll({
+        workspaceId,
+        channelId,
+        messageTs: '1700000000.003001',
+        creatorId: 'U_OWNER_1',
+        question: 'Main Channel Poll',
+        options: ['Yes', 'No'],
+      });
+
+      // Main channel is blocked
+      const activeMain = await PollService.getActivePollInChannel(workspaceId, channelId);
+      expect(activeMain?.id).toBe(mainPoll.id);
+      await expect(
+        PollService.assertCanCreatePollInChannel(workspaceId, channelId)
+      ).rejects.toThrow('An active poll is already running in this channel.');
+
+      // But threadTs1 is NOT blocked by the main channel poll!
+      const activeThread1 = await PollService.getActivePollInChannel(
+        workspaceId,
+        channelId,
+        threadTs1
+      );
+      expect(activeThread1).toBeNull();
+      await expect(
+        PollService.assertCanCreatePollInChannel(workspaceId, channelId, threadTs1)
+      ).resolves.not.toThrow();
+
+      // 3. Create an active poll in threadTs1
+      const threadPoll1 = await PollService.createPoll({
+        workspaceId,
+        channelId,
+        threadTs: threadTs1,
+        messageTs: '1700000000.003002',
+        creatorId: 'U_OWNER_2',
+        question: 'Thread 1 Poll',
+        options: ['Agree', 'Disagree'],
+      });
+
+      // threadTs1 is now blocked
+      const activeThread1After = await PollService.getActivePollInChannel(
+        workspaceId,
+        channelId,
+        threadTs1
+      );
+      expect(activeThread1After?.id).toBe(threadPoll1.id);
+      await expect(
+        PollService.assertCanCreatePollInChannel(workspaceId, channelId, threadTs1)
+      ).rejects.toThrow('An active poll is already running in this thread.');
+
+      // threadTs2 is NOT blocked by threadTs1 or main channel!
+      await expect(
+        PollService.assertCanCreatePollInChannel(workspaceId, channelId, threadTs2)
+      ).resolves.not.toThrow();
+
+      // 4. Close main channel poll -> main channel is unblocked, threadTs1 remains blocked
+      await PollService.closePoll(mainPoll.id, 'U_OWNER_1', 'CLOSED');
+      await expect(
+        PollService.assertCanCreatePollInChannel(workspaceId, channelId)
+      ).resolves.not.toThrow();
+      await expect(
+        PollService.assertCanCreatePollInChannel(workspaceId, channelId, threadTs1)
+      ).rejects.toThrow('An active poll is already running in this thread.');
+    });
+
+    it('queries 24h stale active polls and dispatches creator reminder DM with close action', async () => {
+      const channelId = 'C_STALE_REMINDER_TEST';
+      const now = Date.now();
+      const twentyFiveHoursAgo = new Date(now - 25 * 60 * 60 * 1000);
+      const twoHoursAgo = new Date(now - 2 * 60 * 60 * 1000);
+
+      // Stale active poll (> 24h old, staleReminderSent: false)
+      const stalePoll = await PollService.createPoll({
+        workspaceId,
+        channelId,
+        messageTs: '1700000000.004001',
+        creatorId: 'U_STALE_CREATOR',
+        question: 'Forgotten 24h Poll',
+        options: ['Option A', 'Option B'],
+      });
+      await prisma.poll.update({
+        where: { id: stalePoll.id },
+        data: { createdAt: twentyFiveHoursAgo },
+      });
+
+      // Fresh active poll (< 24h old)
+      const freshPoll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_FRESH_TEST',
+        messageTs: '1700000000.004002',
+        creatorId: 'U_FRESH_CREATOR',
+        question: 'Fresh Poll',
+        options: ['Option A', 'Option B'],
+      });
+      await prisma.poll.update({
+        where: { id: freshPoll.id },
+        data: { createdAt: twoHoursAgo },
+      });
+
+      // Already reminded stale poll
+      const remindedPoll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_REMINDED_TEST',
+        messageTs: '1700000000.004003',
+        creatorId: 'U_REMINDED_CREATOR',
+        question: 'Reminded Poll',
+        options: ['Option A', 'Option B'],
+      });
+      await prisma.poll.update({
+        where: { id: remindedPoll.id },
+        data: {
+          createdAt: twentyFiveHoursAgo,
+          staleReminderSent: true,
+        },
+      });
+
+      // Closed old poll
+      const closedOldPoll = await PollService.createPoll({
+        workspaceId,
+        channelId: 'C_CLOSED_TEST',
+        messageTs: '1700000000.004004',
+        creatorId: 'U_CLOSED_CREATOR',
+        question: 'Closed Old Poll',
+        options: ['Option A', 'Option B'],
+      });
+      await prisma.poll.update({
+        where: { id: closedOldPoll.id },
+        data: { createdAt: twentyFiveHoursAgo, status: 'CLOSED' },
+      });
+
+      // 1. Query pending stale polls
+      const staleCutoff = new Date(now - 24 * 60 * 60 * 1000);
+      const pendingStale = await PollService.getStaleActivePollsPendingReminder(staleCutoff);
+      expect(pendingStale.some((p) => p.id === stalePoll.id)).toBe(true);
+      expect(pendingStale.some((p) => p.id === freshPoll.id)).toBe(false);
+      expect(pendingStale.some((p) => p.id === remindedPoll.id)).toBe(false);
+      expect(pendingStale.some((p) => p.id === closedOldPoll.id)).toBe(false);
+
+      // 2. Atomic claim verification
+      const claim1 = await PollService.claimStalePollReminder(stalePoll.id);
+      expect(claim1).toBe(true);
+      const claim2 = await PollService.claimStalePollReminder(stalePoll.id);
+      expect(claim2).toBe(false);
+
+      // Reset staleReminderSent to test worker execution
+      await prisma.poll.update({
+        where: { id: stalePoll.id },
+        data: { staleReminderSent: false },
+      });
+
+      // 3. Worker checkStaleActivePolls execution
+      const postMessageSpy = vi.fn().mockResolvedValue({ ok: true });
+      const getPermalinkSpy = vi.fn().mockResolvedValue({
+        ok: true,
+        permalink: 'https://slack.com/archives/C_STALE_REMINDER_TEST/p1700000000004001',
+      });
+
+      const mockApp = {
+        client: {
+          chat: {
+            postMessage: postMessageSpy,
+            getPermalink: getPermalinkSpy,
+          },
+        },
+      } as any;
+
+      const worker = new PollTimerWorker(mockApp, 30000);
+      await worker.checkStaleActivePolls();
+
+      expect(postMessageSpy).toHaveBeenCalledTimes(1);
+      const postCallArgs = postMessageSpy.mock.calls[0][0];
+      expect(postCallArgs.channel).toBe('U_STALE_CREATOR');
+      expect(postCallArgs.text).toContain('Forgotten 24h Poll');
+      expect(postCallArgs.blocks).toBeDefined();
+
+      const actionBlock = postCallArgs.blocks.find((b: any) => b.type === 'actions');
+      expect(actionBlock).toBeDefined();
+      const closeBtn = actionBlock.elements.find((el: any) => el.action_id === 'poll_close_click');
+      expect(closeBtn).toBeDefined();
+      expect(closeBtn.value).toBe(stalePoll.id);
+
+      // Poll in database is now marked staleReminderSent: true
+      const updatedInDb = await prisma.poll.findUnique({ where: { id: stalePoll.id } });
+      expect(updatedInDb?.staleReminderSent).toBe(true);
+    });
   });
 });

@@ -167,8 +167,10 @@ export function buildCreatePollModalView(
     },
   ];
 
+  const defaultDuration = preset.duration ?? '1h';
   const selectedDurationOption =
-    durationOptions.find((opt) => opt.value === preset.duration) ?? durationOptions[0];
+    durationOptions.find((opt) => opt.value === defaultDuration) ??
+    durationOptions.find((opt) => opt.value === '1h')!;
 
   const clampedQuorumTarget = Math.max(51, preset?.quorumTarget ?? 70);
 

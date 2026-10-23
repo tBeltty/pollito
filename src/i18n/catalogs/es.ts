@@ -96,6 +96,12 @@ export const es: MessageCatalog = {
   'huddle.reminder.body':
     '*El Huddle terminó.*\n*<{permalink}|{question}>* sigue abierta para votar en el hilo.',
   'huddle.reminder.button': 'Ir a la votación',
+  'poll.staleReminder.fallback':
+    'Recordatorio: tu votación "{question}" en <#{channelId}> lleva más de 24 horas activa.',
+  'poll.staleReminder.body':
+    '👋 Hola. Tu votación *"{question}"* en <#{channelId}> lleva abierta más de 24 horas.\n\nSi tu equipo ya terminó de participar, puedes cerrarla cuando gustes para liberar el canal.',
+  'poll.staleReminder.jump': 'Ir a la votación',
+  'poll.staleReminder.close': 'Cerrar votación',
   'huddle.standby.fallback':
     'Pollito está listo en este hilo de Huddle. Pulsa para lanzar una votación aquí.',
   'huddle.standby.body':
@@ -123,6 +129,8 @@ export const es: MessageCatalog = {
   'error.workspaceIdMissing': 'Algo salió mal. Inténtalo de nuevo.',
   'error.activePollInChannel':
     'Ya hay una votación activa en este canal. Ciérrala primero o elige otro canal.',
+  'error.activePollInThread':
+    'Ya hay una votación activa en este hilo. Ciérrala primero o crea la votación en otro hilo.',
   'error.pollNotFound': 'Votación no encontrada.',
   'error.pollClosed': 'Esta votación está cerrada y ya no acepta votos.',
   'error.invalidOption': 'Opción de votación no válida.',
