@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Pollito: Multi-Workspace Cryptographic Anonymous Voting and Security Service for Slack"
+type: software
+authors:
+  - family-names: Correa
+    given-names: Jhonatan
+    orcid: "https://orcid.org/0009-0006-7779-8729"
+    affiliation: "tBelt"
+version: "0.3.1"
+license-url: "https://github.com/tBeltty/pollito/blob/main/LICENSE"
+repository-code: "https://github.com/tBeltty/pollito"
